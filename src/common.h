@@ -19,7 +19,7 @@
 #define STRINGIZE(x) STRINGIZE_INTENRAL(x)
 #define STRINGIZE_INTENRAL(x) #x
 
-// to make common.h and status.h independent of any other code, we use ASSERT
+// to make some basic classes independent of any other code, we use ASSERT
 // instead of LL_CHECK in these files
 #define ASSERT(x) do { if (!(x)) { abort(); }} while (0)
 

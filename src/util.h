@@ -9,6 +9,110 @@
 namespace llama {
 
 // ----------------------------------------------------------------------------
+// BaseArray
+// ----------------------------------------------------------------------------
+
+template<typename T>
+class BaseArray {
+ public:
+  using element_type = T;
+  using value_type = std::remove_cv_t<T>;
+  using pointer = T *;
+  using const_pointer = const T *;
+  using reference = T &;
+  using const_reference = const T &;
+  using iterator = pointer;
+  using const_iterator = const_pointer;
+  using reverse_iterator = std::reverse_iterator<iterator>;
+  using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+  using size_type = size_t;
+  using difference_type = ptrdiff_t;
+
+  static const size_type npos = ~(size_type(0));
+
+  BaseArray() : BaseArray(nullptr, 0) {}
+  BaseArray(T *ptr, size_type size) noexcept : 
+      ptr_(ptr),
+      size_(size) {}
+
+  pointer data() const noexcept { return ptr_; }
+  size_type size() const noexcept { return size_; }
+  bool empty() const noexcept { return size_ == 0; }
+  reference operator[](size_type i) const noexcept {
+    return *(ptr_ + i);
+  }
+  reference at(size_type i) const {
+    ASSERT(i < size_ && i >= 0);
+    return *(ptr_ + i);
+  }
+  reference front() const noexcept { ASSERT(!empty()); return *ptr_; }
+  reference back() const noexcept { 
+    ASSERT(!empty());
+    return *(ptr_ + size_ - 1);
+  }
+  iterator begin() const noexcept { return ptr_; }
+  iterator end() const noexcept { return ptr_ + size_; }
+  const_iterator cbegin() const noexcept { return begin(); }
+  const_iterator cend() const noexcept { return end(); }
+  reverse_iterator rbegin() const noexcept {
+    return reverse_iterator(end());
+  }
+  reverse_iterator rend() const noexcept {
+    return reverse_iterator(begin());
+  }
+  const_reverse_iterator crbegin() const noexcept { return rbegin(); }
+  const_reverse_iterator crend() const noexcept { return rend(); }
+
+ private:
+  pointer ptr_;
+  size_type size_;
+};
+
+// ----------------------------------------------------------------------------
+// FixedArray
+// ----------------------------------------------------------------------------
+
+template<typename T>
+class FixedArray : public BaseArray<T> {
+ public:
+  FixedArray() noexcept : ptr_(nullptr), len_(0) {}
+  FixedArray(int size) noexcept : 
+      ptr_(size ? new T[size] : nullptr),
+      size_(size) {}
+  ~FixedArray() noexcept {
+    delete[] ptr_;
+    ptr_ = nullptr;
+    size_ = 0;
+  }
+
+  // copy
+  FixedArray(FixedArray<T> &) = delete;
+  FixedArray<T> &operator=(FixedArray<T> &) = delete;
+
+  // move
+  FixedArray(FixedArray<T> &&array) noexcept {
+    ptr_ = array.ptr_;
+    size_ = array.size_;
+
+    array.ptr_ = nullptr;
+    array.size_ = 0;
+  }
+  FixedArray<T> &operator=(FixedArray<T> &&array) noexcept {
+    if (ptr_) {
+      delete[] ptr_;
+    }
+
+    ptr_ = array.ptr_;
+    size_ = array.size_;
+
+    array.ptr_ = nullptr;
+    array.size_ = 0;
+
+    return *this;
+  }
+};
+
+// ----------------------------------------------------------------------------
 // NonCopyable
 // ----------------------------------------------------------------------------
 
