@@ -27,7 +27,7 @@ TensorBase1D<T>::~TensorBase1D() {}
 
 template<typename T>
 void TensorBase1D<T>::CopyFrom(const TensorBase1D<T> &tensor) {
-  LL_CHECK(shape0() == tensor.shape0());
+  CHECK(shape0() == tensor.shape0());
   std::copy(tensor.begin(), tensor.end(), begin());
 }
 
@@ -38,7 +38,7 @@ int TensorBase1D<T>::NumEl() const {
 
 template<typename T>
 T TensorBase1D<T>::Max() const {
-  LL_CHECK(!empty());
+  CHECK(!empty());
   T max = *data_;
   for (int i = 0; i < NumEl(); ++i) {
     max = std::max(max, data_[i]);
@@ -90,7 +90,7 @@ void TensorBase1D<T>::ApplyLogSoftmax() {
 
 template<typename T>
 void TensorBase1D<T>::ElementMul(const TensorBase1D<T> &tensor) {
-  LL_CHECK(shape0() == tensor.shape0());
+  CHECK(shape0() == tensor.shape0());
   for (int i = 0; i < shape0(); ++i) {
     data_[i] *= tensor.data_[i];
   }
@@ -235,7 +235,7 @@ int TensorBase2D<T>::NumEl() const {
 
 template<typename T>
 T TensorBase2D<T>::Max() const {
-  LL_CHECK(!empty());
+  CHECK(!empty());
   T max = *data_;
   for (int i = 0; i < NumEl(); ++i) {
     max = std::max(max, data_[i]);
@@ -260,7 +260,7 @@ void TensorBase2D<T>::Add(T scalar) {
 
 template<typename T>
 void TensorBase2D<T>::Add(T alpha, const TensorBase2D<T> &tensor) {
-  LL_CHECK(tensor.shape0() == shape0() && tensor.shape1() == shape1());
+  CHECK(tensor.shape0() == shape0() && tensor.shape1() == shape1());
   for (int i = 0; i < NumEl(); ++i) {
     data_[i] += alpha * tensor.data_[i];
   }
@@ -291,15 +291,15 @@ TensorView1D<T> TensorBase2D<T>::operator[](int index0) const {
 template<typename T>
 TensorView2D<T> TensorBase2D<T>::Slice(int start, int stop) const {
   int new_shape0 = stop - start;
-  LL_CHECK(new_shape0 > 0);
+  CHECK(new_shape0 > 0);
 
   return TensorView2D<T>::From(data_ + start * shape1_, new_shape0, shape1_);
 }
 
 template<typename T>
 void TensorBase2D<T>::CopyFrom(const TensorBase2D<T> &tensor) {
-  LL_CHECK(shape0() == tensor.shape0());
-  LL_CHECK(shape1() == tensor.shape1());
+  CHECK(shape0() == tensor.shape0());
+  CHECK(shape1() == tensor.shape1());
 
   for (int i = 0; i < shape0(); ++i) {
     (*this)[i].CopyFrom(tensor[i]);
@@ -380,8 +380,8 @@ Tensor2D<T>::Tensor2D(Tensor2D<T> &&tensor) noexcept:
 
 template <typename T>
 Tensor2D<T>::Tensor2D(Tensor &&tensor) {
-  LL_CHECK(tensor.rank_ == 2);
-  LL_CHECK(tensor.dtype_ == TypeID<T>());
+  CHECK(tensor.rank_ == 2);
+  CHECK(tensor.dtype_ == TypeID<T>());
 
   TensorBase2D<T>::data_ = reinterpret_cast<T *>(tensor.data_);
   TensorBase2D<T>::shape0_ = tensor.shape_[0];
@@ -440,7 +440,7 @@ TensorBase::TensorBase(
       : rank_(static_cast<int16_t>(shape.size())),
         dtype_(dtype),
         data_(data) {
-  LL_CHECK(shape.size() < kMaxRank);
+  CHECK(shape.size() < kMaxRank);
   std::copy(shape.begin(), shape.end(), shape_.begin());
 }
 
@@ -448,14 +448,14 @@ TensorBase::TensorBase(const int *shape, int rank, DType dtype, void *data)
     : rank_(rank),
       dtype_(dtype),
       data_(data){
-  LL_CHECK(rank < kMaxRank);
+  CHECK(rank < kMaxRank);
   std::copy(shape, shape + rank, shape_.begin());
 }
 
 TensorBase::~TensorBase() {}
 
 int TensorBase::shape(int d) const {
-  LL_CHECK(d < rank_);
+  CHECK(d < rank_);
   return shape_[d];
 }
 
@@ -480,8 +480,8 @@ Status TensorBase::EnsureRankDType(int rank, DType dtype) {
 }
 
 const TensorView2Df TensorBase::ToTensorView2Df() const {
-  LL_CHECK(rank_ == 2);
-  LL_CHECK(dtype_ == TypeID<float>());
+  CHECK(rank_ == 2);
+  CHECK(dtype_ == TypeID<float>());
 
   return TensorView2Df::From(reinterpret_cast<float *>(data_),
                              shape_[0],
@@ -489,8 +489,8 @@ const TensorView2Df TensorBase::ToTensorView2Df() const {
 }
 
 TensorView2Df TensorBase::ToTensorView2Df() {
-  LL_CHECK(rank_ == 2);
-  LL_CHECK(dtype_ == TypeID<float>());
+  CHECK(rank_ == 2);
+  CHECK(dtype_ == TypeID<float>());
 
   return TensorView2Df::From(reinterpret_cast<float *>(data_),
                              shape_[0],
@@ -508,7 +508,7 @@ TensorView TensorView::From(
   view.dtype_ = dtype;
   view.data_ = data;
 
-  LL_CHECK(shape.size() < kMaxRank);
+  CHECK(shape.size() < kMaxRank);
   std::copy(shape.begin(), shape.end(), view.shape_.begin());
 
   return view;
@@ -524,7 +524,7 @@ TensorView TensorView::From(
   view.dtype_ = dtype;
   view.data_ = data;
 
-  LL_CHECK(rank < kMaxRank);
+  CHECK(rank < kMaxRank);
   std::copy(shape, shape + rank, view.shape_.begin());
 
   return view;
@@ -604,7 +604,7 @@ Status Tensor::Read(ReadableFile *fp) {
 
   int byte_size = numel * SizeOfDType(dtype_);
   data_ = new ByteType[byte_size];
-  Span<ByteType> bs_data(reinterpret_cast<ByteType *>(data_), byte_size);
+  util::Span<ByteType> bs_data(reinterpret_cast<ByteType *>(data_), byte_size);
   RETURN_IF_ERROR(fp->Read(bs_data));
 
   return OkStatus();
@@ -641,7 +641,7 @@ Tensor2D<T> Stack1D(I begin, I end) {
   Tensor2D<T> tensor2d(shape0, begin->shape0());
   int i = 0;
   for (I it = begin; it < end; ++it) {
-    LL_CHECK(it->shape0() == tensor2d.shape1());
+    CHECK(it->shape0() == tensor2d.shape1());
     tensor2d[static_cast<int>(it - begin)].CopyFrom(*it);
   }
 

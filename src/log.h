@@ -4,16 +4,11 @@
 #include <sstream>
 #include "common.h"
 
-#define LL_LOG_INTERNAL(severity) \
-    llama::LogWrapper(llama::LogSeverity::severity, \
-                                FUNCTION_NAME)
-#define LL_LOG_INFO() LL_LOG_INTERNAL(kInfo)
-#define LL_LOG_FATAL() LL_LOG_INTERNAL(kFatal)
-
-#define LL_CHECK(cond) \
-    if (cond) {} else LL_LOG_FATAL().DefaultMessage("Check " #cond " failed")
-#define LL_CHECK_OK(expr) \
-    do { auto s = (expr); if (!s.ok()) { LL_LOG_FATAL() << s.what(); } } \
+#define LOG(severity) llama::LogWrapper ## severity(FUNCTION_NAME)
+#define CHECK(cond) \
+    if (cond) {} else LOG(FATAL).DefaultMessage("Check " #cond " failed")
+#define CHECK_OK(expr) \
+    do { auto s = (expr); if (!s.ok()) { LOG(FATAL) << s.what(); } } \
     while (0)
 
 namespace llama {
@@ -51,6 +46,18 @@ class LogWrapper {
 
   PCStrType Time();
   PCStrType Severity() const;
+};
+
+// log wrappers for each severity
+class LogWrapperINFO : public LogWrapper {
+ public:
+  LogWrapperINFO(PCStrType location) : 
+      LogWrapper(LogSeverity::kInfo, location) {}
+};
+class LogWrapperFATAL : public LogWrapper {
+ public:
+  LogWrapperFATAL(PCStrType location) : 
+      LogWrapper(LogSeverity::kFatal, location) {}
 };
 
 }  // namespace llama

@@ -66,7 +66,7 @@ void InferRequest::SetInput(PCStrType name, const TensorView &tensor) {
 Value::Value(std::unique_ptr<ImplBase> &&impl) : impl_(std::move(impl)) {}
 
 Status Value::GetTensor(TensorView *tensor) {
-  LL_CHECK(impl_);
+  CHECK(impl_);
   return impl_->GetTensor(tensor);
 }
 

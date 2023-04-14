@@ -5,6 +5,11 @@
 #include <vector>
 #include "common.h"
 #include "tensor.h"
+#include "log.h"
+
+// CHECK from log.h conflicts with catch2
+#undef CHECK
+
 #include "third_party/catch2/catch_amalgamated.hpp"
 
 namespace llama {

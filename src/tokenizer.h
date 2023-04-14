@@ -8,7 +8,6 @@
 #include <vector>
 
 #include "readable_file.h"
-#include "span.h"
 #include "status.h"
 #include "vocab.h"
 #include "util.h"
@@ -27,7 +26,7 @@ class Tokenizer {
 // tokenizer for llama model
 class LlamaTokenizer : public Tokenizer,
                        public Vocab,
-                       private NonCopyable {
+                       private util::NonCopyable {
  public:
   static StatusOr<LlamaTokenizer> FromModel(const std::string &filename);
 
@@ -63,7 +62,7 @@ class LlamaTokenizer : public Tokenizer,
   Status ReadModel(ReadableFile *fp);
 
   // encode
-  void InitSymbolList(const std::string &s, Span<Symbol> symbols) const;
+  void InitSymbolList(const std::string &s, util::Span<Symbol> symbols) const;
   void AddBigramIfExist(Symbol *left,
                         Symbol *right,
                         std::priority_queue<Bigram> *queue) const;

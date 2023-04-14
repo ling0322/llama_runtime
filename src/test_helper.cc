@@ -2,7 +2,6 @@
 #include "tensor.h"
 
 #include "readable_file.h"
-#include "span.h"
 
 namespace llama {
 namespace test_helper {

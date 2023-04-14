@@ -2,11 +2,13 @@
 
 #include <functional>
 #include <string>
+#include <vector>
 
 #include "common.h"
 #include "log.h"
 
 namespace llama {
+namespace util {
 
 // ----------------------------------------------------------------------------
 // BaseArray
@@ -63,7 +65,7 @@ class BaseArray {
   const_reverse_iterator crbegin() const noexcept { return rbegin(); }
   const_reverse_iterator crend() const noexcept { return rend(); }
 
- private:
+ protected:
   pointer ptr_;
   size_type size_;
 };
@@ -75,10 +77,9 @@ class BaseArray {
 template<typename T>
 class FixedArray : public BaseArray<T> {
  public:
-  FixedArray() noexcept : ptr_(nullptr), len_(0) {}
+  FixedArray() noexcept : BaseArray() {}
   FixedArray(int size) noexcept : 
-      ptr_(size ? new T[size] : nullptr),
-      size_(size) {}
+      BaseArray(size ? new T[size] : nullptr, size) {}
   ~FixedArray() noexcept {
     delete[] ptr_;
     ptr_ = nullptr;
@@ -93,7 +94,6 @@ class FixedArray : public BaseArray<T> {
   FixedArray(FixedArray<T> &&array) noexcept {
     ptr_ = array.ptr_;
     size_ = array.size_;
-
     array.ptr_ = nullptr;
     array.size_ = 0;
   }
@@ -104,13 +104,55 @@ class FixedArray : public BaseArray<T> {
 
     ptr_ = array.ptr_;
     size_ = array.size_;
-
     array.ptr_ = nullptr;
     array.size_ = 0;
 
     return *this;
   }
 };
+
+// ----------------------------------------------------------------------------
+// Span
+// ----------------------------------------------------------------------------
+
+template<typename T>
+class Span : public BaseArray<T> {
+ public:
+  Span() noexcept : ptr_(nullptr), len_(0) {}
+  Span(T *ptr, size_type size) : BaseArray(ptr, size) {}
+};
+
+template<typename T>
+constexpr Span<T> MakeSpan(
+    T *ptr,
+    typename Span<T>::size_type size) {
+  return Span<T>(ptr, size);
+}
+template<typename T>
+constexpr Span<const T> MakeConstSpan(
+    const T *ptr,
+    typename Span<T>::size_type size) {
+  return Span<const T>(ptr, size);
+}
+
+template<typename T>
+constexpr Span<T> MakeSpan(std::vector<T> &v) {
+  return Span<T>(v.data(), v.size());
+}
+template<typename T>
+constexpr Span<const T> MakeConstSpan(const std::vector<T> &v) {
+  return Span<const T>(v.data(), v.size());
+}
+
+template<typename T>
+constexpr Span<T> MakeSpan(const FixedArray<T> &v) {
+  return Span<T>(v.data(), v.size());
+}
+template<typename T>
+constexpr Span<const T> MakeConstSpan(const FixedArray<T> &v) {
+  return Span<const T>(v.data(), v.size());
+}
+
 
 // ----------------------------------------------------------------------------
 // NonCopyable
@@ -125,12 +167,6 @@ class NonCopyable {
   NonCopyable() = default;
   ~NonCopyable() = default;
 };
-
-template <typename T>
-constexpr typename std::underlying_type<T>::type to_underlying(T v) {
-  return static_cast<typename std::underlying_type<T>::type>(v);
-}
-
 
 // ----------------------------------------------------------------------------
 // AutoCPtr
@@ -156,7 +192,7 @@ class AutoCPtr {
   const T *get() const { return ptr_; }
 
   // get the pointer to this pointer.
-  T **get_pp() { LL_CHECK(deleter_); return &ptr_; }
+  T **get_pp() { CHECK(deleter_); return &ptr_; }
 
  private:
   T *ptr_;
@@ -205,4 +241,5 @@ inline T *AutoCPtr<T>::Release() {
   return ptr;
 }
 
+}  // namespace util
 }  // namespace llama

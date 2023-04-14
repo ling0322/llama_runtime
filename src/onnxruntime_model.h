@@ -6,7 +6,6 @@
 #include <vector>
 
 #include "model.h"
-#include "span.h"
 #include "tensor.h"
 #include "util.h"
 
@@ -28,7 +27,7 @@ class ORTHelper;
 
 // Inferencer woth onnxruntime backend
 class ORTModel : public Model,
-                 public NonCopyable {
+                 private util::NonCopyable {
  public:
   ORTModel();
   ~ORTModel();
@@ -45,8 +44,8 @@ class ORTModel : public Model,
   typedef OrtValue *POrtValue;
   
   std::unique_ptr<ORTHelper> helper_;
-  AutoCPtr<OrtSession> session_;
-  AutoCPtr<OrtMemoryInfo> cpu_memory_info_;
+  util::AutoCPtr<OrtSession> session_;
+  util::AutoCPtr<OrtMemoryInfo> cpu_memory_info_;
 
   // input and output value information
   std::vector<Port> inputs_;
@@ -66,22 +65,22 @@ class ORTHelper {
 
   // Create a ORT session from model data
   Status CreateSession(
-      const OrtEnv *ort_env,
-      const Span<CByteType> model_data,
-      AutoCPtr<OrtSession> *session);
+      const OrtEnv* ort_env,
+      const util::Span<CByteType> model_data,
+      util::AutoCPtr<OrtSession>*session);
 
   // create an `OrtValue` whose shape and data are copied from `tensor_view`.
   // The returned OrtValue will own the data.
-  AutoCPtr<OrtValue> CreateValue(const TensorView &tensor_view);
+  util::AutoCPtr<OrtValue> CreateValue(const TensorView &tensor_view);
 
   // create an OrtValue from TensorView. The OrtValue will borrow the data from
   // TensorView
-  AutoCPtr<OrtValue> CreateBorrowedValue(
+  util::AutoCPtr<OrtValue> CreateBorrowedValue(
       const OrtMemoryInfo *memory_info,
       const TensorView &tensor_view);
 
   // create memory info for CPU
-  AutoCPtr<OrtMemoryInfo> CreateCPUMemoryInfo();
+  util::AutoCPtr<OrtMemoryInfo> CreateCPUMemoryInfo();
 
   // get information for inputs and outputs of the model, then save them to
   // ports
@@ -150,7 +149,7 @@ class ORTInferRequest : public InferRequest {
 };
 
 // Wrapper for OrtValue
-class ORTValue : public Value::ImplBase, public NonCopyable {
+class ORTValue : public Value::ImplBase, private util::NonCopyable {
  public:
   // create the ORTInferValue from OrtValue
   ORTValue();
@@ -164,7 +163,7 @@ class ORTValue : public Value::ImplBase, public NonCopyable {
   const OrtValue *value() const;
 
  private:
-  AutoCPtr<OrtValue> value_;
+  util::AutoCPtr<OrtValue> value_;
   ORTHelper helper_;
 };
 

@@ -1,5 +1,7 @@
 #include "onnxruntime_model.h"
 
+#include <algorithm>
+
 #include "env.h"
 #include "readable_file.h"
 #include "third_party/onnxruntime/onnxruntime_c_api.h"
@@ -46,7 +48,7 @@ Status ORTModel::Init(const std::string &onnx_model_path) {
   RETURN_IF_ERROR(fp->ReadAll(&model_data));
   RETURN_IF_ERROR(helper_->CreateSession(
       ort_env,
-      MakeConstSpan(model_data),
+      util::MakeConstSpan(model_data),
       &session_));
   RETURN_IF_ERROR(helper_->GetPortList(
       session_.get(),
@@ -88,17 +90,17 @@ Status ORTHelper::Check(OrtStatus *status) {
   if (!status) {
     return OkStatus();
   } else {
-    AutoCPtr<OrtStatus> ort_status(status, api_->ReleaseStatus);
+    util::AutoCPtr<OrtStatus> ort_status(status, api_->ReleaseStatus);
     RETURN_ABORTED() << api_->GetErrorMessage(ort_status.get());
   }
 }
 
 Status ORTHelper::CreateSession(
     const OrtEnv *ort_env,
-    Span<CByteType> model_data,
-    AutoCPtr<OrtSession> *session) {
+    util::Span<CByteType> model_data,
+    util::AutoCPtr<OrtSession> *session) {
   // create ORT session
-  AutoCPtr<OrtSessionOptions> options(nullptr, api_->ReleaseSessionOptions);
+  util::AutoCPtr<OrtSessionOptions> options(nullptr, api_->ReleaseSessionOptions);
   RETURN_IF_ERROR(Check(api_->CreateSessionOptions(options.get_pp())));
 
   // set options
@@ -107,7 +109,7 @@ Status ORTHelper::CreateSession(
       options.get(),
       ORT_ENABLE_BASIC)));
 
-  *session = AutoCPtr<OrtSession>(nullptr, api_->ReleaseSession);
+  *session = util::AutoCPtr<OrtSession>(nullptr, api_->ReleaseSession);
   RETURN_IF_ERROR(Check(api_->CreateSessionFromArray(
       ort_env,
       model_data.data(),
@@ -118,20 +120,20 @@ Status ORTHelper::CreateSession(
   return OkStatus();
 }
 
-AutoCPtr<OrtValue> ORTHelper::CreateValue(const TensorView &tensor_view) {
+util::AutoCPtr<OrtValue> ORTHelper::CreateValue(const TensorView &tensor_view) {
   // should not release alloc
   OrtAllocator *alloc = nullptr;
-  LL_CHECK_OK(Check(api_->GetAllocatorWithDefaultOptions(&alloc)));
+  CHECK_OK(Check(api_->GetAllocatorWithDefaultOptions(&alloc)));
 
   // prepare shape
   std::array<int64_t, TensorView::kMaxRank> shape;
   CvtShapeToInt64(tensor_view, shape);
 
-  AutoCPtr<OrtValue> ort_value = {nullptr, api_->ReleaseValue};
+  util::AutoCPtr<OrtValue> ort_value = {nullptr, api_->ReleaseValue};
   ONNXTensorElementDataType onnx_dtype;
-  LL_CHECK_OK(DtypeToOnnxType(tensor_view.dtype(), &onnx_dtype));
+  CHECK_OK(DtypeToOnnxType(tensor_view.dtype(), &onnx_dtype));
 
-  LL_CHECK_OK(Check(api_->CreateTensorAsOrtValue(
+  CHECK_OK(Check(api_->CreateTensorAsOrtValue(
       alloc,
       shape.data(),
       tensor_view.rank(),
@@ -140,7 +142,7 @@ AutoCPtr<OrtValue> ORTHelper::CreateValue(const TensorView &tensor_view) {
 
   // copy data from `tensor_view` to `ort_value`
   void *data = nullptr;
-  LL_CHECK_OK(Check(api_->GetTensorMutableData(
+  CHECK_OK(Check(api_->GetTensorMutableData(
       ort_value.get(), 
       &data)));
   int nb = tensor_view.numel() * SizeOfDType(tensor_view.dtype());
@@ -149,7 +151,7 @@ AutoCPtr<OrtValue> ORTHelper::CreateValue(const TensorView &tensor_view) {
   return ort_value;
 }
 
-AutoCPtr<OrtValue> ORTHelper::CreateBorrowedValue(
+util::AutoCPtr<OrtValue> ORTHelper::CreateBorrowedValue(
     const OrtMemoryInfo *memory_info,
     const TensorView &tensor) {
   // prepare shape
@@ -157,11 +159,11 @@ AutoCPtr<OrtValue> ORTHelper::CreateBorrowedValue(
   CvtShapeToInt64(tensor, shape);
 
   // create value
-  AutoCPtr<OrtValue> ort_value = {nullptr, api_->ReleaseValue};
+  util::AutoCPtr<OrtValue> ort_value = {nullptr, api_->ReleaseValue};
 
   ONNXTensorElementDataType onnx_dtype;
-  LL_CHECK_OK(DtypeToOnnxType(tensor.dtype(), &onnx_dtype));
-  LL_CHECK_OK(Check(api_->CreateTensorWithDataAsOrtValue(
+  CHECK_OK(DtypeToOnnxType(tensor.dtype(), &onnx_dtype));
+  CHECK_OK(Check(api_->CreateTensorWithDataAsOrtValue(
       memory_info,
       const_cast<void *>(tensor.raw_data()),
       tensor.numel() * SizeOfDType(tensor.dtype()),
@@ -206,13 +208,13 @@ Status ORTHelper::GetPortList(const OrtSession *session,
     port.set_type(type);
 
     // name
-    AutoCPtr<char> name(nullptr, std::bind(
+    util::AutoCPtr<char> name(nullptr, std::bind(
         alloc->Free, alloc, std::placeholders::_1));
     RETURN_IF_ERROR(Check(name_func(session, i, alloc, name.get_pp())));
     port.set_name(name.get());
 
     // type_info
-    AutoCPtr<OrtTypeInfo> type_info(nullptr, api_->ReleaseTypeInfo);
+    util::AutoCPtr<OrtTypeInfo> type_info(nullptr, api_->ReleaseTypeInfo);
     RETURN_IF_ERROR(Check(type_info_func(session, i, type_info.get_pp())));
 
     // extract dtype and shape from type_info
@@ -306,9 +308,9 @@ Status ORTHelper::DtypeToOnnxType(
   return OkStatus();
 }
 
-AutoCPtr<OrtMemoryInfo> ORTHelper::CreateCPUMemoryInfo() {
-  AutoCPtr<OrtMemoryInfo> memory_info = {nullptr, api_->ReleaseMemoryInfo};
-  LL_CHECK_OK(Check(api_->CreateCpuMemoryInfo(
+util::AutoCPtr<OrtMemoryInfo> ORTHelper::CreateCPUMemoryInfo() {
+  util::AutoCPtr<OrtMemoryInfo> memory_info = {nullptr, api_->ReleaseMemoryInfo};
+  CHECK_OK(Check(api_->CreateCpuMemoryInfo(
       OrtArenaAllocator,
       OrtMemTypeDefault,
       memory_info.get_pp())));
@@ -319,7 +321,7 @@ AutoCPtr<OrtMemoryInfo> ORTHelper::CreateCPUMemoryInfo() {
 void ORTHelper::CvtShapeToInt64(
     const TensorView &tensor,
     std::array<int64_t, TensorView::kMaxRank> &shape) {
-  LL_CHECK(tensor.rank() <= TensorView::kMaxRank);
+  CHECK(tensor.rank() <= TensorView::kMaxRank);
   std::transform(tensor.shape_data(),
                  tensor.shape_data() + tensor.rank(),
                  shape.begin(),
@@ -342,7 +344,7 @@ ORTInferRequest::ORTInferRequest(
 void ORTInferRequest::SetInput(PCStrType name, const Value &value) {
   input_names_.push_back(std::string(name));
 
-  LL_CHECK(value.impl()->backend_type() == BackendType::kORT);
+  CHECK(value.impl()->backend_type() == BackendType::kORT);
   inputs_.push_back(reinterpret_cast<const ORTValue *>(value.impl())->value());
 }
 
@@ -384,7 +386,7 @@ Status ORTInferRequest::Infer() {
 }
 
 Value ORTInferRequest::CreateValue(const TensorView &tensor) {
-  AutoCPtr<OrtValue> ort_value = ort_helper_.CreateBorrowedValue(
+  util::AutoCPtr<OrtValue> ort_value = ort_helper_.CreateBorrowedValue(
       memory_info_, tensor);
   return std::make_unique<ORTValue>(api_, ort_value.Release());
 }
@@ -396,7 +398,7 @@ Value ORTInferRequest::CreateValue(const TensorView &tensor) {
 ORTValue::ORTValue(const OrtApi *api, OrtValue *value):
     value_(value, api->ReleaseValue),
     helper_(api) {
-  LL_CHECK(value) << "value is nullptr";
+  CHECK(value) << "value is nullptr";
 }
 
 BackendType ORTValue::backend_type() const {
@@ -406,7 +408,7 @@ BackendType ORTValue::backend_type() const {
 ORTValue::~ORTValue() {}
 
 Status ORTValue::GetTensor(TensorView *tensor) {
-  AutoCPtr<OrtTensorTypeAndShapeInfo> value_info(
+  util::AutoCPtr<OrtTensorTypeAndShapeInfo> value_info(
       nullptr, helper_.api()->ReleaseTensorTypeAndShapeInfo);
   RETURN_IF_ERROR(helper_.Check(helper_.api()->GetTensorTypeAndShape(
       value_.get(),

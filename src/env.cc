@@ -46,7 +46,7 @@ Env::Impl::Impl()
 
 Env::Impl::~Impl() {
   if (ort_env_) {
-    LL_CHECK(ort_api_) << "call ReleaseEnv() on NULL ort_api_";
+    CHECK(ort_api_) << "call ReleaseEnv() on NULL ort_api_";
     ort_api_->ReleaseEnv(ort_env_);
     ort_env_ = nullptr;
   }
@@ -55,7 +55,7 @@ Env::Impl::~Impl() {
 void Env::Impl::Init() noexcept {
   Status status = InitOnnxRuntime();
   if (!status.ok()) {
-    LL_LOG_INFO() << "onnxruntime not initialized: " << status.what();
+    LOG(INFO) << "onnxruntime not initialized: " << status.what();
   }
 }
 
@@ -68,7 +68,7 @@ Status Env::Impl::InitOnnxRuntime() {
     RETURN_ABORTED() << "funtion not found: OrtGetApiBase";
   }
   const OrtApiBase *api_base = get_apibase();
-  LL_CHECK(api_base);
+  CHECK(api_base);
 
   // ort_api_
   ort_api_ = api_base->GetApi(ORT_API_VERSION);
@@ -79,7 +79,7 @@ Status Env::Impl::InitOnnxRuntime() {
   }
 
   // ort_env_
-  AutoCPtr<OrtEnv> ort_env = {nullptr, ort_api_->ReleaseEnv};
+  util::AutoCPtr<OrtEnv> ort_env = {nullptr, ort_api_->ReleaseEnv};
   OrtStatus *status = ort_api_->CreateEnv(
       ORT_LOGGING_LEVEL_WARNING,
       PROJECT_NAME,
@@ -90,7 +90,7 @@ Status Env::Impl::InitOnnxRuntime() {
     RETURN_ABORTED() << "create OrtEnv failed: " << message;
   }
 
-  LL_CHECK(ort_env.get());
+  CHECK(ort_env.get());
   ort_env_ = ort_env.Release();
 
   return OkStatus();
@@ -125,7 +125,7 @@ void Env::Destroy() noexcept {
 }
 
 const Env *Env::instance() noexcept {
-  LL_CHECK(env_) << "Env::instance() called before Init() or after Destroy()";
+  CHECK(env_) << "Env::instance() called before Init() or after Destroy()";
   return env_;
 }
 

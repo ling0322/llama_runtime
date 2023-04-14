@@ -14,10 +14,10 @@ Path Path::CurrentModulePath() {
                               GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
                               (LPCWSTR)&CurrentModulePath,
                               &hm);
-  LL_CHECK(b);
+  CHECK(b);
 
   DWORD dw = GetModuleFileNameA(hm, filename, sizeof(filename));
-  LL_CHECK(dw != 0);
+  CHECK(dw != 0);
 
   return filename;
 }
@@ -25,7 +25,7 @@ Path Path::CurrentModulePath() {
 Path Path::CurrentExecutablePath() {
   char filename[MAX_PATH + 1];
   DWORD charsWritten = GetModuleFileNameA(NULL, filename, sizeof(filename));
-  LL_CHECK(charsWritten);
+  CHECK(charsWritten);
 
   return filename;
 }

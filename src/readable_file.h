@@ -8,7 +8,7 @@
 #include <vector>
 #include "common.h"
 #include "status.h"
-#include "span.h"
+#include "util.h"
 
 namespace llama {
 
@@ -26,13 +26,13 @@ class ReadableFile {
   // On success, return `OkStatus()` and the `pcbytes` should equal to
   // `buffer.size()`. On failed, return the error status, buffer will be filled
   // with the bytes read before error occured. 0 <= `pcbytes` < `buffer.size()`
-  virtual Status Read(Span<ByteType> buffer, int *pcbytes) = 0;
-  Status Read(Span<ByteType> buffer);
+  virtual Status Read(util::Span<ByteType> buffer, int *pcbytes) = 0;
+  Status Read(util::Span<ByteType> buffer);
 
   // read a variable from reader
   template<typename T>
   Status ReadValue(T *value) {
-    RETURN_IF_ERROR(Read(MakeSpan(
+    RETURN_IF_ERROR(Read(util::MakeSpan(
         reinterpret_cast<ByteType *>(value),
         sizeof(T))));
     

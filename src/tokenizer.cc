@@ -18,7 +18,7 @@ struct LlamaTokenizer::Bigram {
   float weight;
   int merged_token_id;
 
-  bool operator<(Bigram &rhs) const {
+  bool operator<(const Bigram &rhs) const {
     return weight < rhs.weight;
   }
 };
@@ -99,6 +99,8 @@ Status LlamaTokenizer::CheckModel() {
       RETURN_ABORTED() << "bad format, byte << " << ch << " not exist in model";
     }
   }
+
+  return OkStatus();
 }
 
 std::vector<int> LlamaTokenizer::Encode(const std::string &s) const {
@@ -106,10 +108,10 @@ std::vector<int> LlamaTokenizer::Encode(const std::string &s) const {
     return std::vector<int>();
   }
 
-  std::vector<Symbol> symbols(s.size());
+  util::FixedArray<Symbol> symbols(s.size());
 
   // convert all bytes in s to symbols linked list
-  InitSymbolList(s, MakeSpan(symbols));
+  InitSymbolList(s, util::MakeSpan(symbols));
 
   // put all possible two-bytes bigram to queue
   std::priority_queue<Bigram> queue;
@@ -136,7 +138,7 @@ std::vector<int> LlamaTokenizer::Encode(const std::string &s) const {
 
   // get symbol list
   std::vector<int> token_ids;
-  Symbol *p = begin_sym;
+  p = begin_sym;
   while (p) {
     token_ids.push_back(p->token_id);
     p = p->next;
@@ -189,8 +191,8 @@ LlamaTokenizer::Symbol *LlamaTokenizer::MergeBigramSymbols(
 }
 
 void LlamaTokenizer::InitSymbolList(const std::string &s,
-                                    Span<Symbol> symbols) const {
-  LL_CHECK(symbols.size() == s.size());
+                                    util::Span<Symbol> symbols) const {
+  CHECK(symbols.size() == s.size());
 
   Symbol *prev = nullptr;
   std::string tok = " ";
@@ -200,7 +202,7 @@ void LlamaTokenizer::InitSymbolList(const std::string &s,
 
     tok[0] = ch;
     int token_id = FindToken(tok);
-    LL_CHECK(token_id != unk_id());
+    CHECK(token_id != unk_id());
 
     symbol->token_id = token_id;
     symbol->prev = prev;

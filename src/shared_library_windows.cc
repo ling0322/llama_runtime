@@ -47,9 +47,9 @@ Status SharedLibrary::Impl::Open(const std::string &name) {
   module_ = LoadLibraryW(ws_filename.c_str());
   if (!module_) {
     code = GetLastError();
-    LL_LOG_INFO() << "Load library " << abs_filename.string()
-                  << " failed with code " << code
-                  << " fall back to system search";
+    LOG(INFO) << "Load library " << abs_filename.string()
+              << " failed with code " << code
+              << " fall back to system search";
 
     // fallback to system search
     RETURN_IF_ERROR(abs_filename.wstring(&ws_filename))
@@ -64,7 +64,7 @@ Status SharedLibrary::Impl::Open(const std::string &name) {
 }
 
 void *SharedLibrary::Impl::GetRawFuncPtr(const std::string &func_name) {
-  LL_CHECK(module_) << "call GetRawFuncPtr() on empty SharedLibrary";
+  CHECK(module_) << "call GetRawFuncPtr() on empty SharedLibrary";
   FARPROC func = GetProcAddress(module_, std::string(func_name).c_str());
   return reinterpret_cast<void *>(func);
 }

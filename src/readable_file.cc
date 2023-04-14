@@ -3,7 +3,7 @@
 #include "common.h"
 #include "status.h"
 #include "log.h"
-#include "span.h"
+#include "util.h"
 
 namespace llama {
 
@@ -13,7 +13,7 @@ class LocalFile : public ReadableFile {
   ~LocalFile();
 
   Status Open(PCStrType filename);
-  Status Read(Span<ByteType> buffer, int *pcbytes) override;
+  Status Read(util::Span<ByteType> buffer, int* pcbytes) override;
 
  private:
   FILE *fd_;
@@ -31,14 +31,14 @@ StatusOr<ReadableFile> ReadableFile::Open(const std::string& filename) {
   return fp;
 }
 
-Status ReadableFile::Read(Span<ByteType> buffer) {
+Status ReadableFile::Read(util::Span<ByteType> buffer) {
   int cbytes = 0;
   return Read(buffer, &cbytes);
 }
 
 Status ReadableFile::ReadString(int n, std::string *s) {
   std::vector<ByteType> buffer(n);
-  RETURN_IF_ERROR(Read(MakeSpan(buffer)));
+  RETURN_IF_ERROR(Read(util::MakeSpan(buffer)));
 
   *s = std::string(buffer.begin(), buffer.end());
   return OkStatus();
@@ -50,7 +50,7 @@ Status ReadableFile::ReadAll(std::vector<ByteType> *data) {
   data->clear();
   for (; ; ) {
     int cbytes = 0;
-    Status status = Read(MakeSpan(chunk), &cbytes);
+    Status status = Read(util::MakeSpan(chunk), &cbytes);
     if (status.ok()) {
       data->insert(data->end(), chunk.begin(), chunk.end());
     } else {
@@ -89,8 +89,8 @@ Status LocalFile::Open(PCStrType filename) {
   return OkStatus();
 }
 
-Status LocalFile::Read(Span<ByteType> buffer, int *pcbytes) {
-  LL_CHECK(buffer.size() != 0);
+Status LocalFile::Read(util::Span<ByteType> buffer, int *pcbytes) {
+  CHECK(buffer.size() != 0);
   int n = fread(buffer.data(), sizeof(ByteType), buffer.size(), fd_);
   if (n < buffer.size()) {
     if (feof(fd_)) {
