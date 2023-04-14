@@ -2,7 +2,7 @@
 
 #include "strings.h"
 
-#ifdef _WIN32
+#ifdef LL_PLATFORM_WINDOWS
 #define PATH_DELIM "\\"
 #else
 #define PATH_DELIM "/"

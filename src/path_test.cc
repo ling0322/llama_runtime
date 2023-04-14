@@ -6,7 +6,7 @@ using namespace llama;
 
 Path _P(const char *pcs) {
   std::string s = pcs;
-#ifdef BR_PLATFORM_WINDOWS
+#ifdef LL_PLATFORM_WINDOWS
   for (char &ch : s) {
     if (ch == '/') ch = '\\';
   }

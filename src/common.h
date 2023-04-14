@@ -16,9 +16,6 @@
 #define NOT_IMPL()          \
   abort()
 
-#define STRINGIZE(x) STRINGIZE_INTENRAL(x)
-#define STRINGIZE_INTENRAL(x) #x
-
 // to make some basic classes independent of any other code, we use ASSERT
 // instead of CHECK in these files
 #define ASSERT(x) do { if (!(x)) { abort(); }} while (0)
@@ -26,11 +23,12 @@
 #define NAMEOF(x) #x
 
 #ifdef __APPLE__
-#define BR_PLATFORM_APPLE
+#define LL_PLATFORM_APPLE
 #elif defined(linux) || defined(__linux) || defined(__linux__)
-#define BR_PLATFORM_LINUX
-#elif defined(WIN32) || defined(__WIN32__) || defined(_MSC_VER) || defined(_WIN32) || defined(__MINGW32__)
-#define BR_PLATFORM_WINDOWS
+#define LL_PLATFORM_LINUX
+#elif defined(WIN32) || defined(__WIN32__) || defined(_MSC_VER) || \
+      defined(_WIN32) || defined(__MINGW32__)
+#define LL_PLATFORM_WINDOWS
 #else
 #error unknown platform
 #endif
