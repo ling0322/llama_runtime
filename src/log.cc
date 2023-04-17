@@ -1,17 +1,38 @@
 #include "log.h"
 
 #include <stdio.h>
+#include <string.h>
 #include <time.h>
+
+#include "path.h"
 
 namespace llama {
 
-LogWrapper::LogWrapper(LogSeverity severity, PCStrType location) 
+LogWrapper::LogWrapper(LogSeverity severity,
+                       PCStrType source_file,
+                       int source_line) 
     : severity_(severity),
-      location_(location) {}
+      source_line_(source_line) {
+  PCStrType s = strrchr(__FILE__, '/');
+  if (!s) {
+    s = strrchr(__FILE__, '\\');
+  }
+
+  if (s) {
+    source_file_ = s + 1;
+  } else {
+    source_file_ = s;
+  }
+}
 
 LogWrapper::~LogWrapper() {
   std::string message = os_.str();
-  printf("%s %s %s] %s\n", Severity(), Time(), location_, message.c_str());
+  printf("%s %s %s:%d] %s\n", 
+         Severity(),
+         Time(),
+         source_file_,
+         source_line_,
+         message.c_str());
 
   if (severity_ == LogSeverity::kFatal) {
     abort();
@@ -42,7 +63,7 @@ PCStrType LogWrapper::Severity() const {
   }
 }
 
-LogWrapper &LogWrapper::DefaultMessage(const std::string &message) {
+LogWrapper &LogWrapper::DefaultMessage(PCStrType message) {
   default_message_ = message;
   return *this;
 }

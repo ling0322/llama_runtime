@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 #include <math.h>
+#include "pool.h"
 
 namespace llama {
 
@@ -12,25 +13,199 @@ struct LlamaTokenizer::TokenInfo {
   int8_t flag;
 };
 
-struct LlamaTokenizer::Bigram {
-  Symbol *left;
-  Symbol *right;
-  float weight;
-  int merged_token_id;
+// ----------------------------------------------------------------------------
+// class LlamaTokenizer::Encoder
+// ----------------------------------------------------------------------------
 
-  bool operator<(const Bigram &rhs) const {
-    return weight < rhs.weight;
+// internal implementation of LlamaTokenizer::Encode()
+class LlamaTokenizer::Encoder {
+ private:
+  struct Symbol;
+  struct Bigram;
+
+ public:
+  Encoder(const LlamaTokenizer *model);
+
+  std::vector<int> Encode(const std::string &s);
+
+  // initialize the symbol linked list from string `s` and store the pointer of
+  // header node to `header_`.
+  void InitSymbolList(const std::string &s);
+
+  // initialize the queue by putting all possible two-bytes bigram to queue
+  void InitQueue();
+
+  // add bigram (left, right) to queue if token left+right exists
+  void AddBigramIfExist(Symbol *left, Symbol *right);
+
+  // merge bigram (left, right) into one symbol, then clear original left and
+  // right symbols and return pointer to the merged one.
+  Symbol *Merge(const Bigram &bigram);
+
+  // get the final symbol list from linked list pointered by header_
+  std::vector<int> GetSymbolList();
+
+ private:
+  struct Bigram {
+    Symbol *left;
+    Symbol *right;
+    float weight;
+    int merged_token_id;
+
+    bool operator<(const Bigram &rhs) const {
+      return weight < rhs.weight;
+    }
+  };
+
+  // symbol linked list
+  struct Symbol {
+    Symbol *prev;
+    Symbol *next;
+    int token_id;
+
+    bool valid() const { return token_id != kInvalidToken; }
+  };
+
+  Pool<Symbol> symbol_pool_;
+  Symbol *header_;
+  std::priority_queue<Bigram> queue_;
+  const LlamaTokenizer *model_;
+};
+
+LlamaTokenizer::Encoder::Encoder(const LlamaTokenizer *model)
+    : header_(nullptr),
+      model_(model) {}
+
+void LlamaTokenizer::Encoder::InitQueue() {
+  Symbol *p = header_->next,
+         *q = p->next;
+  while (q) {
+    AddBigramIfExist(p, q);
+    p = q;
+    q = q->next;
   }
-};
+}
 
-// symbol linked list
-struct LlamaTokenizer::Symbol {
-  Symbol *prev;
-  Symbol *next;
-  int token_id;
+std::vector<int> LlamaTokenizer::Encoder::GetSymbolList() {
+  std::vector<int> token_ids;
+  Symbol *p = header_->next;
+  while (p) {
+    token_ids.push_back(p->token_id);
+    p = p->next;
+  }
 
-  bool valid() const { return token_id != kInvalidToken; }
-};
+  return token_ids;
+}
+
+std::vector<int> LlamaTokenizer::Encoder::Encode(const std::string &s) {
+  InitSymbolList(s);
+  InitQueue();
+
+  // loop until there is no bigram candidates
+  while (!queue_.empty()) {
+    Bigram bigram = queue_.top();
+    queue_.pop();
+
+    if (bigram.left->valid() && bigram.right->valid()) {
+      Symbol *symbol = Merge(bigram);
+      AddBigramIfExist(symbol->prev, symbol);
+      AddBigramIfExist(symbol, symbol->next);
+    }
+  }
+
+  return GetSymbolList();
+}
+
+
+void LlamaTokenizer::Encoder::AddBigramIfExist(Symbol *left, Symbol *right) {
+  if (left == header_ || right == nullptr) {
+    return;
+  }
+
+  std::string tok;
+  tok += model_->token_string(left->token_id);
+  tok += model_->token_string(right->token_id);
+
+  auto it = model_->token_dict_.find(tok);
+  if (it == model_->token_dict_.end()) {
+    return;
+  }
+
+  Bigram bigram;
+  bigram.left = left;
+  bigram.right = right;
+  bigram.weight = it->second->weight;
+  bigram.merged_token_id = it->second->id;
+  queue_.push(bigram);
+}
+
+LlamaTokenizer::Encoder::Symbol *LlamaTokenizer::Encoder::Merge(
+    const Bigram &bigram) {
+  Symbol *left = bigram.left;
+  Symbol *right = bigram.right;
+  Symbol *next = right->next;
+  Symbol *prev = left->prev;
+
+  Symbol *merged = symbol_pool_.Alloc();
+  merged->token_id = bigram.merged_token_id;
+  merged->next = next;
+  merged->prev = prev;
+  if (next) {
+    next->prev = merged;
+  }
+  // prev do not need to check since there is a header node
+  prev->next = merged;
+
+  right->token_id = kInvalidToken;
+  right->next = nullptr;
+  right->prev = nullptr;
+
+  left->token_id = kInvalidToken;
+  left->next = nullptr;
+  left->prev = nullptr;
+
+  return merged;
+}
+
+void LlamaTokenizer::Encoder::InitSymbolList(const std::string &s) {
+  Symbol *header = symbol_pool_.Alloc();
+  Symbol *prev = header;
+
+  std::string tok = " ";
+  for (int i = 0; i < s.size(); ++i) {
+    char ch = s[i];
+    Symbol *symbol = symbol_pool_.Alloc();
+
+    tok[0] = ch;
+    int token_id = model_->FindToken(tok);
+    CHECK(token_id != model_->unk_id());
+
+    symbol->token_id = token_id;
+    symbol->prev = prev;
+    symbol->next = nullptr;
+
+    prev->next = symbol;
+    prev = symbol;
+  }
+
+  header_ = header;
+}
+
+// ----------------------------------------------------------------------------
+// class LlamaTokenizer
+// ----------------------------------------------------------------------------
+
+LlamaTokenizer::LlamaTokenizer(): unk_id_(kInvalidToken) {}
+
+StatusOr<LlamaTokenizer> LlamaTokenizer::FromModel(
+    const std::string &filename) {
+  std::unique_ptr<LlamaTokenizer> tokenizer(new LlamaTokenizer());
+  auto fp = ReadableFile::Open(filename);
+  RETURN_IF_ERROR(fp) << "create LlamaTokenizer failed";
+
+  RETURN_IF_ERROR(tokenizer->ReadModel(fp.get()));
+  return tokenizer;
+}
 
 Status LlamaTokenizer::ReadModel(ReadableFile *fp) {
   std::string s;
@@ -41,6 +216,14 @@ Status LlamaTokenizer::ReadModel(ReadableFile *fp) {
 
   int32_t num_tokens = 0;
   RETURN_IF_ERROR(fp->ReadValue(&num_tokens));
+
+  // ensure magic number
+  int16_t magic_number = 0;
+  RETURN_IF_ERROR(fp->ReadValue(&magic_number));
+  if (magic_number != kMagicNumber) {
+    RETURN_ABORTED() << "bad format";
+  }
+
 
   // read the list of token info
   tokens_.clear();
@@ -60,6 +243,7 @@ Status LlamaTokenizer::ReadModel(ReadableFile *fp) {
 
     info.id = token_id;
     if (info.flag & kUnknown) {
+      LOG(INFO) << "unk_id " << token_id;
       // handle unknown token
       if (unk_id_ != kInvalidToken) {
         RETURN_ABORTED() << "bad format, too many unknown tokens";
@@ -71,7 +255,6 @@ Status LlamaTokenizer::ReadModel(ReadableFile *fp) {
   }
 
   // ensure magic number
-  int16_t magic_number = 0;
   RETURN_IF_ERROR(fp->ReadValue(&magic_number));
   if (magic_number != kMagicNumber) {
     RETURN_ABORTED() << "bad format";
@@ -104,115 +287,46 @@ Status LlamaTokenizer::CheckModel() {
 }
 
 std::vector<int> LlamaTokenizer::Encode(const std::string &s) const {
-  if (s.empty()) {
-    return std::vector<int>();
-  }
+  Encoder encoder(this);
 
-  util::FixedArray<Symbol> symbols(s.size());
-
-  // convert all bytes in s to symbols linked list
-  InitSymbolList(s, util::MakeSpan(symbols));
-
-  // put all possible two-bytes bigram to queue
-  std::priority_queue<Bigram> queue;
-  Symbol *begin_sym = &symbols[0],
-         *p = begin_sym,
-         *q = p->next;
-  while (q) {
-    AddBigramIfExist(p, q, &queue);
-    p = q;
-    q = q->next;
-  }
-
-  // loop until there is no bigram candidates
-  while (!queue.empty()) {
-    Bigram bigram = queue.top();
-    queue.pop();
-
-    if (bigram.left->valid() && bigram.right->valid()) {
-      Symbol *symbol = MergeBigramSymbols(bigram);
-      AddBigramIfExist(symbol->prev, symbol, &queue);
-      AddBigramIfExist(symbol, symbol->next, &queue);
-    }
-  }
-
-  // get symbol list
-  std::vector<int> token_ids;
-  p = begin_sym;
-  while (p) {
-    token_ids.push_back(p->token_id);
-    p = p->next;
-  }
-
-  return token_ids;
+  return encoder.Encode(s);
 }
 
-void LlamaTokenizer::AddBigramIfExist(
-    Symbol *left,
-    Symbol *right,
-    std::priority_queue<Bigram> *queue) const {
-  if (left == nullptr || right == nullptr) {
-    return;
+std::vector<std::string> LlamaTokenizer::EncodeAsPieces(
+    const std::string &s) const {
+  std::vector<std::string> tokens;
+
+  std::vector<int> token_ids = Encode(s);
+  for (int token_id : token_ids) {
+    tokens.emplace_back(token_string(token_id));
   }
 
-  std::string tok;
-  tok += token_string(left->token_id);
-  tok += token_string(right->token_id);
+  return tokens;
+}
 
-  auto it = token_dict_.find(tok);
+const std::string &LlamaTokenizer::token_string(int token_id) const {
+  CHECK(token_id >= 0 && token_id < vocab_size());
+
+  return tokens_[token_id].token_string;
+}
+
+int LlamaTokenizer::FindToken(const std::string &token) const {
+  auto it = token_dict_.find(token);
   if (it == token_dict_.end()) {
-    return;
+    return unk_id();
   }
 
-  Bigram bigram;
-  bigram.left = left;
-  bigram.right = right;
-  bigram.weight = it->second->weight;
-  bigram.merged_token_id = it->second->id;
-  queue->push(bigram);
+  return it->second->id;
 }
 
-LlamaTokenizer::Symbol *LlamaTokenizer::MergeBigramSymbols(
-    const Bigram &bigram) const {
-  Symbol *left = bigram.left;
-  Symbol *right = bigram.right;
-  Symbol *next = right->next;
-  
-  left->token_id = bigram.merged_token_id;
-  left->next = next;
-  if (next) {
-    next->prev = left;
-  }
-  right->token_id = kInvalidToken;
-  right->next = nullptr;
-  right->prev = nullptr;
-
-  return left;
+int LlamaTokenizer::vocab_size() const {
+  return tokens_.size();
 }
 
-void LlamaTokenizer::InitSymbolList(const std::string &s,
-                                    util::Span<Symbol> symbols) const {
-  CHECK(symbols.size() == s.size());
-
-  Symbol *prev = nullptr;
-  std::string tok = " ";
-  for (int i = 0; i < s.size(); ++i) {
-    char ch = s[i];
-    Symbol *symbol = &symbols[i];
-
-    tok[0] = ch;
-    int token_id = FindToken(tok);
-    CHECK(token_id != unk_id());
-
-    symbol->token_id = token_id;
-    symbol->prev = prev;
-    symbol->next = nullptr;
-    if (prev) {
-      prev->next = symbol;
-    }
-
-    prev = symbol;
-  }
+int LlamaTokenizer::unk_id() const {
+  return unk_id_;
 }
+
+
 
 }  // namespace llama

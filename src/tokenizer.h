@@ -7,6 +7,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "pool.h"
 #include "readable_file.h"
 #include "status.h"
 #include "vocab.h"
@@ -32,6 +33,8 @@ class LlamaTokenizer : public Tokenizer,
 
   // implement interface ITokenizer
   std::vector<int> Encode(const std::string &s) const override;
+  std::vector<std::string> EncodeAsPieces(
+      const std::string &s) const override;
 
   // implement interface Vocab
   int FindToken(const std::string &token) const override;
@@ -40,8 +43,7 @@ class LlamaTokenizer : public Tokenizer,
   int unk_id() const override;
 
  private:
-  struct Bigram;
-  struct Symbol;
+  class Encoder;
   struct TokenInfo;
 
   static constexpr int16_t kMagicNumber = 0x55aa;
@@ -53,6 +55,8 @@ class LlamaTokenizer : public Tokenizer,
   std::unordered_map<std::string, const TokenInfo *> token_dict_;
   std::vector<TokenInfo> tokens_;
   int unk_id_;
+  
+  LlamaTokenizer();
 
   // check the tokenizer model and return a fail state with detailed message
   // if the model is invalid.
@@ -60,17 +64,6 @@ class LlamaTokenizer : public Tokenizer,
   
   // read model from fp
   Status ReadModel(ReadableFile *fp);
-
-  // encode
-  void InitSymbolList(const std::string &s, util::Span<Symbol> symbols) const;
-  void AddBigramIfExist(Symbol *left,
-                        Symbol *right,
-                        std::priority_queue<Bigram> *queue) const;
-                      
-  // merge bigram left and right symbols and return pointer to the merged
-  // symbol. Firstly, it will merge right to left. Then remove right symbol
-  // from linked list and set it to invalid state.
-  Symbol *MergeBigramSymbols(const Bigram &bigram) const;
 };
 
 }  // namespace llama

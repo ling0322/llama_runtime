@@ -4,7 +4,7 @@
 #include <sstream>
 #include "common.h"
 
-#define LOG(severity) llama::LogWrapper ## severity(FUNCTION_NAME)
+#define LOG(severity) llama::LogWrapper ## severity(__FILE__, __LINE__)
 #define CHECK(cond) \
     if (cond) {} else LOG(FATAL).DefaultMessage("Check " #cond " failed")
 #define CHECK_OK(expr) \
@@ -23,7 +23,7 @@ enum class LogSeverity {
 
 class LogWrapper {
  public:
-  LogWrapper(LogSeverity severity, PCStrType location);
+  LogWrapper(LogSeverity severity, PCStrType source_file, int source_line);
   ~LogWrapper();
 
   LogWrapper(LogWrapper &) = delete;
@@ -34,14 +34,15 @@ class LogWrapper {
 
   // set the default message to LogWrapper. If no message appended, it will
   // log the `message` instead
-  LogWrapper &DefaultMessage(const std::string &message);
+  LogWrapper &DefaultMessage(PCStrType message);
 
  private:
   std::ostringstream os_;
-  std::string default_message_;
+  PCStrType default_message_;
 
   LogSeverity severity_;
-  PCStrType location_;
+  PCStrType source_file_;
+  int source_line_;
   char time_[200];
 
   PCStrType Time();
@@ -51,13 +52,13 @@ class LogWrapper {
 // log wrappers for each severity
 class LogWrapperINFO : public LogWrapper {
  public:
-  LogWrapperINFO(PCStrType location) : 
-      LogWrapper(LogSeverity::kInfo, location) {}
+  LogWrapperINFO(PCStrType source_file, int source_line) : 
+      LogWrapper(LogSeverity::kInfo, source_file, source_line) {}
 };
 class LogWrapperFATAL : public LogWrapper {
  public:
-  LogWrapperFATAL(PCStrType location) : 
-      LogWrapper(LogSeverity::kFatal, location) {}
+  LogWrapperFATAL(PCStrType source_file, int source_line) : 
+      LogWrapper(LogSeverity::kFatal, source_file, source_line) {}
 };
 
 }  // namespace llama

@@ -76,7 +76,7 @@ class StatusBuilder {
   StatusBuilder(StatusCode code, const std::string &right = std::string())
     : code_(code),
       right_(right) {}
-  StatusBuilder(StatusBuilder &&b)
+  StatusBuilder(StatusBuilder &&b) noexcept
     : code_(b.code_),
       right_(std::move(b.right_)),
       os_(std::move(b.os_)) {}
@@ -94,7 +94,9 @@ class StatusBuilder {
 
   operator Status() {
     if (os_) {
-      (*os_) << ": " << right_;
+      if (!right_.empty()) {
+        (*os_) << ": " << right_;
+      } 
       return Status(code_, os_->str());
     } else {
       return Status(code_, right_);
@@ -107,30 +109,13 @@ class StatusBuilder {
   std::unique_ptr<std::ostringstream> os_;
 };
 
-class StatusWrapper {
- public:
-  StatusWrapper(Status &&status) : status_(std::move(status)) {}
-  StatusWrapper(const Status &status) : status_(status.Copy()) {}
-  StatusWrapper(StatusWrapper &) = delete;
-  StatusWrapper operator=(StatusWrapper &) = delete;
-
-  operator Status() && { return std::move(status_); }
-  operator bool() { return status_.ok(); }
-
-  template <typename T>
-  StatusBuilder operator<<(const T &value) {
-    return std::move(StatusBuilder(status_.code(), status_.what()) << value);
-  }
-
- private:
-  Status status_;
-};
+class StatusWrapper;
 
 template<class T>
 class StatusOr {
  public:
   StatusOr(Status &&status) : status_(std::move(status)) {
-    ASSERT(!status.ok());
+    ASSERT(!status_.ok());
   }
   StatusOr(std::unique_ptr<T> &&ptr)
     : ptr_(std::move(ptr)), status_(OkStatus()) {}
@@ -166,7 +151,7 @@ class StatusOr {
 
   // methods for Status
   bool ok() const { return status_.ok(); }
-  const std::string &what() const { return status_.what(); }
+  std::string what() const { return status_.what(); }
   StatusCode code() const { return status_.code(); }
 
   // methods for std::unique_ptr<T>, requires status_.ok()
@@ -207,6 +192,9 @@ class StatusOr {
   Status &&status() && {
     return std::move(status_);
   }
+  const Status &status() const & {
+    return status_;
+  }
   std::unique_ptr<T> &&pointer() && {
     ASSERT(status_.ok());
     return std::move(ptr_);
@@ -217,6 +205,32 @@ class StatusOr {
   Status status_;
 };
 
+class StatusWrapper {
+ public:
+  StatusWrapper(Status &&status) : status_(std::move(status)) {}
+  StatusWrapper(const Status &status) : status_(status.Copy()) {}
+
+  template<class T>
+  StatusWrapper(const StatusOr<T> &status) : status_(StatusCode::kOK) {
+    if (!status.ok()) {
+      status_ = status.status().Copy();
+    }
+  }
+
+  StatusWrapper(StatusWrapper &) = delete;
+  StatusWrapper operator=(StatusWrapper &) = delete;
+
+  operator Status() && { return std::move(status_); }
+  operator bool() { return status_.ok(); }
+
+  template <typename T>
+  StatusBuilder operator<<(const T &value) {
+    return std::move(StatusBuilder(status_.code(), status_.what()) << value);
+  }
+
+ private:
+  Status status_;
+};
 
 Status OkStatus();
 Status OutOfRangeError();

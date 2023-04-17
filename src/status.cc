@@ -25,7 +25,7 @@ Status::Status(Status &&status) : rep_(status.rep_) {
 
 Status Status::Copy() const {
   Status status(StatusCode::kOK);
-  if (status.IsHeapAllocated()) {
+  if (IsHeapAllocated()) {
     Rep *from_rep = GetRep();
     Rep *rep = new Rep(*from_rep);
 

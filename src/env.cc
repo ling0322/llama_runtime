@@ -74,7 +74,7 @@ Status Env::Impl::InitOnnxRuntime() {
   ort_api_ = api_base->GetApi(ORT_API_VERSION);
   if (!ort_api_) {
     RETURN_ABORTED() << "api_base->GetApi() failed: runtime version "
-                     << api_base->GetVersionString() << " request version "
+                     << api_base->GetVersionString() << ", request version "
                      << ORT_API_VERSION;
   }
 

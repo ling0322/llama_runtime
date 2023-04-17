@@ -67,7 +67,7 @@ std::string Path::string() const {
   return path_;
 }
 
-Status Path::wstring(std::wstring *ws) const {
+Status Path::AsWString(std::wstring *ws) const {
   RETURN_IF_ERROR(strings::ToWide(path_, ws));
   return OkStatus();
 }

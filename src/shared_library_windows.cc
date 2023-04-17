@@ -42,8 +42,8 @@ Status SharedLibrary::Impl::Open(const std::string &name) {
 
   DWORD code =  S_OK;
   std::wstring ws_filename;
-  RETURN_IF_ERROR(abs_filename.wstring(&ws_filename)) 
-      << "load library " << name << " failed";
+  RETURN_IF_ERROR(abs_filename.AsWString(&ws_filename)) 
+      << "invalid library name: " << name;
   module_ = LoadLibraryW(ws_filename.c_str());
   if (!module_) {
     code = GetLastError();
@@ -52,11 +52,13 @@ Status SharedLibrary::Impl::Open(const std::string &name) {
               << " fall back to system search";
 
     // fallback to system search
-    RETURN_IF_ERROR(abs_filename.wstring(&ws_filename))
-        << "load library " << name << " failed";
+    RETURN_IF_ERROR(filename.AsWString(&ws_filename))
+        << "invalid library name: " << name ;
     module_ = LoadLibraryW(ws_filename.c_str());
     if (!module_) {
-      RETURN_ABORTED() << "load library '" << name << "'failed";
+      code = GetLastError();
+      RETURN_ABORTED() << "Load library " << abs_filename.string()
+                       << " failed with code " << code;
     }
   }
 

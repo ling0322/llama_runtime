@@ -26,7 +26,7 @@ class Path {
   Path operator/(const std::string &path) const;
 
   std::string string() const;
-  Status wstring(std::wstring *ws) const;
+  Status AsWString(std::wstring *ws) const;
 
  private:
   std::string path_;

@@ -298,10 +298,7 @@ Tensor2D<float> Stack1Df(I begin, I end) {
   return Stack1D<float>(begin, end);
 }
 
-
-
 }  // namespace tensor
-
 }  // namespace llama
 
 #endif  // LLAMA_CC_TENSOR_H_

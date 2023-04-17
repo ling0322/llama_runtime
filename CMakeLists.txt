@@ -33,6 +33,7 @@ set(llama_test_SOURCES
     "src/strings_test.cc"
     "src/test_helper.cc"
     "src/test_main.cc"
+    "src/tokenizer_test.cc"
     "third_party/catch2/catch_amalgamated.cpp")
 add_executable(llama_test ${llama_test_SOURCES})
 target_include_directories(llama_test PRIVATE ${llama_INCDIRS})
