@@ -8,7 +8,7 @@
 #include <memory>
 #include <vector>
 #include "common.h"
-#include "readable_file.h"
+#include "io.h"
 #include "log.h"
 
 namespace llama {
@@ -605,7 +605,7 @@ Status Tensor::Read(ReadableFile *fp) {
   int byte_size = numel * SizeOfDType(dtype_);
   data_ = new ByteType[byte_size];
   util::Span<ByteType> bs_data(reinterpret_cast<ByteType *>(data_), byte_size);
-  RETURN_IF_ERROR(fp->Read(bs_data));
+  RETURN_IF_ERROR(fp->ReadSpan(bs_data));
 
   return OkStatus();
 }

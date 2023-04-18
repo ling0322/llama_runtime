@@ -3,7 +3,7 @@
 #include "tensor.h"
 #include "test_helper.h"
 #include "model.h"
-#include "readable_file.h"
+#include "io.h"
 
 using namespace llama;
 using namespace llama::model;

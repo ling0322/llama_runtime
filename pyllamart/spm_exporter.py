@@ -4,12 +4,47 @@ import struct
 from sentencepiece import SentencePieceProcessor
 from typing import List, Tuple
 
+class SentencePieceTestCaseExporter:
+    SAMPLE_TEXT = [
+        "The Touhou Project (Japanese: 東方Project, Hepburn: Tōhō Purojekuto), ",
+        "also known simply as Touhou (東方, literally ",
+        '''"Eastern" or "Oriental"), is a bullet hell shoot 'em up video game series created by one-man ''',
+        "independent Japanese",
+        "doujin soft developer Team Shanghai Alice.",
+        """Since 1995,[1][2] the team's member, Jun'ya "ZUN" Ōta, has independently""",
+        "developed programming, graphics, writing, and music for the series, self-publishing 18 mainline games and six",
+        "spin-offs as of August 2022. ",
+        "ZUN has also produced related print works and music albums, and collaborated with",
+        "developer Twilight Frontier on seven official Touhou spin-offs, most being fighting games.[3]",
+        "🐱"
+    ]
+
+    @classmethod
+    def run(cls, argv: List[str]):
+        """Invoke sentencepiece sample export with arguments"""
+        parser = argparse.ArgumentParser(description='export SentencePiece model to llama_runtime tokenizer format')
+        parser.add_argument('-m', type=str, help='input SentencePiece model')
+        parser.add_argument('-o', type=str, help='output test case file')
+        args = parser.parse_args(argv)
+
+        model_file = args.m
+        output_file = args.o
+        
+        sp = SentencePieceProcessor(model_file=model_file)
+        with open(output_file, 'w', encoding='utf-8') as fp:
+            for text in cls.SAMPLE_TEXT:
+                text_encoded = ' '.join(sp.EncodeAsPieces(text))
+                fp.write(f'{text}\t{text_encoded}\n')
+
 class SentencePieceExporter:
     FLAG_UNK = 1
     FLAG_CONTROL = 2
     FLAG_UNUSED = 4
 
     MAGIC_NUMBER = 0x55aa
+
+    
+
 
     @classmethod
     def read_sentencepiece_model(cls, sp: SentencePieceProcessor) -> List[Tuple[int, bytes, float]]:
@@ -54,7 +89,7 @@ class SentencePieceExporter:
 
     @classmethod
     def run(cls, argv: List[str]):
-        """Invoke whisper ONNX export with arguments"""
+        """Invoke sentencepipce BPE model export with arguments"""
         parser = argparse.ArgumentParser(description='export SentencePiece model to llama_runtime tokenizer format')
         parser.add_argument('-i', type=str, help='input SentencePiece model')
         parser.add_argument('-o', type=str, help='output llama_runtime tokenizer')
@@ -69,4 +104,4 @@ class SentencePieceExporter:
 
 
 if __name__ == '__main__':
-    SentencePieceExporter.run(sys.argv[1: ])
+    SentencePieceTestCaseExporter.run(sys.argv[1: ])

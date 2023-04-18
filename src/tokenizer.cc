@@ -46,6 +46,8 @@ class LlamaTokenizer::Encoder {
   std::vector<int> GetSymbolList();
 
  private:
+  static constexpr int kSymbolPoolBlockSize = 256;
+
   struct Bigram {
     Symbol *left;
     Symbol *right;
@@ -66,7 +68,7 @@ class LlamaTokenizer::Encoder {
     bool valid() const { return token_id != kInvalidToken; }
   };
 
-  Pool<Symbol> symbol_pool_;
+  Pool<Symbol, kSymbolPoolBlockSize> symbol_pool_;
   Symbol *header_;
   std::priority_queue<Bigram> queue_;
   const LlamaTokenizer *model_;
@@ -287,9 +289,7 @@ Status LlamaTokenizer::CheckModel() {
 }
 
 std::vector<int> LlamaTokenizer::Encode(const std::string &s) const {
-  Encoder encoder(this);
-
-  return encoder.Encode(s);
+  return Encoder(this).Encode(s);
 }
 
 std::vector<std::string> LlamaTokenizer::EncodeAsPieces(
@@ -326,7 +326,5 @@ int LlamaTokenizer::vocab_size() const {
 int LlamaTokenizer::unk_id() const {
   return unk_id_;
 }
-
-
 
 }  // namespace llama

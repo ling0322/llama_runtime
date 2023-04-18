@@ -10,12 +10,12 @@ set(llama_INCDIRS src .)
 set(llama_SOURCES
     "src/common.cc"
     "src/env.cc"
+    "src/io.cc"
     "src/log.cc"
     "src/model.cc"
     "src/onnxruntime_model.cc"
     "src/path.cc"
     "src/path_windows.cc"
-    "src/readable_file.cc"
     "src/shared_library_windows.cc"
     "src/status.cc"
     "src/strings.cc"

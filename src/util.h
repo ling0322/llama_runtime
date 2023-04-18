@@ -120,6 +120,12 @@ class Span : public BaseArray<T> {
  public:
   Span() noexcept : ptr_(nullptr), len_(0) {}
   Span(T *ptr, size_type size) : BaseArray(ptr, size) {}
+
+  Span<T> subspan(size_type pos = 0, size_type len = npos) const {
+    ASSERT(pos <= size());
+    len = std::min(size() - pos, len);
+    return Span<T>(data() + pos, len);
+  }
 };
 
 template<typename T>
@@ -171,7 +177,6 @@ class NonCopyable {
 // ----------------------------------------------------------------------------
 // AutoCPtr
 // ----------------------------------------------------------------------------
-
 
 // Stores the C pointer and it's destroy function
 template<typename T>

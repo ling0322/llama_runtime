@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "pool.h"
-#include "readable_file.h"
+#include "io.h"
 #include "status.h"
 #include "vocab.h"
 #include "util.h"
