@@ -253,10 +253,10 @@ char _Sprintf0_ParseFormat(const char **pp_string, std::stringstream &ss) {
       break;
     case 'x':
     case 'p':
-      ss << std::hex << std::showbase;
+      ss << std::hex;
       break;
     case 'X':
-      ss << std::hex << std::showbase << std::uppercase;
+      ss << std::hex << std::uppercase;
       break;
     case 'e':
       ss << std::scientific;
@@ -290,6 +290,40 @@ char _Sprintf0_ParseFormat(const char **pp_string, std::stringstream &ss) {
 
   *pp_string = pch;
   return type_specifier;
+}
+
+std::string Replace(const std::string &from,
+                    const std::string &old,
+                    const std::string &repl) {
+  int pos = 0;
+  std::string s = from;
+  while((pos = s.find(old, pos)) != std::string::npos) {
+      s.replace(pos, old.length(), repl);
+      pos += repl.length();
+  }
+  return s;
+}
+
+std::vector<std::string> SplitToUtf8Chars(const std::string &s) {
+  std::vector<std::string> utf8_chars;
+
+  std::string::const_iterator begin = s.begin();
+  uint32_t cp = 0;
+  char single_char[] = " ";
+  while (begin < s.end()) {
+    std::string::const_iterator next = begin;
+    Status status = utf8::next(next, s.end(), &cp);
+    if (status.ok()) {
+      utf8_chars.emplace_back(begin, next);
+      begin = next;  
+    } else {
+      single_char[0] = *begin;
+      utf8_chars.emplace_back(single_char);
+      ++begin;
+    }
+  }
+
+  return utf8_chars;
 }
 
 }  // namespace strings

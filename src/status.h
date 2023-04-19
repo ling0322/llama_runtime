@@ -1,5 +1,5 @@
-#ifndef FINLEY_UTIL_STATUS_H_
-#define FINLEY_UTIL_STATUS_H_
+#ifndef LLAMA_RUNTIME_STATUS_H_
+#define LLAMA_RUNTIME_STATUS_H_
 
 #include <exception>
 #include <string>
@@ -237,7 +237,8 @@ Status OutOfRangeError();
 Status AbortedError();
 Status AbortedError(const std::string &message);
 bool IsOutOfRange(const Status &status);
+bool IsOK(const Status &status);
 
 }  // namespace llama
 
-#endif  // FINLEY_UTIL_STATUS_H_
+#endif  // LLAMA_RUNTIME_STATUS_H_

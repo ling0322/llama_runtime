@@ -1,8 +1,7 @@
 #include "test_helper.h"
-#include "path.h"
+#include "util.h"
 
-using namespace llama;
-
+using namespace llama::util;
 
 Path _P(const char *pcs) {
   std::string s = pcs;

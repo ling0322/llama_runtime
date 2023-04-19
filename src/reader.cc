@@ -1,4 +1,4 @@
-#include "io.h"
+#include "reader.h"
 
 #include "common.h"
 #include "status.h"
@@ -8,10 +8,8 @@
 namespace llama {
 
 // ----------------------------------------------------------------------------
-// namespace op
+// class BufferedReader
 // ----------------------------------------------------------------------------
-
-namespace io {
 
 Status ReadFile(const std::string &filename, std::vector<ByteType> *data) {
   std::vector<ByteType> chunk(4096);
@@ -39,8 +37,6 @@ Status ReadFile(const std::string &filename, std::vector<ByteType> *data) {
   return OkStatus();
 }
 
-}  // namespace io
-
 // ----------------------------------------------------------------------------
 // class BufferedReader
 // ----------------------------------------------------------------------------
@@ -56,6 +52,7 @@ int BufferedReader::ReadFromBuffer(util::Span<ByteType> dest) {
   ByteType *begin = buffer_.begin() + r_;
   std::copy(begin, begin + n, dest.begin());
 
+  r_ += n;
   return n;
 }
 
@@ -153,7 +150,7 @@ StatusOr<ReadableFile> ReadableFile::Open(const std::string &filename) {
     RETURN_ABORTED() << "failed to open file " << filename;
   }
 
-  return OkStatus();
+  return fp;
 }
 
 Status ReadableFile::Read(util::Span<ByteType> buffer, int *pcbytes) {

@@ -3,7 +3,7 @@
 #include <algorithm>
 
 #include "env.h"
-#include "io.h"
+#include "reader.h"
 #include "third_party/onnxruntime/onnxruntime_c_api.h"
 
 namespace llama {
@@ -43,7 +43,7 @@ Status ORTModel::Init(const std::string &onnx_model_path) {
 
   // read model
   std::vector<ByteType> model_data;
-  RETURN_IF_ERROR(io::ReadFile(onnx_model_path, &model_data));
+  RETURN_IF_ERROR(ReadFile(onnx_model_path, &model_data));
   RETURN_IF_ERROR(helper_->CreateSession(
       ort_env,
       util::MakeConstSpan(model_data),

@@ -6,7 +6,6 @@
 
 #include "common.h"
 #include "status.h"
-#include "path.h"
 #include "util.h"
 
 namespace llama {
@@ -33,12 +32,12 @@ SharedLibrary::Impl::~Impl() {
 }
 
 Status SharedLibrary::Impl::Open(const std::string &name) {
-  Path filename = std::string(name) + ".dll";
+  util::Path filename = std::string(name) + ".dll";
 
   // first try to load the dll from same folder as current module
-  Path module_path = Path::CurrentModulePath();
+  util::Path module_path = util::Path::CurrentModulePath();
   module_path = module_path.dirname();
-  Path abs_filename = module_path / filename;
+  util::Path abs_filename = module_path / filename;
 
   DWORD code =  S_OK;
   std::wstring ws_filename;

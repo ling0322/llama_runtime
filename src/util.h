@@ -1,4 +1,5 @@
-#pragma once
+#ifndef LLAMA_RUNTIME_UTIL_H_
+#define LLAMA_RUNTIME_UTIL_H_
 
 #include <functional>
 #include <string>
@@ -6,13 +7,14 @@
 
 #include "common.h"
 #include "log.h"
+#include "status.h"
 
 namespace llama {
 namespace util {
 
-// ----------------------------------------------------------------------------
-// BaseArray
-// ----------------------------------------------------------------------------
+// ---------------------------------------------------------------------------+
+// BaseArray                                                                  |
+// ---------------------------------------------------------------------------+
 
 template<typename T>
 class BaseArray {
@@ -160,9 +162,9 @@ constexpr Span<const T> MakeConstSpan(const FixedArray<T> &v) {
 }
 
 
-// ----------------------------------------------------------------------------
-// NonCopyable
-// ----------------------------------------------------------------------------
+// ---------------------------------------------------------------------------+
+// NonCopyable                                                                |
+// ---------------------------------------------------------------------------+
 
 class NonCopyable {
  public: 
@@ -174,9 +176,9 @@ class NonCopyable {
   ~NonCopyable() = default;
 };
 
-// ----------------------------------------------------------------------------
-// AutoCPtr
-// ----------------------------------------------------------------------------
+//
+// class AutoCPtr
+//
 
 // Stores the C pointer and it's destroy function
 template<typename T>
@@ -246,5 +248,140 @@ inline T *AutoCPtr<T>::Release() {
   return ptr;
 }
 
+// ---------------------------------------------------------------------------+
+// class Path                                                                 |
+// ---------------------------------------------------------------------------+
+
+// provide base functions for path. For example, path::Join, dirname, basename
+// and convert to wstring, ...
+class Path {
+ public:
+  static Path CurrentModulePath();
+  static Path CurrentExecutablePath();
+
+  Path(const std::string &path);
+  Path(std::string &&path);
+
+  bool operator==(const Path &r) const;
+  bool operator==(const std::string &r) const;
+
+  Path dirname() const;
+  Path basename() const;
+
+  Path operator/(const Path &path) const;
+  Path operator/(const std::string &path) const;
+
+  std::string string() const;
+  Status AsWString(std::wstring *ws) const;
+
+ private:
+  std::string path_;
+};
+
+// ---------------------------------------------------------------------------+
+// class Pool                                                                 |
+// ---------------------------------------------------------------------------+
+
+// Pool is a class to optimize allocating large number of a class T.
+template<typename T, int BLOCK_SIZE = 4096>
+class Pool {
+ public:
+  static constexpr int16_t kUnmarked = 0;
+  static constexpr int16_t kMarked = 1;
+
+  Pool();
+  ~Pool();
+
+  // Allocate a class T with constructor parameter args 
+  T *Alloc();
+
+  // Allocate a class T with constructor parameter args 
+  void Free(T *pointer);
+  void Free(const T *pointer);
+
+  // Clear all allocated class T
+  void Clear();
+
+  // Start gabbage collection. Root set for GC is in root_nodes
+  void GC(const std::vector<T *> root);
+
+  // Free and allocated nodes in this pool
+  int num_free() const;
+  int num_allocated() const;
+
+ protected:
+  std::vector<T *> blocks_;
+  std::vector<T *> free_;
+  int current_block_;
+  int current_offset_;
+};
+
+
+template<typename T, int BLOCK_SIZE>
+Pool<T, BLOCK_SIZE>::Pool() : current_block_(0), current_offset_(0) {
+  T *block = reinterpret_cast<T *>(::operator new(sizeof(T) * BLOCK_SIZE));
+  blocks_.push_back(block);
+}
+
+template<typename T, int BLOCK_SIZE>
+Pool<T, BLOCK_SIZE>::~Pool() {
+  Clear();
+  for (T *block : blocks_) {
+    ::operator delete(block);
+  }
+  current_block_ = 0;
+  current_offset_ = 0;
+}
+
+template<typename T, int BLOCK_SIZE>
+T *Pool<T, BLOCK_SIZE>::Alloc() {
+  T *memory;
+  if (free_.empty()) {
+    ASSERT(current_offset_ <= BLOCK_SIZE);
+    if (current_offset_ == BLOCK_SIZE) {
+      if (current_block_ == blocks_.size() - 1) {
+        T *block = reinterpret_cast<T *>(
+            ::operator new(sizeof(T) * BLOCK_SIZE));
+        blocks_.push_back(block);
+      }
+      ++current_block_;
+      current_offset_ = 0;
+    }
+    memory = blocks_[current_block_] + current_offset_;
+    ++current_offset_;
+  } else {
+    memory = free_.back();
+    free_.pop_back();
+  }
+
+  return memory;
+}
+
+template<typename T, int BLOCK_SIZE>
+void Pool<T, BLOCK_SIZE>::Free(T *pointer) {
+  free_.push_back(pointer);
+}
+
+template<typename T, int BLOCK_SIZE>
+void Pool<T, BLOCK_SIZE>::Clear() {
+  current_block_ = 0;
+  current_offset_ = 0;
+  free_.clear();
+}
+
+template<typename T, int BLOCK_SIZE>
+int Pool<T, BLOCK_SIZE>::num_free() const {
+  return free_.size() +
+          (blocks_.size() - current_block_) * BLOCK_SIZE -
+          current_offset_;
+}
+
+template<typename T, int BLOCK_SIZE>
+int Pool<T, BLOCK_SIZE>::num_allocated() const {
+  return current_block_ * BLOCK_SIZE + current_offset_ - free_.size();
+}
+
 }  // namespace util
 }  // namespace llama
+
+#endif  // LLAMA_RUNTIME_UTIL_H_

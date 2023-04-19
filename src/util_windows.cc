@@ -1,10 +1,11 @@
-#include "path.h"
+#include "util.h"
 
 #include <windows.h>
 #include "common.h"
 #include "log.h"
 
 namespace llama {
+namespace util {
 
 Path Path::CurrentModulePath() {
   char filename[MAX_PATH + 1];
@@ -30,4 +31,5 @@ Path Path::CurrentExecutablePath() {
   return filename;
 }
 
+}  // namespace util
 }  // namespace llama

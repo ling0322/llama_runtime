@@ -1,14 +1,21 @@
-#include "path.h"
+#include "util.h"
 
 #include "strings.h"
+
+
+
+namespace llama {
+namespace util {
+
+//
+// class Path
+//
 
 #ifdef LL_PLATFORM_WINDOWS
 #define PATH_DELIM "\\"
 #else
 #define PATH_DELIM "/"
 #endif
-
-namespace llama {
 
 Path::Path(const std::string &path) : path_(path) {}
 Path::Path(std::string &&path): path_(std::move(path)) {}
@@ -72,4 +79,5 @@ Status Path::AsWString(std::wstring *ws) const {
   return OkStatus();
 }
 
+}  // namespace util
 }  // namespace llama

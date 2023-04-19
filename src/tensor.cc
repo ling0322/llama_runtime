@@ -8,7 +8,7 @@
 #include <memory>
 #include <vector>
 #include "common.h"
-#include "io.h"
+#include "reader.h"
 #include "log.h"
 
 namespace llama {

@@ -39,12 +39,9 @@ class SentencePieceTestCaseExporter:
 class SentencePieceExporter:
     FLAG_UNK = 1
     FLAG_CONTROL = 2
-    FLAG_UNUSED = 4
-
+    FLAG_BYTE = 4
+    FLAG_UNUSED = 8
     MAGIC_NUMBER = 0x55aa
-
-    
-
 
     @classmethod
     def read_sentencepiece_model(cls, sp: SentencePieceProcessor) -> List[Tuple[int, bytes, float]]:
@@ -54,22 +51,22 @@ class SentencePieceExporter:
         vocab: List[Tuple[int, bytes, float]] = []
         for token_id in range(sp.vocab_size()):
             flag = 0
-            token_string = b''
+            token_bytes = b''
             if sp.IsUnknown(token_id):
-                flag = flag & cls.FLAG_UNK
+                flag = flag | cls.FLAG_UNK
             if sp.IsControl(token_id):
-                flag = flag & cls.FLAG_CONTROL
+                flag = flag | cls.FLAG_CONTROL
             if sp.IsUnused(token_id):
-                flag = flag & cls.FLAG_UNUSED
-
+                flag = flag | cls.FLAG_UNUSED
             if sp.IsByte(token_id):
+                flag = flag | cls.FLAG_BYTE
                 b = int(sp.IdToPiece(token_id)[1: -1], 16)
                 b = struct.pack('B', b)
-                token_string = b
-            elif flag == 0:
-                token_string = sp.IdToPiece(token_id).encode('utf-8')
+                token_bytes = b
+            if flag == 0:
+                token_bytes = sp.IdToPiece(token_id).encode('utf-8')
             
-            vocab.append((flag, token_string, sp.GetScore(token_id)))
+            vocab.append((flag, token_bytes, sp.GetScore(token_id)))
         
         return vocab
 
@@ -104,4 +101,4 @@ class SentencePieceExporter:
 
 
 if __name__ == '__main__':
-    SentencePieceTestCaseExporter.run(sys.argv[1: ])
+    SentencePieceExporter.run(sys.argv[1: ])

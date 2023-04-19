@@ -12,6 +12,12 @@
 
 namespace llama {
 
+// ---------------------------------------------------------------------------+
+// function ReadFile                                                          |
+// ---------------------------------------------------------------------------+
+
+Status ReadFile(const std::string &filename, std::vector<ByteType> *data);
+
 // ----------------------------------------------------------------------------
 // class Reader
 // ----------------------------------------------------------------------------
@@ -104,16 +110,7 @@ class ReadableFile : public BufferedReader,
   ReadableFile();
 };
 
-// ----------------------------------------------------------------------------
-// namespace io
-// ----------------------------------------------------------------------------
-
-namespace io {
-
-Status ReadFile(const std::string &filename, std::vector<ByteType> *data);
-
-}  // namespace io
-
 }  // namespace llama
 
 #endif  // LLAMA_CC_READABLE_FILE_H_
+

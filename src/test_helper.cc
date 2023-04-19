@@ -1,7 +1,7 @@
 #include "test_helper.h"
 #include "tensor.h"
 
-#include "io.h"
+#include "reader.h"
 
 namespace llama {
 namespace test_helper {

@@ -19,21 +19,6 @@ namespace test_helper {
 bool IsNear(const TensorView2Df &a, const TensorView2Df &b, float eps);
 bool IsNear(const TensorView &a, const TensorView &b, float eps);
 
-template<typename T>
-bool IsEqual(const std::vector<T> &a, const std::vector<T> &b) {
-  if (a.size() != b.size()) {
-    return false;
-  }
-
-  for (int i = 0; i < a.size(); ++i) {
-    if (a[i] != b[i]) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
 // read 16kHz, 16bit mono-channel wave file and returns samples
 std::vector<float> ReadAudio(const std::string &wave_file);
 

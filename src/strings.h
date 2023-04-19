@@ -23,6 +23,15 @@ std::string Trim(const std::string &s, PCStrType chars = " \t\r\n");
 std::vector<std::string> Split(const std::string &str,
                          const std::string &delim);
 
+std::string Replace(const std::string &s,
+                    const std::string &old,
+                    const std::string &repl);
+
+// split a utf8 string into a list of strings. Each string in this list only
+// contains one character in utf-8 encoding. For invalid byte, it will keep
+// it as a standalone char.
+std::vector<std::string> SplitToUtf8Chars(const std::string &s);
+
 // internal functions for Sprintf()
 constexpr int kSprintfMaxWeight = 200;
 char _Sprintf0_ParseFormat(const char **pp_string, std::stringstream &ss);

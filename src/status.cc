@@ -111,5 +111,8 @@ Status AbortedError(const std::string &message) {
 bool IsOutOfRange(const Status &status) {
   return status.code() == StatusCode::kOutOfRange;
 }
+bool IsOK(const Status &status) {
+  return status.ok();
+}
 
 }  // namespace llama

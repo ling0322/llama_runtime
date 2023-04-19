@@ -4,6 +4,10 @@
 using namespace llama;
 using namespace strings;
 
+std::vector<std::string> V(std::initializer_list<std::string> il) {
+  return il;
+}
+
 TEST_CASE("string functions works", "[core][util]") {
   REQUIRE(Trim("  ") == "");
   REQUIRE(Trim(" \ta ") == "a");
@@ -22,10 +26,10 @@ TEST_CASE("string functions works", "[core][util]") {
   REQUIRE(TrimRight(" a") == " a");
   REQUIRE(TrimRight("a") == "a");
 
-  REQUIRE(test_helper::IsEqual(Split("A\tB\tC", "\t"), {"A", "B", "C"}));
-  REQUIRE(test_helper::IsEqual(Split("A.-B.-C", ".-"), {"A", "B", "C"}));
-  REQUIRE(test_helper::IsEqual(Split("A.B.C.", "."), {"A", "B", "C", ""}));
-  REQUIRE(test_helper::IsEqual(Split("..A.B", "."), {"", "", "A", "B"}));
+  REQUIRE(Split("A\tB\tC", "\t") == V({"A", "B", "C"}));
+  REQUIRE(Split("A.-B.-C", ".-") == V({"A", "B", "C"}));
+  REQUIRE(Split("A.B.C.", ".") == V({"A", "B", "C", ""}));
+  REQUIRE(Split("..A.B", ".") == V({"", "", "A", "B"}));
 
   std::string s, s_ref = "vanilla\xe5\x87\xaa\xc3\xa2\xf0\x9f\x8d\xad";
   std::wstring ws, ws_ref = L"vanilla\u51ea\u00e2\U0001f36d";
