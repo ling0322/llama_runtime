@@ -108,6 +108,7 @@ PackedBlock Pack(Block src, Block buf, int pack_size) {
 
     tgt_block = tgt_block.ColRange(0, _nc);
     src_block.CopyTo(tgt_block);
+    ++tgt.num_blocks;
   }
 
   return tgt;
@@ -206,13 +207,16 @@ void GEMM::Gemm1thLoopSplitByMR(PackedBlock Ap, Block Bpr, Block Cijn) {
 void GEMM::CallMicroKernel(Block Apr, Block Bpr, Block Cijmn) {
   if (Cijmn.num_rows < MR || Cijmn.num_cols < NR) {
     _Cb.FillZero();
+    Block Cb = _Cb.Range(0, 0, Cijmn.num_rows, Cijmn.num_cols);
+    Cijmn.CopyTo(Cb);
+
     MicroKernel(Apr.num_rows, Apr.data, Bpr.data, _Cb.data, _Cb.stride);
-    Block Csrc = _Cb.Range(0, 0, Cijmn.num_rows, Cijmn.num_cols);
-    Csrc.CopyTo(Cijmn);
+    Cb.CopyTo(Cijmn);
   } else {
     MicroKernel(Apr.num_rows, Apr.data, Bpr.data, Cijmn.data, Cijmn.stride);
   }
 }
+
 
 void GEMM::MatMul(
     int m, int n, int k,

@@ -61,7 +61,7 @@ bool AllClose2D_Float32(const Tensor &A,
   return true;
 }
 
-void TestGEMM(int m, int n, int k) {
+void TestGEMM(int m, int k, int n) {
   Function F;
 
   Tensor A = F.Rand({m, k}, DType::kFloat);
@@ -76,9 +76,9 @@ void TestGEMM(int m, int n, int k) {
 TEST_CASE("float32 GEMM BVT", "[core][nn]") {
   TestGEMM(1, 1, 1);
   TestGEMM(2, 2, 2);
-  TestGEMM(1, 10, 2);
-  TestGEMM(32, 32, 32);
-  TestGEMM(8, 8, 5000);
-  TestGEMM(8, 5000, 8);
-  TestGEMM(5000, 8, 8);
+  TestGEMM(50, 50, 1);
+  TestGEMM(513, 2, 513);
+  TestGEMM(16, 16, 5000);
+  TestGEMM(16, 5000, 16);
+  TestGEMM(5000, 16, 16);
 }
