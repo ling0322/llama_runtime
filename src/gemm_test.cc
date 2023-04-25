@@ -61,38 +61,24 @@ bool AllClose2D_Float32(const Tensor &A,
   return true;
 }
 
-void BenchmarkGEMM(
-    int m,
-    int n,
-    int k,
-    int num_loop,
-    std::function<void(const Tensor &, const Tensor &)> mm_func) {
-  
-}
-
-TEST_CASE("float32 GEMM BVT", "[core][nn]") {
+void TestGEMM(int m, int n, int k) {
   Function F;
 
-  Tensor A = F.Rand({50, 50 }, DType::kFloat);
-  Tensor B = F.Rand({ 50, 50 }, DType::kFloat);
+  Tensor A = F.Rand({m, k}, DType::kFloat);
+  Tensor B = F.Rand({k, n}, DType::kFloat);
 
   Tensor C = F.MatMul(A, B);
   Tensor C_ref = RefMatMul_Float32(A, B);
 
-  F.Print(C);
-  F.Print(C_ref);
-
   REQUIRE(AllClose2D_Float32(C, C_ref));
 }
 
-TEST_CASE("float32 GEMM", "[core][nn]") {
-  Function F;
-
-  Tensor A = F.Rand({ 512, 512 }, DType::kFloat);
-  Tensor B = F.Rand({ 512, 512 }, DType::kFloat);
-
-  BENCHMARK("MatMul") {
-    return F.MatMul(A, B);
-  };
-
+TEST_CASE("float32 GEMM BVT", "[core][nn]") {
+  TestGEMM(1, 1, 1);
+  TestGEMM(2, 2, 2);
+  TestGEMM(1, 10, 2);
+  TestGEMM(32, 32, 32);
+  TestGEMM(8, 8, 5000);
+  TestGEMM(8, 5000, 8);
+  TestGEMM(5000, 8, 8);
 }
