@@ -99,6 +99,15 @@ class Context {
   void Set(const std::string &name, const Tensor &value);
 }; 
 
+class Namespace {
+ public:
+  Namespace Sub(const std::string &sub_name);
+  std::string Name(const std::string &name);
+
+ private:
+  std::string ns_;
+};
+
 // base class for all nn modules
 class Module {
  public:
@@ -109,7 +118,7 @@ class Module {
 // linear layer in the nn.
 class Linear : public Module {
  public:
-  Linear(int hidden_size);
+  Linear(Namespace ns, int hidden_size);
 
   // initialize the module from context
   Status InitFromContext(Context *ctx) override;
@@ -118,6 +127,8 @@ class Linear : public Module {
   Tensor Forward(const Tensor &input) const;
 
  private:
+  Namespace ns_;
+
   Tensor w_;
   Tensor b_;
 };
@@ -133,8 +144,9 @@ class Function {
   //   B <float>(N, K): matrix B;
   // Returns:
   //   (M, K); A dot B
-  Tensor MatMul(const Tensor &A, const Tensor &B);
-  Tensor BMM(const Tensor &left, const Tensor &right);
+  Tensor MatMul(const Tensor &a, const Tensor &b);
+  Tensor BMM(const Tensor &a, const Tensor &b);
+  Tensor Mul(const Tensor &tensor, float scale);
 
   // Apply softmax on the last dimension of input
   // Args:

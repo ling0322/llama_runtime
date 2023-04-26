@@ -9,27 +9,31 @@ namespace nn {
 
 class MultiheadAttention {
  public:
+  MultiheadAttention(Namespace ns, int d_model, int num_heads);
+
+  Tensor Forward(const Tensor &q,
+                 const Tensor &k,
+                 const Tensor &v,
+                 const Tensor *mask = nullptr);
+
  private:
+  Namespace ns;
+  Function F;
+
+  int d_model_;
+  int d_k_;
+  int num_heads_;
+
+  Linear q_proj_;
+  Linear k_proj_;
+  Linear v_proj_;
+  Linear out_proj_;
+
   Tensor Attention(const Tensor &q,
                    const Tensor &k,
                    const Tensor &v,
-                   const Tensor *mask);
+                   const Tensor *mask = nullptr);
 };
-
-Tensor Function::Attention(const Tensor &q, const Tensor &k, const Tensor &v,
-                           const Tensor *mask) {
-  float d_k = q.shape(-1);
-  Tensor k_T = Transpose(k, 2, 3);
-
-  Tensor scores = MatMul(q, k_T);
-  scores = Scale(scores, d_k);
-  if (mask) {
-    scores = Add(scores, *mask);
-  }
-
-  scores = Softmax(scores);
-  Tensor outputs = MatMul(scores, v);
-}
 
 
 }  // namespace nn
