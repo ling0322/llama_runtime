@@ -7,7 +7,7 @@
 namespace llama {
 namespace nn {
 
-class MultiheadAttention {
+class MultiheadAttention : public Module {
  public:
   MultiheadAttention(Namespace ns, int d_model, int num_heads);
 

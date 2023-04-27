@@ -1,47 +1,45 @@
 #ifndef LLAMA_CC_ENV_H_
 #define LLAMA_CC_ENV_H_
 
-struct OrtApi;
-struct OrtEnv;
-struct OrtMemoryInfo;
-
 #include <mutex>
+#include "util.h"
 
 namespace llama {
 
+namespace nn {
+class Operators;
+}  // namespace nn
+
+
 // stores all global function and objects required in finley
-class Env {
+class Environment : private util::NonCopyable {
  public:
   class Impl;
 
-  Env(Env &) = delete;
-  Env(Env &&) = delete;
-  Env &operator=(Env &) = delete;
-  Env &operator=(Env &&) = delete;
-  ~Env();
+  // destructor.
+  ~Environment();
   
   // initialize and destryy the global environment
-  static void Init() noexcept;
-  static void Destroy() noexcept;
+  static void Init();
+  static void Destroy();
 
   // get an instance of Env. Before calling this function Init() should be
   // called. This function is lock-free
-  static const Env *instance() noexcept;
-
-  // environment for onnxruntime
-  const OrtApi *ort_api() const noexcept;
-  OrtEnv *ort_env() const noexcept;
+  static const Environment *instance();
+  
+  // nn::Operators
+  nn::Operators *nn_operators_cpu() const;
 
  private:
   // global pointer of Env as well as its Init() and Destroy() mutex
-  static Env *env_;
+  static Environment *env_;
   static std::mutex mutex_;
 
   // internal inolementation
-  std::unique_ptr<Impl> impl_;
+  std::unique_ptr<nn::Operators> nn_operators_cpu_;
 
   // singleton constructor
-  Env();
+  Environment();
 };
 
 }  // namespace llama

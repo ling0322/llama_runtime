@@ -111,6 +111,13 @@ class FixedArray : public BaseArray<T> {
 
     return *this;
   }
+
+  FixedArray<T> Copy() const {
+    FixedArray<T> l(size_);
+    std::copy(begin(), end(), l.begin());
+
+    return l;
+  }
 };
 
 // ----------------------------------------------------------------------------

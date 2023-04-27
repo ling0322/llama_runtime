@@ -4,92 +4,17 @@
 #include <stdint.h>
 #include "common.h"
 #include "status.h"
+#include "tensor.h"
 #include "util.h"
 
 namespace llama {
 namespace nn {
 
-class TensorView;
 class Function;
+class Tensor;
 
-// 
-class Tensor : private util::NonCopyable {
- public:
-  friend class Function;
-
-  typedef int8_t RankType;
-  typedef uint8_t FlagType;
-  typedef int32_t ShapeType;
-
-  Tensor();
-  virtual ~Tensor();
-
-  // copy constructor
-  Tensor(Tensor &&tensor);
-  Tensor &operator=(Tensor &&);
-
-  // get numebr of dimentsions.
-  int rank() const { return rank_; }
-
-  // get the size in dimention `d`. `d` supports positive number
-  // (index) and negative number (index from back). Crash if `d` is out of
-  // boundary
-  int shape(int d) const;
-
-  // get stride for dimension `d`. 
-  int stride(int d) const;
-
-  // get number of elements in this tensor.
-  int numel() const;
-
-  // return true if this tensor is empty.
-  bool empty() const;
-
-  // get data type.
-  DType dtype() const { return dtype_; }
-
-  // pointer of data in this tensor
-  template <typename T>
-  T *data() {
-    CHECK(TypeID<T>() == dtype_);
-    return reinterpret_cast<T *>(data_);
-  }
-
-  template <typename T>
-  const T *data() const {
-    CHECK(TypeID<T>() == dtype_);
-    return reinterpret_cast<T *>(data_);
-  }
-
- protected:
-  // maxinum number of rank.
-  static constexpr int kMaxRank = 16;
-
-  // rank for empty tensor.
-  static constexpr int8_t kEmptyRank = -1;
-
-  // this flag means the Tensor owns its data_ pointer.
-  static constexpr uint8_t kFlagOwnData = 1;
-
-  // this flag means the Tensor owns its shape_ pointer.
-  static constexpr uint8_t kFlagOwnShape = 2;
-
-  // shape_ has 2 * rank_ items. The first part is shape and the second part is
-  // the stride
-  ShapeType *shape_;
-
-  void *data_;
-  DType dtype_;
-  RankType rank_;
-  FlagType flag_;
-
-  // dispose all resource in this tensor. Free shape_ if the tensor owns shape_
-  // ptr_. Free data_ of the tensor owns data_.
-  void Dispose();
-};
-
-class TensorView : public Tensor {
-
+enum class Device {
+  kCpu
 };
 
 // context for recurrent neural network or auto-regressive decoder 
@@ -145,8 +70,9 @@ class Function {
   // Returns:
   //   (M, K); A dot B
   Tensor MatMul(const Tensor &a, const Tensor &b);
-  Tensor BMM(const Tensor &a, const Tensor &b);
-  Tensor Mul(const Tensor &tensor, float scale);
+
+  // Element wise multiply input and other.
+  Tensor Mul(const Tensor &input, float other);
 
   // Apply softmax on the last dimension of input
   // Args:
@@ -155,7 +81,6 @@ class Function {
   //   <float>(..., L): output tensor 
   Tensor Softmax(const Tensor &input);
   Tensor Add(const Tensor &a, const Tensor &b);
-  Tensor Transpose(const Tensor &input, int dim0, int dim1);
 
   // create a tensor with specified shape and dtype. Data in this tensor is
   // uninitialize.
@@ -167,6 +92,9 @@ class Function {
 
   // Returns a tensor filled with 0
   Tensor Zeros(std::initializer_list<int> shape, DType dtype);
+
+  // Return a contiguous in memory tensor containing the same data as input
+  Tensor Contiguous(const Tensor &input);
 
   // Print the tensor to stdout,
   void Print(const Tensor &tensor);
