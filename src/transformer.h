@@ -14,7 +14,7 @@ class MultiheadAttention : public Module {
   Tensor Forward(const Tensor &q,
                  const Tensor &k,
                  const Tensor &v,
-                 const Tensor *mask = nullptr);
+                 const Tensor &mask = Tensor());
 
  private:
   Namespace ns;
@@ -32,7 +32,7 @@ class MultiheadAttention : public Module {
   Tensor Attention(const Tensor &q,
                    const Tensor &k,
                    const Tensor &v,
-                   const Tensor *mask = nullptr);
+                   const Tensor &mask);
 };
 
 

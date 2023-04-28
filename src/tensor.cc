@@ -90,7 +90,7 @@ ByteType *Tensor::raw_data(DType dtype) const {
   return data_ptr_;
 }
 
-void Tensor::FillShapeStride(std::initializer_list<int> shape) {
+void Tensor::FillShapeStride(util::Span<const int> shape) {
   shape_ = util::FixedArray<Shape>(shape.size());
   Shape *ps = shape_.data();
   for (int dimension : shape) {
@@ -110,7 +110,7 @@ Tensor Tensor::View(std::initializer_list<int> shape) const {
   Tensor view;
   view.data_ = data_;
   view.data_ptr_ = data_ptr_;
-  view.FillShapeStride(shape);
+  view.FillShapeStride(util::MakeConstSpan(shape));
 
   CHECK(view.numel() == numel());
   return view;

@@ -34,11 +34,16 @@ class Operators {
   // Returns:
   //   <float>(..., L): output tensor
   virtual Tensor Softmax(const Tensor &input) = 0;
-  virtual Tensor Add(const Tensor &a, const Tensor &b) = 0;
+
+  // return input + other.
+  virtual Tensor Add(const Tensor &input, const Tensor &other) = 0;
 
   // create a tensor with specified shape and dtype. Data in this tensor is
   // uninitialize.
   virtual Tensor Tensor_(std::initializer_list<int> shape, DType dtype) = 0;
+
+  // returns a uninitialized tensor with the same shape and dtype as input
+  virtual Tensor TensorLike(const Tensor &input) = 0;
 
   // Returns a tensor filled with random numbers from a uniform distribution on
   // the interval [0, 1) 

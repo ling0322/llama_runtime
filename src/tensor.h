@@ -91,7 +91,7 @@ class Tensor {
   int real_dim(int dim) const;
 
   // fill shape and stride values in shape_ according to given `shape`
-  void FillShapeStride(std::initializer_list<int> shape);
+  void FillShapeStride(util::Span<const int> shape);
 };
 
 inline int Tensor::rank() const {

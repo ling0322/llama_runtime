@@ -149,7 +149,6 @@ constexpr Span<const T> MakeConstSpan(
     typename Span<T>::size_type size) {
   return Span<const T>(ptr, size);
 }
-
 template<typename T>
 constexpr Span<T> MakeSpan(std::vector<T> &v) {
   return Span<T>(v.data(), v.size());
@@ -166,6 +165,10 @@ constexpr Span<T> MakeSpan(const FixedArray<T> &v) {
 template<typename T>
 constexpr Span<const T> MakeConstSpan(const FixedArray<T> &v) {
   return Span<const T>(v.data(), v.size());
+}
+template<typename T>
+constexpr Span<const T> MakeConstSpan(std::initializer_list<T> v) {
+  return Span<const T>(v.begin(), v.size());
 }
 
 

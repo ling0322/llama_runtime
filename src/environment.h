@@ -1,6 +1,7 @@
 #ifndef LLAMA_CC_ENV_H_
 #define LLAMA_CC_ENV_H_
 
+#include <memory>
 #include <mutex>
 #include "util.h"
 

@@ -2,6 +2,7 @@
 
 #include <stdlib.h>
 #include <limits>
+#include <memory>
 #include "nn.h"
 #include "operators.h"
 #include "gemm.h"
@@ -21,19 +22,44 @@ class CpuOperators : public Operators {
   Tensor Softmax(const Tensor &input) override;
   Tensor Add(const Tensor &a, const Tensor &b) override;
   Tensor Tensor_(std::initializer_list<int> shape, DType dtype) override;
+  Tensor TensorLike(const Tensor &input) override;
   Tensor Rand(std::initializer_list<int> shape, DType dtype) override;
   Tensor Zeros(std::initializer_list<int> shape, DType dtype) override;
   Tensor Contiguous(const Tensor &input) override;
   void Print(const Tensor &tensor) override;
 
  private:
+  // apply elementwise binary operator to tensor `A` and tensor `B`, then store
+  // result to tensor `C`
+  //     C_ij = binary_op(A_ij, B_ij)
+  // broadcast tensor `B` if necessary
+  template<typename T>
+  void ApplyBinaryOperator(
+      util::Span<const Tensor::Shape> shape_A,
+      util::Span<const Tensor::Shape> shape_B,
+      util::Span<const Tensor::Shape> shape_C,
+      const T *data_A,
+      const T *data_B,
+      T *data_C,
+      std::function<T(T input, T other)> binary_op);
+
   void Rand_Float32(Tensor *tensor);
   void Zeros_Float32(Tensor *tensor);
   void MatMul_Float32(const Tensor &A, const Tensor &B, Tensor *C);
   void Print1D_Float32(int d, const float *data);
   void Print2D_Float32(int m, int n, int lda, const float *data);
   void Print_Float32(const Tensor &tensor);
+
+  // Tensor(data_input) += Tensor(data_other)
+  void Add_Float32(util::Span<Tensor::Shape> shape_input,
+                   util::Span<Tensor::Shape> shape_other,
+                   float *data_input,
+                   float *data_other);
 };
+
+std::unique_ptr<Operators> CreateCpuOperators() {
+  return std::make_unique<CpuOperators>();
+}
 
 void CpuOperators::Rand_Float32(Tensor *tensor) {
   float *data = tensor->data<float>();
@@ -114,15 +140,99 @@ void CpuOperators::Print_Float32(const Tensor &tensor) {
   puts("");
 }
 
+template<typename T>
+void CpuOperators::ApplyBinaryOperator(
+      util::Span<const Tensor::Shape> shape_A,
+      util::Span<const Tensor::Shape> shape_B,
+      util::Span<const Tensor::Shape> shape_C,
+      const T *data_A,
+      const T *data_B,
+      T *data_C,
+      std::function<T(T input, T other)> binary_op) {
+  CHECK(shape_A.size() >= shape_B.size() && shape_other.size() >= 1);
+  CHECK(shape_A.size() == shape_C.size());
+
+  if (shape_A.size() > shape_B.size()) {
+    // broadcast B
+
+    const Tensor::Shape sa = shape_A.front();
+    const Tensor::Shape sc = shape_C.front();
+    CHECK(sa.dimension == sc.dimension);
+    
+    for (int i = 0; i < sa.dimension; ++i) {
+      const float *da = data_A + i * sa.stride;
+      float *dc = data_C + i * sc.stride;
+      ApplyBinaryOperator(
+          shape_A.subspan(1),
+          shape_B,
+          shape_C.subspan(1),
+          da,
+          data_B,
+          dc,
+          binary_op);
+    }
+  } else if (shape_A.size() > 1) {
+    // for n-D Tensor
+
+    const Tensor::Shape sa = shape_A.front();
+    const Tensor::Shape sb = shape_B.front();
+    const Tensor::Shape sc = shape_C.front();
+    CHECK(sa.dimension == sb.dimension && sa.dimension == sc.dimension);
+
+    for (int i = 0; i < sa.dimension; ++i) {
+      const float *da = data_A + i * sa.stride;
+      const float *db = data_B + i * sb.stride;
+      float *dc = data_C + i * sc.stride;
+      ApplyBinaryOperator(
+          shape_A.subspan(1),
+          shape_B.subspan(1),
+          shape_C.subspan(1),
+          da,
+          db,
+          dc,
+          binary_op);
+    }
+  } else if (shape_A.size() == 1) {
+    // for 1-D tensor
+    const Tensor::Shape sa = shape_A.front();
+    const Tensor::Shape sb = shape_B.front();
+    const Tensor::Shape sc = shape_C.front();
+    CHECK(sa.dimension == sb.dimension && sa.dimension == sc.dimension);
+
+    for (int i = 0; i < so.dimension; ++i) {
+      T va = data_A[i * sa.stride];
+      T vb = data_B[i * sb.stride];
+      T &vc = data_C[i * sc.stride];
+      vc = binary_op(va, vb);
+    }
+  } else {
+    NOT_IMPL();
+  }
+}
+
 Tensor CpuOperators::Tensor_(std::initializer_list<int> shape, DType dtype) {
   Tensor tensor;
-
-  // rank
-  tensor.FillShapeStride(shape);
+  tensor.FillShapeStride(util::MakeConstSpan(shape));
 
   // data
   int numel = tensor.numel();
   tensor.data_ = std::make_shared<TensorData>(numel, dtype);
+
+  return tensor;
+}
+
+Tensor CpuOperators::TensorLike(const Tensor &input) {
+  std::vector<int> shape;
+  for (const Tensor::Shape &s : input.shape_) {
+    shape.push_back(s.dimension);
+  }
+
+  Tensor tensor;
+  tensor.FillShapeStride(util::MakeConstSpan(shape));
+
+  // data
+  int numel = input.numel();
+  tensor.data_ = std::make_shared<TensorData>(numel, input.dtype());
 
   return tensor;
 }
@@ -178,6 +288,20 @@ void CpuOperators::Print(const Tensor &tensor) {
     default:
       CHECK(false) << "unsupported dtype for Print";
   }
+}
+
+Tensor CpuOperators::Add(const Tensor &input, const Tensor &other) {
+  Tensor output = TensorLike(input);
+  ApplyBinaryOperator<float>(
+      util::MakeConstSpan(input.shape_),
+      util::MakeConstSpan(other.shape_),
+      util::MakeConstSpan(output.shape_),
+      input.data<float>(),
+      other.data<float>(),
+      output.data<float>(),
+      [](float input, float other) { return input + other; });
+
+  return output;
 }
 
 }  // namespace nn
