@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include "common.h"
+#include "reader.h"
 #include "status.h"
 #include "util.h"
 
@@ -17,6 +18,9 @@ class TensorData {
 
   ByteType *data() const { return data_; }
   DType dtype() const { return dtype_; }
+  int64_t size_in_bytes() const { 
+    return numel_ * SizeOfDType(dtype_);
+  }
 
  private:
   ByteType *data_;
@@ -37,6 +41,9 @@ class Tensor {
   // constructor and destructor.
   Tensor();
   ~Tensor();
+
+  // Read the tensor from fp.
+  Status Read(ReadableFile *fp);
 
   // copy and move constructors.
   Tensor(Tensor &tensor);

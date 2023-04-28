@@ -53,6 +53,69 @@ Tensor &Tensor::operator=(Tensor &&tensor) {
   return *this;
 }
 
+// Tensor format
+//   byte[4]: "TNSR"
+//   int16_t: rank.
+//   int16_t: dtype.
+//   int32_t * rank: shape.
+//   ByteType * SizeOfDType(dtype) * numel: data
+//   int16_t: 0x55aa magic number
+Status Tensor::Read(ReadableFile *fp) {
+  std::string s;
+  RETURN_IF_ERROR(fp->ReadString(4, &s));
+  if (s != "TNSR") {
+    RETURN_ABORTED() << "bad tensor format";
+  }
+
+  // rank
+  int16_t rank;
+  RETURN_IF_ERROR(fp->ReadValue(&rank));
+  if (rank > 16 || rank < 0) {
+    RETURN_ABORTED() << "invalid rank";
+  }
+
+  // dtype
+  int16_t dtype_int16;
+  RETURN_IF_ERROR(fp->ReadValue(&dtype_int16));
+  DType dtype = static_cast<DType>(dtype);
+  if (!IsValidDType(dtype)) {
+    RETURN_ABORTED() << "invalid dtype";
+  }
+
+  // shape
+  int64_t numel = 1;
+  int32_t dimension;
+  std::vector<ShapeType> shape;
+  for (int16_t d = 0; d < rank; ++d) {
+    RETURN_IF_ERROR(fp->ReadValue(&dimension));
+    if (dimension > 65536) {
+      RETURN_ABORTED() << "dimension too big";
+    }
+    numel *= dimension;
+  }
+  if (numel > 4194304) {
+    RETURN_ABORTED() << "tensor too big";
+  }
+  FillShapeStride(util::MakeConstSpan(shape));
+
+  // data
+  data_ = std::make_shared<TensorData>(numel, dtype);
+  util::Span<ByteType> bs_data(data_->data(), numel);
+  RETURN_IF_ERROR(fp->ReadSpan(util::MakeSpan(
+      data_->data(),
+      data_->size_in_bytes())));
+  data_ptr_ = data_->data();
+
+  // magic number
+  int16_t magic_number;
+  RETURN_IF_ERROR(fp->ReadValue(&magic_number));
+  if (magic_number != 0x55aa) {
+    RETURN_ABORTED() << "invalid magic number";
+  }
+
+  return OkStatus();
+}
+
 int Tensor::real_dim(int d) const {
   CHECK(!empty());
   int _rank = rank();

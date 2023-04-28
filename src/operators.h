@@ -29,10 +29,6 @@ class Operators {
   virtual Tensor Mul(const Tensor &input, float other) = 0;
 
   // Apply softmax on the last dimension of input
-  // Args:
-  //   input <float>(..., L): input tensor
-  // Returns:
-  //   <float>(..., L): output tensor
   virtual Tensor Softmax(const Tensor &input) = 0;
 
   // return input + other.

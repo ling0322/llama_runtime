@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include "common.h"
+#include "operators.h"
 #include "status.h"
 #include "tensor.h"
 #include "util.h"
@@ -13,21 +14,45 @@ namespace nn {
 class Function;
 class Tensor;
 
-enum class Device {
-  kCpu
+class Device {
+ public:
+  enum class Type {
+    kCpu,
+    kUnknown
+  };
+
+  // returns a CPU device
+  static Device CPU();
+
+  // construct device by device type
+  Device(Type type);
+
+  // get type of the device
+  Type type() const { return type_; }
+
+ private:
+  Type type_;
 };
 
-// context for recurrent neural network or auto-regressive decoder 
-class Context {
+// string -> Tensor dictioary. Usually used to store state-dict or kv-cache
+// for a neural network
+class StateDict {
  public:
-  const Tensor &Get(const std::string &name);
-  void Set(const std::string &name, const Tensor &value);
+  Status Read(const std::string &filename);
+
+  // get state by name. Crash if name not exist.
+  Tensor &operator[](const std::string &name);
+
+  // 
+
 }; 
 
-class Namespace {
+// context for a module including operator set, device info and the namespace
+class Context {
  public:
-  Namespace Sub(const std::string &sub_name);
-  std::string Name(const std::string &name);
+  Context WithName(const std::string &name);
+
+  std::string name(const std::string &name);
 
  private:
   std::string ns_;
@@ -36,68 +61,45 @@ class Namespace {
 // base class for all nn modules
 class Module {
  public:
-  // initialize the module from context
-  virtual Status InitFromContext(Context *ctx) = 0;
+  // load the module states from `state_dict`
+  virtual Status Load(const StateDict &state_dict) = 0;
+
+ protected:
+  Operators *F_;
+  Namespace ns_;
+  Device device_;
+};
+
+struct ModuleConfig {
+  static constexpr int kEmptyIntProp = -1;
+
+  // share by all modules
+  Operators *F;
+  Namespace ns;
+  Device device;
+
+  int d_model;
 };
 
 // linear layer in the nn.
 class Linear : public Module {
  public:
-  Linear(Namespace ns, int hidden_size);
+  // create Linear module from config. 
+  // ModuleConfig Args:
+  //   d_model   
+  static StatusOr<Linear> FromConfig(const ModuleConfig &config);
 
   // initialize the module from context
-  Status InitFromContext(Context *ctx) override;
+  Status Load(const StateDict &state_dict) override;
 
   // forward input through this module and returns the output
   Tensor Forward(const Tensor &input) const;
 
  private:
-  Namespace ns_;
-
   Tensor w_;
   Tensor b_;
-};
 
-class Function {
- public:
-  Tensor Lookup(const Tensor &table, const Tensor &indices);
-  Tensor LayerNorm(const Tensor &input);
-
-  // Matrix product of two tensors.
-  // Args:
-  //   A <float>(M, N): matrix A;
-  //   B <float>(N, K): matrix B;
-  // Returns:
-  //   (M, K); A dot B
-  Tensor MatMul(const Tensor &a, const Tensor &b);
-
-  // Element wise multiply input and other.
-  Tensor Mul(const Tensor &input, float other);
-
-  // Apply softmax on the last dimension of input
-  // Args:
-  //   input <float>(..., L): input tensor
-  // Returns:
-  //   <float>(..., L): output tensor 
-  Tensor Softmax(const Tensor &input);
-  Tensor Add(const Tensor &a, const Tensor &b);
-
-  // create a tensor with specified shape and dtype. Data in this tensor is
-  // uninitialize.
-  Tensor Tensor_(std::initializer_list<int> shape, DType dtype);
-
-  // Returns a tensor filled with random numbers from a uniform distribution on
-  // the interval [0, 1) 
-  Tensor Rand(std::initializer_list<int> shape, DType dtype);
-
-  // Returns a tensor filled with 0
-  Tensor Zeros(std::initializer_list<int> shape, DType dtype);
-
-  // Return a contiguous in memory tensor containing the same data as input
-  Tensor Contiguous(const Tensor &input);
-
-  // Print the tensor to stdout,
-  void Print(const Tensor &tensor);
+  Linear();
 };
 
 }  // namespace nn
