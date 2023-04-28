@@ -1,6 +1,7 @@
 #include "nn.h"
 
 #include <stdlib.h>
+#include <cmath>
 #include <limits>
 #include <memory>
 #include "nn.h"
@@ -29,19 +30,35 @@ class CpuOperators : public Operators {
   void Print(const Tensor &tensor) override;
 
  private:
+  typedef Tensor::Shape Shape;
+
   // apply elementwise binary operator to tensor `A` and tensor `B`, then store
   // result to tensor `C`
   //     C_ij = binary_op(A_ij, B_ij)
   // broadcast tensor `B` if necessary
   template<typename T>
   void ApplyBinaryOperator(
-      util::Span<const Tensor::Shape> shape_A,
-      util::Span<const Tensor::Shape> shape_B,
-      util::Span<const Tensor::Shape> shape_C,
+      util::Span<const Shape> shape_A,
+      util::Span<const Shape> shape_B,
+      util::Span<const Shape> shape_C,
       const T *data_A,
       const T *data_B,
       T *data_C,
       std::function<T(T input, T other)> binary_op);
+
+  // apply unary 1D tensor operator on the last dimension of `A` and save
+  // result to `C`. `C` should have the same shape as A.
+  //   C_i = tensor1d_op(A_i) , here A_i is 1D tensor
+  template<typename T>
+  void ApplyUnary1DTensorOp(
+      util::Span<const Shape> shape_A,
+      util::Span<const Shape> shape_C,
+      const T *data_A,
+      T *data_C,
+      std::function<void(Shape shape_A,
+                         Shape shape_C,
+                         const T *data_A,
+                         T *data_C)> tensor1d_op);
 
   void Rand_Float32(Tensor *tensor);
   void Zeros_Float32(Tensor *tensor);
@@ -49,12 +66,8 @@ class CpuOperators : public Operators {
   void Print1D_Float32(int d, const float *data);
   void Print2D_Float32(int m, int n, int lda, const float *data);
   void Print_Float32(const Tensor &tensor);
-
-  // Tensor(data_input) += Tensor(data_other)
-  void Add_Float32(util::Span<Tensor::Shape> shape_input,
-                   util::Span<Tensor::Shape> shape_other,
-                   float *data_input,
-                   float *data_other);
+  void Add_Float32(const Tensor &A, const Tensor &B, Tensor *C);
+  void Softmax_Float32(const Tensor &A, Tensor *C);
 };
 
 std::unique_ptr<Operators> CreateCpuOperators() {
@@ -140,11 +153,49 @@ void CpuOperators::Print_Float32(const Tensor &tensor) {
   puts("");
 }
 
+void CpuOperators::Add_Float32(const Tensor &A, const Tensor &B, Tensor *C) {
+  *C = TensorLike(A);
+  ApplyBinaryOperator<float>(
+      util::MakeConstSpan(A.shape_),
+      util::MakeConstSpan(B.shape_),
+      util::MakeConstSpan(C->shape_),
+      A.data<float>(),
+      B.data<float>(),
+      C->data<float>(),
+      [](float input, float other) { return input + other; });
+}
+
+void CpuOperators::Softmax_Float32(const Tensor &A, Tensor *C) {
+  auto softmax_op = [](Shape sa, Shape sc, const float *da, float *dc) {
+    CHECK(sa.dimension == sc.dimension);
+
+    double sum = 0;
+    for (int i = 0; i < sa.dimension; ++i) {
+      float va = da[i * sa.stride];
+      sum += std::exp(va);
+    }
+
+    double logsum = std::log(sum);
+    for (int i = 0; i < sa.dimension; ++i) {
+      float va = da[i * sa.stride];
+      float &vc = dc[i * sc.stride];
+      vc = static_cast<float>(std::exp(va - logsum));
+    }
+  };
+
+  ApplyUnary1DTensorOp<float>(
+      util::MakeConstSpan(A.shape_),
+      util::MakeConstSpan(C->shape_),
+      A.data<float>(),
+      C->data<float>(),
+      softmax_op);
+}
+
 template<typename T>
 void CpuOperators::ApplyBinaryOperator(
-      util::Span<const Tensor::Shape> shape_A,
-      util::Span<const Tensor::Shape> shape_B,
-      util::Span<const Tensor::Shape> shape_C,
+      util::Span<const Shape> shape_A,
+      util::Span<const Shape> shape_B,
+      util::Span<const Shape> shape_C,
       const T *data_A,
       const T *data_B,
       T *data_C,
@@ -152,11 +203,12 @@ void CpuOperators::ApplyBinaryOperator(
   CHECK(shape_A.size() >= shape_B.size() && shape_other.size() >= 1);
   CHECK(shape_A.size() == shape_C.size());
 
+  const Shape sa = shape_A.front();
+  const Shape sb = shape_B.front();
+  const Shape sc = shape_C.front();
+
   if (shape_A.size() > shape_B.size()) {
     // broadcast B
-
-    const Tensor::Shape sa = shape_A.front();
-    const Tensor::Shape sc = shape_C.front();
     CHECK(sa.dimension == sc.dimension);
     
     for (int i = 0; i < sa.dimension; ++i) {
@@ -173,10 +225,6 @@ void CpuOperators::ApplyBinaryOperator(
     }
   } else if (shape_A.size() > 1) {
     // for n-D Tensor
-
-    const Tensor::Shape sa = shape_A.front();
-    const Tensor::Shape sb = shape_B.front();
-    const Tensor::Shape sc = shape_C.front();
     CHECK(sa.dimension == sb.dimension && sa.dimension == sc.dimension);
 
     for (int i = 0; i < sa.dimension; ++i) {
@@ -194,9 +242,6 @@ void CpuOperators::ApplyBinaryOperator(
     }
   } else if (shape_A.size() == 1) {
     // for 1-D tensor
-    const Tensor::Shape sa = shape_A.front();
-    const Tensor::Shape sb = shape_B.front();
-    const Tensor::Shape sc = shape_C.front();
     CHECK(sa.dimension == sb.dimension && sa.dimension == sc.dimension);
 
     for (int i = 0; i < so.dimension; ++i) {
@@ -205,6 +250,41 @@ void CpuOperators::ApplyBinaryOperator(
       T &vc = data_C[i * sc.stride];
       vc = binary_op(va, vb);
     }
+  } else {
+    NOT_IMPL();
+  }
+}
+
+template<typename T>
+void CpuOperators::ApplyUnary1DTensorOp(
+    util::Span<const Shape> shape_A,
+    util::Span<const Shape> shape_C,
+    const T *data_A,
+    T *data_C,
+    std::function<void(Shape shape_A,
+                       Shape shape_C,
+                       const T *data_A,
+                       T *data_C)> tensor1d_op) {
+  CHECK(shape_A.size() == shape_C.size());
+  CHECK(shape_A.size() >= 1);
+
+  Shape sa = shape_A.front();
+  Shape sc = shape_C.front();
+  CHECK(sa.dimension == sc.dimension);
+
+  if (shape_A.size() > 1) {
+    for (int i = 0; i < sa.dimension; ++i) {
+      const T *da = data_A + i * sa.stride;
+      T *dc = data_C + i * sc.stride;
+      ApplyUnary1DTensorOp(
+          shape_A.subspan(1),
+          shape_C.subspan(1),
+          da,
+          dc,
+          tensor1d_op);
+    }
+  } else if (shape_A.size() == 1) {
+    tensor1d_op(sa, sc, data_A, data_C);
   } else {
     NOT_IMPL();
   }
@@ -291,15 +371,27 @@ void CpuOperators::Print(const Tensor &tensor) {
 }
 
 Tensor CpuOperators::Add(const Tensor &input, const Tensor &other) {
-  Tensor output = TensorLike(input);
-  ApplyBinaryOperator<float>(
-      util::MakeConstSpan(input.shape_),
-      util::MakeConstSpan(other.shape_),
-      util::MakeConstSpan(output.shape_),
-      input.data<float>(),
-      other.data<float>(),
-      output.data<float>(),
-      [](float input, float other) { return input + other; });
+  Tensor output;
+  switch (input.dtype()) {
+    case DType::kFloat:
+      Add_Float32(input, other, &output);
+      break;
+    default:
+      NOT_IMPL();
+  }
+
+  return output;
+}
+
+Tensor CpuOperators::Softmax(const Tensor &input) {
+  Tensor output;
+  switch (input.dtype()) {
+    case DType::kFloat:
+      Softmax_Float32(input, &output);
+      break;
+    default:
+      NOT_IMPL();
+  }
 
   return output;
 }
