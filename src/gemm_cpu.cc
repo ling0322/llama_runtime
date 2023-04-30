@@ -219,13 +219,14 @@ void GEMM::CallMicroKernel(Block Apr, Block Bpr, Block Cijmn) {
 
 
 void GEMM::MatMul(
+    bool transa, bool transb,
     int m, int n, int k,
-    const float *A,
-    const float *B,
-    float *C) {
-  _A = Block { (float *)A, k, m, k, false };
-  _B = Block { (float *)B, n, k, n, false };
-  _C = Block { (float *)C, n, m, n, false };
+    const float *A, int lda,
+    const float *B, int ldb,
+    float *C, int ldc) {
+  _A = Block { (float *)A, lda, m, k, transa };
+  _B = Block { (float *)B, ldb, k, n, transb };
+  _C = Block { (float *)C, ldc, m, n, false };
 
   Gemm5thLoopSplitByNC();
 }

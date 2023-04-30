@@ -13,7 +13,7 @@ namespace nn {
 // contains dimension and stride information for an axis in tensor
 class TensorData {
  public:
-  TensorData(int numel, DType dtype);
+  TensorData(int64_t numel, DType dtype);
   ~TensorData();
 
   ByteType *data() const { return data_; }
@@ -24,7 +24,7 @@ class TensorData {
 
  private:
   ByteType *data_;
-  int numel_;
+  int64_t numel_;
   DType dtype_;
 };
 
@@ -63,7 +63,7 @@ class Tensor {
   ShapeType stride(int d) const;
 
   // get number of elements in this tensor.
-  int numel() const;
+  int64_t numel() const;
 
   // return true if this tensor is empty.
   bool empty() const;
@@ -97,8 +97,9 @@ class Tensor {
   // convert negative dimension index to positive
   int real_dim(int dim) const;
 
-  // fill shape and stride values in shape_ according to given `shape`
-  void FillShapeStride(util::Span<const int> shape);
+  // fill shape and stride values in shape_ according to given `shape`. Then
+  // return numel for the shape.
+  int64_t FillShapeStride(util::Span<const int> shape);
 };
 
 inline int Tensor::rank() const {

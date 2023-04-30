@@ -7,10 +7,14 @@
 namespace llama {
 namespace nn {
 
-TensorData::TensorData(int numel, DType dtype)
+// ---------------------------------------------------------------------------+
+// class TensorData                                                           |
+// ---------------------------------------------------------------------------+
+
+TensorData::TensorData(int64_t numel, DType dtype)
     : numel_(numel),
       dtype_(dtype) {
-  int size_in_bytes = numel * SizeOfDType(dtype);
+  int64_t size_in_bytes = numel * SizeOfDType(dtype);
   data_ = new ByteType[size_in_bytes];
 }
 
@@ -19,6 +23,10 @@ TensorData::~TensorData() {
   numel_ = 0;
   dtype_ = DType::kUnknown;
 }
+
+// ---------------------------------------------------------------------------+
+// class Tensor                                                               |
+// ---------------------------------------------------------------------------+
 
 Tensor::Tensor() : data_ptr_(nullptr) {}
 Tensor::~Tensor() {
@@ -77,7 +85,7 @@ Status Tensor::Read(ReadableFile *fp) {
   // dtype
   int16_t dtype_int16;
   RETURN_IF_ERROR(fp->ReadValue(&dtype_int16));
-  DType dtype = static_cast<DType>(dtype);
+  DType dtype = static_cast<DType>(dtype_int16);
   if (!IsValidDType(dtype)) {
     RETURN_ABORTED() << "invalid dtype";
   }
@@ -92,6 +100,7 @@ Status Tensor::Read(ReadableFile *fp) {
       RETURN_ABORTED() << "dimension too big";
     }
     numel *= dimension;
+    shape.push_back(dimension);
   }
   if (numel > 4194304) {
     RETURN_ABORTED() << "tensor too big";
@@ -135,12 +144,12 @@ int Tensor::stride(int d) const {
   return shape_[real_dim(d)].stride;
 }
 
-int Tensor::numel() const {
+int64_t Tensor::numel() const {
   if (empty()) {
     return 0;
   }
   
-  int n = 1;
+  int64_t n = 1;
   for (const Shape &shape : shape_) {
     n *= shape.dimension;
   }
@@ -153,7 +162,7 @@ ByteType *Tensor::raw_data(DType dtype) const {
   return data_ptr_;
 }
 
-void Tensor::FillShapeStride(util::Span<const int> shape) {
+int64_t Tensor::FillShapeStride(util::Span<const int> shape) {
   shape_ = util::FixedArray<Shape>(shape.size());
   Shape *ps = shape_.data();
   for (int dimension : shape) {
@@ -164,9 +173,11 @@ void Tensor::FillShapeStride(util::Span<const int> shape) {
   int64_t stride = 1;
   for (int d = shape.size() - 1; d >= 0; --d) {
     CHECK(stride < std::numeric_limits<ShapeType>::max());
-    shape_[d].stride = stride;
+    shape_[d].stride = static_cast<ShapeType>(stride);
     stride *= shape_[d].dimension;
   }
+
+  return stride;
 }
 
 Tensor Tensor::View(std::initializer_list<int> shape) const {

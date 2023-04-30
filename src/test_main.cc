@@ -1,13 +1,13 @@
-#include "env.h"
+#include "environment.h"
 #include "test_helper.h"
 
-using llama::Env;
+using llama::Environment;
 
 int main(int argc, char **argv) {
-  Env::Init();
+  Environment::Init();
 
   int result = Catch::Session().run(argc, argv);
-  Env::Destroy();
+  Environment::Destroy();
 
   return result;
 }

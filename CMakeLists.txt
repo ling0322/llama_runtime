@@ -9,14 +9,17 @@ endif(WIN32)
 set(llama_INCDIRS src .)
 set(llama_SOURCES
     "src/common.cc"
-    "src/env.cc"
+    "src/environment.cc"
     "src/gemm_cpu.cc" 
     "src/log.cc"
     "src/nn.cc"
+    "src/operators.cc"
+    "src/operators_cpu.cc"
     "src/reader.cc"
     "src/shared_library_windows.cc"
     "src/status.cc"
     "src/strings.cc"
+    "src/tensor.cc"
     "src/tokenizer.cc"
     "src/util.cc"
     "src/util_windows.cc")
@@ -27,6 +30,7 @@ target_compile_features(llama PRIVATE cxx_std_14)
 set(llama_test_SOURCES
     ${llama_SOURCES}
     "src/gemm_test.cc"
+    "src/nn_test.cc"
     "src/test_helper.cc"
     "src/test_main.cc"
     "third_party/catch2/catch_amalgamated.cpp")

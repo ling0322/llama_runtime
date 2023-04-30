@@ -4,7 +4,6 @@
 #include <stdint.h>
 #include <unordered_map>
 #include "common.h"
-#include "operators.h"
 #include "status.h"
 #include "tensor.h"
 #include "util.h"
@@ -12,6 +11,7 @@
 namespace llama {
 namespace nn {
 
+class Operators;
 class Function;
 class Tensor;
 
@@ -21,6 +21,8 @@ class Device {
     kCpu,
     kUnknown
   };
+
+  static Device CPU();
 
   // construct device by device type
   Device();
@@ -85,7 +87,7 @@ class Context {
 class Module {
  public:
   // load the module states from `state_dict`
-  virtual Status Load(const TensorDict &state_dict) = 0;
+  virtual Status InitParameters(const TensorDict &state_dict) = 0;
 
   // get context of the module.
   const Context &ctx() const { return ctx_; }
@@ -98,10 +100,10 @@ class Module {
 class Linear : public Module {
  public:
   // create Linear module from context. 
-  static StatusOr<Linear> FromContext(const Context &ctx, int d_model);
+  static StatusOr<Linear> Create(const Context &ctx, int d_model);
 
   // initialize the module from context
-  Status Load(const TensorDict &state_dict) override;
+  Status InitParameters(const TensorDict &state_dict) override;
 
   // forward input through this module and returns the output
   Tensor Forward(const Tensor &input) const;
@@ -116,7 +118,7 @@ class Linear : public Module {
 
   int d_model_;
 
-  Linear(const Context &ctx);
+  Linear();
 };
 
 }  // namespace nn

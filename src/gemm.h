@@ -55,10 +55,11 @@ class GEMM {
 
   // Compute C <- A * B
   void MatMul(
+      bool transa, bool transb,
       int m, int n, int k,
-      const float *A,
-      const float *B,
-      float *C);
+      const float *A, int lda,
+      const float *B, int ldb,
+      float *C, int ldc);
 
  private:
   float *packed_buffer_;

@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <limits>
 #include "gemm.h"
+#include "operators.h"
 #include "status.h"
 
 namespace llama {
@@ -14,6 +15,10 @@ namespace nn {
 
 Device::Device() : type_(Type::kUnknown) {}
 Device::Device(Type type) : type_(type) {}
+
+Device Device::CPU() {
+  return Device(Type::kCpu);
+}
 
 // ---------------------------------------------------------------------------+
 // class TensorDict                                                           |
@@ -119,17 +124,20 @@ std::string Context::name(const std::string &name) const {
 // class Linear                                                               |
 // ---------------------------------------------------------------------------+
 
-StatusOr<Linear> Linear::FromContext(const Context &ctx, int d_model) {
-  std::unique_ptr<Linear> linear{new Linear(ctx)};
+Linear::Linear() : d_model_(0) {}
+
+StatusOr<Linear> Linear::Create(const Context &ctx, int d_model) {
+  std::unique_ptr<Linear> linear{new Linear()};
   if (d_model <= 0) {
     RETURN_ABORTED() << "invalid d_model";
   }
 
   linear->d_model_ = d_model;
+  linear->ctx_ = ctx;
   return linear;
 }
 
-Status Linear::Load(const TensorDict &state_dict) {
+Status Linear::InitParameters(const TensorDict &state_dict) {
   std::string name_w = ctx_.name(kWeight);
   RETURN_IF_ERROR(state_dict.get(name_w, &w_));
   if (w_.rank() != 2 || w_.shape(0) != d_model_ || w_.shape(1) != d_model_) {
@@ -147,7 +155,7 @@ Status Linear::Load(const TensorDict &state_dict) {
 
 Tensor Linear::Forward(const Tensor &input) const {
   Operators *F = ctx_.F();
-  Tensor x = F->MatMul(w_, input);
+  Tensor x = F->MatMul(input, w_.Transpose(0, 1));
   x = F->Add(x, b_);
 
   return x;

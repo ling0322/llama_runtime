@@ -12,10 +12,10 @@ namespace nn {
 class Operators {
  public:
   // get instance of Function for CPU device
-  static Operators *FromDevice(Device device);
+  static StatusOr<Operators> FromDevice(Device device);
 
-  virtual Tensor Lookup(const Tensor &table, const Tensor &indices) = 0;
-  virtual Tensor LayerNorm(const Tensor &input) = 0;
+  // virtual Tensor Lookup(const Tensor &table, const Tensor &indices) = 0;
+  // virtual Tensor LayerNorm(const Tensor &input) = 0;
 
   // Matrix product of two tensors.
   // Args:
@@ -49,7 +49,11 @@ class Operators {
   virtual Tensor Zeros(std::initializer_list<int> shape, DType dtype) = 0;
 
   // Return a contiguous in memory tensor containing the same data as input
-  virtual Tensor Contiguous(const Tensor &input) = 0;
+  // virtual Tensor Contiguous(const Tensor &input) = 0;
+
+  // return true if two tensors are element-wise equal within a tolerance
+  // (rtol=1e-05, atol=1e-08)
+  virtual bool AllClose(const Tensor &A, const Tensor &B) = 0;
 
   // Print the tensor to stdout,
   virtual void Print(const Tensor &tensor) = 0;

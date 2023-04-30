@@ -28,16 +28,10 @@ class Environment : private util::NonCopyable {
   // called. This function is lock-free
   static const Environment *instance();
   
-  // nn::Operators
-  nn::Operators *nn_operators_cpu() const;
-
  private:
   // global pointer of Env as well as its Init() and Destroy() mutex
   static Environment *env_;
   static std::mutex mutex_;
-
-  // internal inolementation
-  std::unique_ptr<nn::Operators> nn_operators_cpu_;
 
   // singleton constructor
   Environment();

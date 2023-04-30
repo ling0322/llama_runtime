@@ -14,19 +14,21 @@ namespace nn {
 
 constexpr int kPrintEdgeItems = 3;
 
+// the CPU implementation of Operators
 class CpuOperators : public Operators {
  public:
-  Tensor Lookup(const Tensor &table, const Tensor &indices) override;
-  Tensor LayerNorm(const Tensor &input) override;
+  // Tensor Lookup(const Tensor &table, const Tensor &indices) override;
+  // Tensor LayerNorm(const Tensor &input) override;
   Tensor MatMul(const Tensor &a, const Tensor &b) override;
-  Tensor Mul(const Tensor &input, float other)override;
+  Tensor Mul(const Tensor &input, float other) override;
   Tensor Softmax(const Tensor &input) override;
   Tensor Add(const Tensor &a, const Tensor &b) override;
   Tensor Tensor_(std::initializer_list<int> shape, DType dtype) override;
   Tensor TensorLike(const Tensor &input) override;
   Tensor Rand(std::initializer_list<int> shape, DType dtype) override;
   Tensor Zeros(std::initializer_list<int> shape, DType dtype) override;
-  Tensor Contiguous(const Tensor &input) override;
+  // Tensor Contiguous(const Tensor &input) override;
+  bool AllClose(const Tensor &A, const Tensor &B) override;
   void Print(const Tensor &tensor) override;
 
  private:
@@ -88,6 +90,7 @@ class CpuOperators : public Operators {
                         const Tensor &B,
                         float rtol = 1e-05f,
                         float atol = 1e-08f);
+  void Mul_Float32(const Tensor &A, float k, Tensor *C);
 };
 
 std::unique_ptr<Operators> CreateCpuOperators() {
@@ -96,29 +99,55 @@ std::unique_ptr<Operators> CreateCpuOperators() {
 
 void CpuOperators::Rand_Float32(Tensor *tensor) {
   float *data = tensor->data<float>();
-  int numel = tensor->numel();
+  int64_t numel = tensor->numel();
 
   float randmax = RAND_MAX;
-  for (int i = 0; i < numel; ++i) {
+  for (int64_t i = 0; i < numel; ++i) {
     data[i] = rand() / randmax;
   }
 }
 
 void CpuOperators::Zeros_Float32(Tensor *tensor) {
   float *data = tensor->data<float>();
-  int numel = tensor->numel();
+  int64_t numel = tensor->numel();
 
   float randmax = RAND_MAX;
-  for (int i = 0; i < numel; ++i) {
+  for (int64_t i = 0; i < numel; ++i) {
     data[i] = 0.0f;
   }
 }
 
 void CpuOperators::MatMul_Float32(const Tensor &A, const Tensor &B, Tensor *C) {
   GEMM gemm;
+  
+  bool transa, transb;
+  int lda, ldb;
+  if (A.stride(1) == 1) {
+    transa = false;
+    lda = A.stride(0);
+  } else if (A.stride(0) == 1) {
+    transa = true;
+    lda = A.stride(1);
+  } else {
+    NOT_IMPL();
+  }
+
+  if (B.stride(1) == 1) {
+    transb = false;
+    ldb = B.stride(0);
+  } else if (B.stride(0) == 1) {
+    transb = true;
+    ldb = B.stride(1);
+  } else {
+    NOT_IMPL();
+  }
+
   gemm.MatMul(
+      transa, transb,
       A.shape(0), B.shape(1), A.shape(1),
-      A.data<float>(), B.data<float>(), C->data<float>());
+      A.data<float>(), lda,
+      B.data<float>(), ldb,
+      C->data<float>(), C->stride(0));
 }
 
 void CpuOperators::Print1D_Float32(int d, const float *data) {
@@ -214,11 +243,11 @@ void CpuOperators::Softmax_Float32(const Tensor &A, Tensor *C) {
 bool CpuOperators::AllClose_Float32(
     const Tensor &A,
     const Tensor &B,
-    float rtol = 1e-05f,
-    float atol = 1e-08f) {
+    float rtol,
+    float atol) {
   bool all_close = true;
   auto closure = [&all_close, rtol, atol](float va, float vb) {
-    if (fabs(va - vb) > atol + rtol * vb) {
+    if (fabs(va - vb) > atol + rtol * fabs(vb)) {
       all_close = false;
     }
   };
@@ -233,6 +262,25 @@ bool CpuOperators::AllClose_Float32(
   return all_close;
 }
 
+
+void CpuOperators::Mul_Float32(const Tensor &A, float k, Tensor *C) {
+  *C = TensorLike(A);
+  ApplyUnary1DTensorOp<float>(
+      util::MakeConstSpan(A.shape_),
+      util::MakeConstSpan(C->shape_),
+      A.data<float>(),
+      C->data<float>(),
+      [k](Shape sa, Shape sc, const float *da, float *dc) {
+          CHECK(sa.dimension == sc.dimension);
+          for (int i = 0; i < sa.dimension; ++i) {
+            float va = da[i * sa.stride];
+            float &vc = dc[i * sc.stride];
+            vc = k * va;
+          }
+      });
+}
+
+
 template<typename T>
 void CpuOperators::ApplyBinaryOperator(
       util::Span<const Shape> shape_A,
@@ -242,7 +290,7 @@ void CpuOperators::ApplyBinaryOperator(
       const T *data_B,
       T *data_C,
       std::function<T(T input, T other)> binary_op) {
-  CHECK(shape_A.size() >= shape_B.size() && shape_other.size() >= 1);
+  CHECK(shape_A.size() >= shape_B.size() && shape_B.size() >= 1);
   CHECK(shape_A.size() == shape_C.size());
 
   const Shape sa = shape_A.front();
@@ -286,7 +334,7 @@ void CpuOperators::ApplyBinaryOperator(
     // for 1-D tensor
     CHECK(sa.dimension == sb.dimension && sa.dimension == sc.dimension);
 
-    for (int i = 0; i < so.dimension; ++i) {
+    for (int i = 0; i < sa.dimension; ++i) {
       T va = data_A[i * sa.stride];
       T vb = data_B[i * sb.stride];
       T &vc = data_C[i * sc.stride];
@@ -339,7 +387,7 @@ void CpuOperators::ForEach(
     const T *data_A,
     const T *data_B,
     std::function<void(T va, T vb)> closure) {
-  CHECK(shape_A.size() == shape_B.size())
+    CHECK(shape_A.size() == shape_B.size());
   CHECK(shape_A.size() >= 1);
 
   Shape sa = shape_A.front();
@@ -358,8 +406,8 @@ void CpuOperators::ForEach(
     }
   } else if (shape_A.size() == 1) {
     for (int i = 0; i < sa.dimension; ++i) {
-      T va = data[i * sa.stride];
-      T vb = data[i * sb.stride];
+      T va = data_A[i * sa.stride];
+      T vb = data_B[i * sb.stride];
       closure(va, vb);
     }
   } else {
@@ -392,11 +440,10 @@ void CpuOperators::ForEach(
 
 Tensor CpuOperators::Tensor_(std::initializer_list<int> shape, DType dtype) {
   Tensor tensor;
-  tensor.FillShapeStride(util::MakeConstSpan(shape));
 
-  // data
-  int numel = tensor.numel();
+  int64_t numel = tensor.FillShapeStride(util::MakeConstSpan(shape));
   tensor.data_ = std::make_shared<TensorData>(numel, dtype);
+  tensor.data_ptr_ = tensor.data_->data();
 
   return tensor;
 }
@@ -411,8 +458,9 @@ Tensor CpuOperators::TensorLike(const Tensor &input) {
   tensor.FillShapeStride(util::MakeConstSpan(shape));
 
   // data
-  int numel = input.numel();
+  int64_t numel = input.numel();
   tensor.data_ = std::make_shared<TensorData>(numel, input.dtype());
+  tensor.data_ptr_ = tensor.data_->data();
 
   return tensor;
 }
@@ -494,6 +542,34 @@ Tensor CpuOperators::Softmax(const Tensor &input) {
   }
 
   return output;
+}
+
+bool CpuOperators::AllClose(const Tensor &A, const Tensor &B) {
+  if (A.dtype() != B.dtype()) {
+    return false;
+  }
+
+  switch (A.dtype()) {
+    case DType::kFloat:
+      return AllClose_Float32(A, B);
+      break;
+    default:
+      NOT_IMPL();
+  }
+}
+
+Tensor CpuOperators::Mul(const Tensor &A, float k) {
+  Tensor C;
+
+  switch (A.dtype()) {
+    case DType::kFloat:
+      Mul_Float32(A, k, &C);
+      break;
+    default:
+      NOT_IMPL();
+  }
+
+  return C;
 }
 
 }  // namespace nn
