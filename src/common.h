@@ -47,7 +47,10 @@ typedef const char *PCStrType;
 typedef unsigned char ByteType;
 typedef const unsigned char CByteType;
 
-enum class DType : int16_t { kUnknown = 0, kFloat = 1 };
+enum class DType : int16_t { 
+  kUnknown = 0,
+  kFloat = 1,
+};
 
 // get type-id
 template <typename T>

@@ -79,6 +79,8 @@ Status BufferedReader::ReadSpan(util::Span<ByteType> buffer) {
 }
 
 Status BufferedReader::ReadString(int n, std::string *s) {
+  CHECK(n > 0);
+
   std::vector<ByteType> buffer(n);
   RETURN_IF_ERROR(ReadSpan(util::MakeSpan(buffer)));
 

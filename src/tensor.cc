@@ -25,13 +25,13 @@ Tensor::~Tensor() {
   data_ptr_ = nullptr;
 }
 
-Tensor::Tensor(Tensor &tensor) {
+Tensor::Tensor(const Tensor &tensor) {
   data_ = tensor.data_;
   shape_ = tensor.shape_.Copy();
   data_ptr_ = tensor.data_ptr_;
 }
 
-Tensor &Tensor::operator=(Tensor &tensor) {
+Tensor &Tensor::operator=(const Tensor &tensor) {
   data_ = tensor.data_;
   shape_ = tensor.shape_.Copy();
   data_ptr_ = tensor.data_ptr_;

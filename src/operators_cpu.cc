@@ -60,6 +60,22 @@ class CpuOperators : public Operators {
                          const T *data_A,
                          T *data_C)> tensor1d_op);
 
+  // call closure on all elements in a tensor.
+  template<typename T>
+  void ForEach(util::Span<const Shape> shape,
+               const T *data,
+               std::function<void(T v)> closure);
+
+  // call closure on all elements in tensor A and tensor B. Shape of A should
+  // equal to B.
+  //   closure(A_ij, B_ij) , here A_ij and B_ij are scalar value
+  template<typename T>
+  void ForEach(util::Span<const Shape> shape_A,
+               util::Span<const Shape> shape_B,
+               const T *data_A,
+               const T *data_B,
+               std::function<void(T va, T vb)> closure);
+
   void Rand_Float32(Tensor *tensor);
   void Zeros_Float32(Tensor *tensor);
   void MatMul_Float32(const Tensor &A, const Tensor &B, Tensor *C);
@@ -68,6 +84,10 @@ class CpuOperators : public Operators {
   void Print_Float32(const Tensor &tensor);
   void Add_Float32(const Tensor &A, const Tensor &B, Tensor *C);
   void Softmax_Float32(const Tensor &A, Tensor *C);
+  bool AllClose_Float32(const Tensor &A,
+                        const Tensor &B,
+                        float rtol = 1e-05f,
+                        float atol = 1e-08f);
 };
 
 std::unique_ptr<Operators> CreateCpuOperators() {
@@ -191,6 +211,28 @@ void CpuOperators::Softmax_Float32(const Tensor &A, Tensor *C) {
       softmax_op);
 }
 
+bool CpuOperators::AllClose_Float32(
+    const Tensor &A,
+    const Tensor &B,
+    float rtol = 1e-05f,
+    float atol = 1e-08f) {
+  bool all_close = true;
+  auto closure = [&all_close, rtol, atol](float va, float vb) {
+    if (fabs(va - vb) > atol + rtol * vb) {
+      all_close = false;
+    }
+  };
+
+  ForEach<float>(
+      util::MakeConstSpan(A.shape_),
+      util::MakeConstSpan(B.shape_),
+      A.data<float>(),
+      B.data<float>(),
+      closure);
+  
+  return all_close;
+}
+
 template<typename T>
 void CpuOperators::ApplyBinaryOperator(
       util::Span<const Shape> shape_A,
@@ -285,6 +327,64 @@ void CpuOperators::ApplyUnary1DTensorOp(
     }
   } else if (shape_A.size() == 1) {
     tensor1d_op(sa, sc, data_A, data_C);
+  } else {
+    NOT_IMPL();
+  }
+}
+
+template<typename T>
+void CpuOperators::ForEach(
+    util::Span<const Shape> shape_A,
+    util::Span<const Shape> shape_B,
+    const T *data_A,
+    const T *data_B,
+    std::function<void(T va, T vb)> closure) {
+  CHECK(shape_A.size() == shape_B.size())
+  CHECK(shape_A.size() >= 1);
+
+  Shape sa = shape_A.front();
+  Shape sb = shape_B.front();
+  CHECK(sa.dimension == sb.dimension);
+
+  if (shape_A.size() > 1) {
+    for (int i = 0; i < sa.dimension; ++i) {
+      const T *da = data_A + i * sa.stride;
+      const T *db = data_B + i * sb.stride;
+      ForEach<T>(shape_A.subspan(1),
+                 shape_B.subspan(1),
+                 da,
+                 db,
+                 closure);
+    }
+  } else if (shape_A.size() == 1) {
+    for (int i = 0; i < sa.dimension; ++i) {
+      T va = data[i * sa.stride];
+      T vb = data[i * sb.stride];
+      closure(va, vb);
+    }
+  } else {
+    NOT_IMPL();
+  }
+}
+
+template<typename T>
+void CpuOperators::ForEach(
+    util::Span<const Shape> shape,
+    const T *data,
+    std::function<void(T v)> closure) {
+  CHECK(shape.size() >= 1);
+
+  Shape s = shape.front();
+  if (shape.size() > 1) {
+    for (int i = 0; i < s.dimension; ++i) {
+      const T *d = data + i * s.stride;
+      ForEach<T>(shape.subspan(1), d, closure);
+    }
+  } else if (shape.size() == 1) {
+    for (int i = 0; i < s.dimension; ++i) {
+      T v = data[i * s.stride];
+      closure(v);
+    }
   } else {
     NOT_IMPL();
   }

@@ -7,6 +7,7 @@ DType TypeID<float>() {
   return DType::kFloat;
 }
 
+
 template DType TypeID<float>();
 
 int SizeOfDType(DType dtype) {

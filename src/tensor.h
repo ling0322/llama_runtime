@@ -46,8 +46,8 @@ class Tensor {
   Status Read(ReadableFile *fp);
 
   // copy and move constructors.
-  Tensor(Tensor &tensor);
-  Tensor &operator=(Tensor &tensor);
+  Tensor(const Tensor &tensor);
+  Tensor &operator=(const Tensor &tensor);
   Tensor(Tensor &&tensor) noexcept;
   Tensor &operator=(Tensor &&tensor);
 

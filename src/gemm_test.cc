@@ -34,33 +34,6 @@ Tensor RefMatMul_Float32(const Tensor &A, const Tensor &B) {
   return C;
 }
 
-bool AllClose2D_Float32(const Tensor &A,
-                        const Tensor &B,
-                        float rtol = 1e-05f,
-                        float atol = 1e-08f) {
-  if (A.rank() != B.rank()) return false;
-  for (int d = 0; d < A.rank(); ++d) {
-    if (A.shape(d) != B.shape(d)) return false;
-  }
-
-  const float *A_data = A.data<float>();
-  const float *B_data = B.data<float>();
-
-  int lda = A.stride(0);
-  int ldb = B.stride(0);
-
-  CHECK(A.rank() == 2);
-  for (int m = 0; m < A.shape(0); ++m) {
-    for (int n = 0; n < A.shape(1); ++n) {
-      float a = A_data[m * lda + n];
-      float b = B_data[m * ldb + n];
-      if (fabs(a - b) > atol + rtol * b) return false;
-    }
-  }
-
-  return true;
-}
-
 void TestGEMM(int m, int k, int n) {
   Function F;
 

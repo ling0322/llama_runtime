@@ -2,6 +2,7 @@
 #define LLAMA_RUNTIME_NN_H_
 
 #include <stdint.h>
+#include <unordered_map>
 #include "common.h"
 #include "operators.h"
 #include "status.h"
@@ -21,10 +22,8 @@ class Device {
     kUnknown
   };
 
-  // returns a CPU device
-  static Device CPU();
-
   // construct device by device type
+  Device();
   Device(Type type);
 
   // get type of the device
@@ -36,70 +35,88 @@ class Device {
 
 // string -> Tensor dictioary. Usually used to store state-dict or kv-cache
 // for a neural network
-class StateDict {
+class TensorDict {
  public:
   Status Read(const std::string &filename);
 
-  // get state by name. Crash if name not exist.
+  // get tensor by name. abort if not exist.
   Tensor &operator[](const std::string &name);
 
-  // 
+  // get tensor by name. return abort if not exist.
+  Status get(const std::string &name, Tensor *tensor) const;
 
+  // return true if the tensor exists. 
+  bool has_tensor(const std::string &name) const;
+
+ private:
+  std::unordered_map<std::string, Tensor> dict_;
 }; 
 
 // context for a module including operator set, device info and the namespace
 class Context {
  public:
-  Context WithName(const std::string &name);
+  // default constructor (root context).
+  Context();
 
-  std::string name(const std::string &name);
+  // return a copy of this context with a new name under current context
+  // namespace
+  Context WithName(const std::string &name) const;
+
+  // get a tensor or module name under this context. If no parameter given,
+  // return the name of the context itself
+  std::string name(const std::string &name) const;
+  std::string name() const { return ns_; }
+
+  // operator set
+  Operators *F() const { return F_; }
+  void set_F(Operators *F) { F_ = F; }
+
+  // device.
+  const Device &device() const; 
+  void set_device(const Device &device) { device_ = device; }
 
  private:
   std::string ns_;
+  Operators *F_;
+  Device device_;
 };
 
 // base class for all nn modules
 class Module {
  public:
   // load the module states from `state_dict`
-  virtual Status Load(const StateDict &state_dict) = 0;
+  virtual Status Load(const TensorDict &state_dict) = 0;
+
+  // get context of the module.
+  const Context &ctx() const { return ctx_; }
 
  protected:
-  Operators *F_;
-  Namespace ns_;
-  Device device_;
-};
-
-struct ModuleConfig {
-  static constexpr int kEmptyIntProp = -1;
-
-  // share by all modules
-  Operators *F;
-  Namespace ns;
-  Device device;
-
-  int d_model;
+  Context ctx_;
 };
 
 // linear layer in the nn.
 class Linear : public Module {
  public:
-  // create Linear module from config. 
-  // ModuleConfig Args:
-  //   d_model   
-  static StatusOr<Linear> FromConfig(const ModuleConfig &config);
+  // create Linear module from context. 
+  static StatusOr<Linear> FromContext(const Context &ctx, int d_model);
 
   // initialize the module from context
-  Status Load(const StateDict &state_dict) override;
+  Status Load(const TensorDict &state_dict) override;
 
   // forward input through this module and returns the output
   Tensor Forward(const Tensor &input) const;
 
  private:
+  // tensor names.
+  static constexpr char kWeight[] = "weight";
+  static constexpr char kBias[] = "bias";
+
   Tensor w_;
   Tensor b_;
 
-  Linear();
+  int d_model_;
+
+  Linear(const Context &ctx);
 };
 
 }  // namespace nn
