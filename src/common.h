@@ -47,20 +47,6 @@ typedef const char *PCStrType;
 typedef unsigned char ByteType;
 typedef const unsigned char CByteType;
 
-enum class DType : int16_t { 
-  kUnknown = 0,
-  kFloat = 1,
-};
-
-// get type-id
-template <typename T>
-DType TypeID();
-
-// get the size of specific dtype
-int SizeOfDType(DType dtype);
-
-// return true of DType is valid
-bool IsValidDType(DType dtype);
 
 };  // namespace llama
 

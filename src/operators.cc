@@ -4,17 +4,15 @@
 #include <memory>
 #include "nn.h"
 #include "operators.h"
+#include "operators_cpu.h"
 
 namespace llama {
 namespace nn {
 
-// create the instance of CpuOperators
-std::unique_ptr<Operators> CreateCpuOperators();
-
 StatusOr<Operators> Operators::FromDevice(Device device) {
   switch (device.type()) {
     case Device::Type::kCpu:
-      return CreateCpuOperators();
+      return CpuOperators::Create();
     default:
       RETURN_ABORTED() << "invalid device";
   }

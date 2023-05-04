@@ -96,11 +96,14 @@ class Module {
   Context ctx_;
 };
 
-// linear layer in the nn.
+// linear layer.
 class Linear : public Module {
  public:
   // create Linear module from context. 
-  static StatusOr<Linear> Create(const Context &ctx, int d_model);
+  static StatusOr<Linear> Create(
+      const Context &ctx,
+      int in_features,
+      int out_features);
 
   // initialize the module from context
   Status InitParameters(const TensorDict &state_dict) override;
@@ -116,10 +119,12 @@ class Linear : public Module {
   Tensor w_;
   Tensor b_;
 
-  int d_model_;
+  int in_features_;
+  int out_features_;
 
   Linear();
 };
+
 
 }  // namespace nn
 }  // namespace llama

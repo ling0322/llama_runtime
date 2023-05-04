@@ -58,6 +58,7 @@ void TestGEMM(int m, int k, int n, bool transa, bool transb) {
 }
 
 int test_shapes[][3] = {
+  {50, 50, 1},
   {1, 1, 1},
   {2, 2, 2},
   {50, 50, 1},

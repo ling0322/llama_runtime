@@ -124,15 +124,19 @@ std::string Context::name(const std::string &name) const {
 // class Linear                                                               |
 // ---------------------------------------------------------------------------+
 
-Linear::Linear() : d_model_(0) {}
+Linear::Linear() : in_features_(0), out_features_(0) {}
 
-StatusOr<Linear> Linear::Create(const Context &ctx, int d_model) {
+StatusOr<Linear> Linear::Create(
+    const Context &ctx,
+    int in_features,
+    int out_features) {
   std::unique_ptr<Linear> linear{new Linear()};
-  if (d_model <= 0) {
+  if (in_features <= 0 || out_features <= 0) {
     RETURN_ABORTED() << "invalid d_model";
   }
 
-  linear->d_model_ = d_model;
+  linear->in_features_ = in_features;
+  linear->out_features_ = out_features;
   linear->ctx_ = ctx;
   return linear;
 }
@@ -140,13 +144,14 @@ StatusOr<Linear> Linear::Create(const Context &ctx, int d_model) {
 Status Linear::InitParameters(const TensorDict &state_dict) {
   std::string name_w = ctx_.name(kWeight);
   RETURN_IF_ERROR(state_dict.get(name_w, &w_));
-  if (w_.rank() != 2 || w_.shape(0) != d_model_ || w_.shape(1) != d_model_) {
+  if (w_.rank() != 2 || w_.shape(0) != out_features_ ||
+      w_.shape(1) != in_features_) {
     RETURN_ABORTED() << "invalid shape of tensor " << name_w;
   }
 
   std::string name_b = ctx_.name(kBias);
   RETURN_IF_ERROR(state_dict.get(name_b, &b_));
-  if (b_.rank() != 1 || b_.shape(0) != d_model_) {
+  if (b_.rank() != 1 || b_.shape(0) != out_features_) {
     RETURN_ABORTED() << "invalid shape of tensor " << name_b;
   }
 

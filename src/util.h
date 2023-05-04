@@ -170,6 +170,10 @@ template<typename T>
 constexpr Span<const T> MakeConstSpan(std::initializer_list<T> v) {
   return Span<const T>(v.begin(), v.size());
 }
+template<typename T>
+constexpr Span<const T> MakeConstSpan(util::Span<T> v) {
+  return Span<const T>(v.data(), v.size());
+}
 
 
 // ---------------------------------------------------------------------------+

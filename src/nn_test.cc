@@ -20,7 +20,7 @@ TEST_CASE("test Linear module", "[core][nn][module]") {
   ctx.set_device(Device::CPU());
   ctx.set_F(F.get());
 
-  StatusOr<Linear> linear = Linear::Create(ctx, 16);
+  StatusOr<Linear> linear = Linear::Create(ctx, 16, 20);
   REQUIRE(linear.ok());
 
   status = linear->InitParameters(state_dict);
@@ -31,12 +31,19 @@ TEST_CASE("test Linear module", "[core][nn][module]") {
   REQUIRE(fp.ok());
 
   Tensor A, C, C_ref;
-  status = A.Read(fp.get());
-  REQUIRE(status.ok());
 
-  status = C_ref.Read(fp.get());
-  REQUIRE(status.ok());
+  for (; ; ) {
+    status = A.Read(fp.get());
+    if (IsOutOfRange(status)) {
+      // EOF reached
+      break;
+    }
+    REQUIRE(status.ok());
 
-  C = linear->Forward(A);
-  REQUIRE(F->AllClose(C, C_ref));
+    status = C_ref.Read(fp.get());
+    REQUIRE(status.ok());
+
+    C = linear->Forward(A);
+    REQUIRE(F->AllClose(C, C_ref));
+  }
 }

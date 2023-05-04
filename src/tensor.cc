@@ -8,6 +8,43 @@ namespace llama {
 namespace nn {
 
 // ---------------------------------------------------------------------------+
+// class DType                                                           |
+// ---------------------------------------------------------------------------+
+
+template <>
+DType TypeID<float>() {
+  return DType::kFloat;
+}
+template <>
+DType TypeID<int64_t>() {
+  return DType::kLong;
+}
+
+template DType TypeID<float>();
+template DType TypeID<int64_t>();
+
+int SizeOfDType(DType dtype) {
+  switch (dtype) {
+    case DType::kFloat:
+      return 4;
+    case DType::kLong:
+      return 8;
+    default:
+      NOT_IMPL();
+  }
+}
+
+bool IsValidDType(DType dtype) {
+  switch (dtype) {
+    case DType::kFloat:
+    case DType::kLong:
+      return true;
+    default:
+      return false;
+  }
+}
+
+// ---------------------------------------------------------------------------+
 // class TensorData                                                           |
 // ---------------------------------------------------------------------------+
 

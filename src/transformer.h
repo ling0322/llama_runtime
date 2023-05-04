@@ -9,7 +9,14 @@ namespace nn {
 
 class MultiheadAttention : public Module {
  public:
-  MultiheadAttention(Namespace ns, int d_model, int num_heads);
+  // create multi-head attention module from context. 
+  static StatusOr<MultiheadAttention> Create(
+      const Context &ctx,
+      int num_heads,
+      int d_model);
+
+  // initialize the module from context
+  Status InitParameters(const TensorDict &state_dict) override;
 
   Tensor Forward(const Tensor &q,
                  const Tensor &k,
@@ -17,17 +24,16 @@ class MultiheadAttention : public Module {
                  const Tensor &mask = Tensor());
 
  private:
-  Namespace ns;
-  Function F;
-
   int d_model_;
   int d_k_;
   int num_heads_;
 
-  Linear q_proj_;
-  Linear k_proj_;
-  Linear v_proj_;
-  Linear out_proj_;
+  std::unique_ptr<Linear> q_proj_;
+  std::unique_ptr<Linear> k_proj_;
+  std::unique_ptr<Linear> v_proj_;
+  std::unique_ptr<Linear> out_proj_;
+
+  MultiheadAttention();
 
   Tensor Attention(const Tensor &q,
                    const Tensor &k,

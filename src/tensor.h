@@ -10,6 +10,24 @@
 namespace llama {
 namespace nn {
 
+typedef int64_t LongType;
+
+enum class DType : int16_t { 
+  kUnknown = 0,
+  kFloat = 1,
+  kLong = 2
+};
+
+// get type-id
+template <typename T>
+DType TypeID();
+
+// get the size of specific dtype
+int SizeOfDType(DType dtype);
+
+// return true of DType is valid
+bool IsValidDType(DType dtype);
+
 // contains dimension and stride information for an axis in tensor
 class TensorData {
  public:

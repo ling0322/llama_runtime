@@ -14,7 +14,16 @@ class Operators {
   // get instance of Function for CPU device
   static StatusOr<Operators> FromDevice(Device device);
 
-  // virtual Tensor Lookup(const Tensor &table, const Tensor &indices) = 0;
+  // retrieve word embeddings using indices. Input is a long tensor with indices
+  // and the output is the word embeddings for these indices.
+  // Args:
+  //   table <float>(V, D): the embedding table. V is vocab size and D is the
+  //                        embedding dimension.
+  //   indices <long>(N, L): the indices.
+  // Returns:
+  //   <float>(N, L, D): the word embedding tensor.
+  virtual Tensor Lookup(const Tensor &table, const Tensor &indices) = 0;
+
   // virtual Tensor LayerNorm(const Tensor &input) = 0;
 
   // Matrix product of two tensors.
@@ -36,6 +45,11 @@ class Operators {
 
   // create a tensor with specified shape and dtype. Data in this tensor is
   // uninitialize.
+  // Args:
+  //   shape: shape of the new tensor.
+  //   dtype: data type of the new tensor.
+  // Returns:
+  //   the tensor with specified shape and dtype.
   virtual Tensor Tensor_(std::initializer_list<int> shape, DType dtype) = 0;
 
   // returns a uninitialized tensor with the same shape and dtype as input
@@ -49,7 +63,7 @@ class Operators {
   virtual Tensor Zeros(std::initializer_list<int> shape, DType dtype) = 0;
 
   // Return a contiguous in memory tensor containing the same data as input
-  // virtual Tensor Contiguous(const Tensor &input) = 0;
+  virtual Tensor Contiguous(const Tensor &input) = 0;
 
   // return true if two tensors are element-wise equal within a tolerance
   // (rtol=1e-05, atol=1e-08)
