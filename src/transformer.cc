@@ -18,10 +18,10 @@ StatusOr<MultiheadAttention> MultiheadAttention::Create(
   layer->d_k_ = d_model / num_heads;
   layer->num_heads_ = num_heads;
 
-  auto q_proj = Linear::Create(ctx.WithName("q_proj"), d_model, d_model);
-  auto k_proj = Linear::Create(ctx.WithName("k_proj"), d_model, d_model);
-  auto v_proj = Linear::Create(ctx.WithName("v_proj"), d_model, d_model);
-  auto out_proj = Linear::Create(ctx.WithName("out_proj"), d_model, d_model);
+  auto q_proj = Linear::Create(ctx.WithName(kQProj), d_model, d_model);
+  auto k_proj = Linear::Create(ctx.WithName(kKProj), d_model, d_model);
+  auto v_proj = Linear::Create(ctx.WithName(kVProj), d_model, d_model);
+  auto out_proj = Linear::Create(ctx.WithName(kOutProj), d_model, d_model);
 
   RETURN_IF_ERROR(q_proj);
   RETURN_IF_ERROR(k_proj);
@@ -34,6 +34,15 @@ StatusOr<MultiheadAttention> MultiheadAttention::Create(
   layer->out_proj_ = std::move(out_proj).pointer();
 
   return layer;
+}
+
+Status MultiheadAttention::InitParameters(const TensorDict &state_dict) {
+  RETURN_IF_ERROR(q_proj_->InitParameters(state_dict));
+  RETURN_IF_ERROR(k_proj_->InitParameters(state_dict));
+  RETURN_IF_ERROR(v_proj_->InitParameters(state_dict));
+  RETURN_IF_ERROR(out_proj_->InitParameters(state_dict));
+
+  return OkStatus();
 }
 
 Tensor MultiheadAttention::Attention(const Tensor &q, const Tensor &k,

@@ -24,7 +24,20 @@ class Operators {
   //   <float>(N, L, D): the word embedding tensor.
   virtual Tensor Lookup(const Tensor &table, const Tensor &indices) = 0;
 
-  // virtual Tensor LayerNorm(const Tensor &input) = 0;
+  // apply layer normalization over the last dimension of inputs.
+  //   y_ij = (x_ij - E[x]) / sqrt(Var[X] + eps)
+  //   y_ij = y_ij * weight_j + bias_j
+  // Args:
+  //   input <float>(..., D): input tensor.
+  //   weight <float>(D): weight tensor.
+  //   bias <float>(D): bias tensor.
+  // Return:
+  //   <float>(..., D): layer normalized input.
+  virtual Tensor LayerNorm(
+      const Tensor &input,
+      const Tensor &weight,
+      const Tensor &bias,
+      float eps) = 0;
 
   // Matrix product of two tensors.
   // Args:

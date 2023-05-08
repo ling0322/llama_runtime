@@ -89,6 +89,9 @@ class Module {
   // load the module states from `state_dict`
   virtual Status InitParameters(const TensorDict &state_dict) = 0;
 
+  // forward with cache (LSTM, transformers).
+  virtual Tensor Forward(TensorDict *cache, const Tensor &input) const;
+
   // get context of the module.
   const Context &ctx() const { return ctx_; }
 
@@ -96,20 +99,27 @@ class Module {
   Context ctx_;
 };
 
+// Module with single input tensor and output tensor. Usually, it's a feed-
+// forward nn module.
+class FeedforwardLayer {
+ public:
+  virtual Tensor Forward(const Tensor &input) const = 0;
+};
+
 // linear layer.
-class Linear : public Module {
+class Linear : public Module,
+               public FeedforwardLayer {
  public:
   // create Linear module from context. 
-  static StatusOr<Linear> Create(
-      const Context &ctx,
-      int in_features,
-      int out_features);
+  static StatusOr<Linear> Create(const Context &ctx,
+                                 int in_features,
+                                 int out_features);
 
   // initialize the module from context
   Status InitParameters(const TensorDict &state_dict) override;
 
-  // forward input through this module and returns the output
-  Tensor Forward(const Tensor &input) const;
+  // forward input and return the output.
+  Tensor Forward(const Tensor &input) const override;
 
  private:
   // tensor names.
@@ -125,6 +135,33 @@ class Linear : public Module {
   Linear();
 };
 
+// layer-norm layer.
+class LayerNorm : public Module,
+                  public FeedforwardLayer {
+ public:
+  static StatusOr<LayerNorm> Create(const Context &ctx,
+                                    int d_model,
+                                    float eps = 1e-5);
+  
+  // initialize the module from context
+  Status InitParameters(const TensorDict &state_dict) override;
+
+  // forward input and return the output.
+  Tensor Forward(const Tensor &input) const override;
+ 
+ private:
+  // tensor names.
+  static constexpr char kWeight[] = "weight";
+  static constexpr char kBias[] = "bias";
+
+  Tensor w_;
+  Tensor b_;
+
+  int d_model_;
+  float eps_;
+
+  LayerNorm();
+};
 
 }  // namespace nn
 }  // namespace llama

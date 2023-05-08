@@ -103,9 +103,9 @@ class CpuOperators::Impl {
 
   Tensor Lookup_Float32(SubtensorCf table, SubtensorCl indices);
   Tensor LayerNorm_Float32(
-      const Tensor &input,
-      const Tensor &weight,
-      const Tensor &bias,
+      SubtensorCf input,
+      SubtensorCf weight,
+      SubtensorCf bias,
       float eps);
 };
 
@@ -170,6 +170,82 @@ inline auto CpuOperators::Impl::MakeConstSubTensor(
 // ---------------------------------------------------------------------------+
 // CpuOperators::Impl                                                         |
 // ---------------------------------------------------------------------------+
+
+template<typename T>
+void CpuOperators::Impl::ApplyBinaryOperator(
+    SubTensor<const T> A,
+    SubTensor<const T> B,
+    SubTensor<T> C,
+    BinaryOp<T> binary_op) {
+  CHECK(A.rank() >= B.rank() && B.rank() >= 1);
+  CHECK(A.rank() == C.rank());
+
+  if (A.rank() > B.rank()) {
+    // broadcast B
+    CHECK(A.dimension(0) == C.dimension(0));
+
+    for (int i = 0; i < A.dimension(0); ++i) {
+      ApplyBinaryOperator(A.subtensor(i), B, C.subtensor(i), binary_op);
+    }
+  } else if (A.rank() > 1) {
+    // for n-D Tensor
+    CHECK(A.dimension(0) == C.dimension(0) && A.dimension(0) == B.dimension(0));
+
+    for (int i = 0; i < A.dimension(0); ++i) {
+      ApplyBinaryOperator(
+          A.subtensor(i),
+          B.subtensor(i),
+          C.subtensor(i),
+          binary_op);
+    }
+  } else if (A.rank() == 1) {
+    // for 1-D tensor
+    CHECK(A.dimension(0) == C.dimension(0) && A.dimension(0) == B.dimension(0));
+    binary_op(A, B, C);
+  } else {
+    NOT_IMPL();
+  }
+}
+
+template<typename T>
+void CpuOperators::Impl::ApplyUnary1DTensorOp(
+    SubTensor<const T> A,
+    SubTensor<T> C,
+    UnaryOp<T> unary_op) {
+  CHECK(A.rank() == C.rank());
+  CHECK(A.rank() >= 1);
+
+  CHECK(A.dimension(0) == C.dimension(0));
+  if (A.rank() > 1) {
+    for (int i = 0; i < A.dimension(0); ++i) {
+      ApplyUnary1DTensorOp(A.subtensor(i), C.subtensor(i), unary_op);
+    }
+  } else if (A.rank() == 1) {
+    unary_op(A, C);
+  } else {
+    NOT_IMPL();
+  }
+}
+
+template<typename T>
+void CpuOperators::Impl::ForEach(
+    SubTensor<const T> A,
+    SubTensor<const T> B,
+    BinaryOpNR<T> closure) {
+  CHECK(A.rank() == B.rank());
+  CHECK(A.rank() >= 1);
+
+  CHECK(A.dimension(0) == B.dimension(0));
+  if (A.rank() > 1) {
+    for (int i = 0; i < A.dimension(0); ++i) {
+      ForEach<T>(A.subtensor(i), B.subtensor(i), closure);
+    }
+  } else if (A.rank() == 1) {
+    closure(A, B);
+  } else {
+    NOT_IMPL();
+  }
+}
 
 Tensor CpuOperators::Impl::Tensor_(util::Span<const int> shape, DType dtype) {
   Tensor tensor;
@@ -487,80 +563,44 @@ Tensor CpuOperators::Impl::Lookup_Float32(
   return output;
 }
 
-template<typename T>
-void CpuOperators::Impl::ApplyBinaryOperator(
-    SubTensor<const T> A,
-    SubTensor<const T> B,
-    SubTensor<T> C,
-    BinaryOp<T> binary_op) {
-  CHECK(A.rank() >= B.rank() && B.rank() >= 1);
-  CHECK(A.rank() == C.rank());
+Tensor CpuOperators::Impl::LayerNorm_Float32(
+    SubtensorCf input,
+    SubtensorCf weight,
+    SubtensorCf bias,
+    float eps) {
+  CHECK(weight.rank() == bias.rank() && weight.rank() == 1);
+  CHECK(weight.dimension(0) == bias.dimension(0));
+  CHECK(input.dimension(input.rank() - 1) == weight.dimension(0));
 
-  if (A.rank() > B.rank()) {
-    // broadcast B
-    CHECK(A.dimension(0) == C.dimension(0));
-
+  UnaryOp<float> closure = [&weight, &bias, eps](SubtensorCf A, Subtensorf C) {
+    // mean
+    double sum = 0.0f;
     for (int i = 0; i < A.dimension(0); ++i) {
-      ApplyBinaryOperator(A.subtensor(i), B, C.subtensor(i), binary_op);
+      sum += A.elem(i);
     }
-  } else if (A.rank() > 1) {
-    // for n-D Tensor
-    CHECK(A.dimension(0) == C.dimension(0) && A.dimension(0) == B.dimension(0));
-
+    double mean = sum / A.dimension(0);
+    
+    // var (unbiased)
+    sum = 0.0;
     for (int i = 0; i < A.dimension(0); ++i) {
-      ApplyBinaryOperator(
-          A.subtensor(i),
-          B.subtensor(i),
-          C.subtensor(i),
-          binary_op);
+      double d = A.elem(i) - mean;
+      sum += d * d;
     }
-  } else if (A.rank() == 1) {
-    // for 1-D tensor
-    CHECK(A.dimension(0) == C.dimension(0) && A.dimension(0) == B.dimension(0));
-    binary_op(A, B, C);
-  } else {
-    NOT_IMPL();
-  }
-}
+    double var = sum / A.dimension(0);
+    double sd = sqrt(var + eps);
 
-template<typename T>
-void CpuOperators::Impl::ApplyUnary1DTensorOp(
-    SubTensor<const T> A,
-    SubTensor<T> C,
-    UnaryOp<T> unary_op) {
-  CHECK(A.rank() == C.rank());
-  CHECK(A.rank() >= 1);
-
-  CHECK(A.dimension(0) == C.dimension(0));
-  if (A.rank() > 1) {
-    for (int i = 0; A.dimension(0); ++i) {
-      ApplyUnary1DTensorOp(A.subtensor(i), C.subtensor(i), unary_op);
-    }
-  } else if (A.rank() == 1) {
-    unary_op(A, C);
-  } else {
-    NOT_IMPL();
-  }
-}
-
-template<typename T>
-void CpuOperators::Impl::ForEach(
-    SubTensor<const T> A,
-    SubTensor<const T> B,
-    BinaryOpNR<T> closure) {
-  CHECK(A.rank() == B.rank());
-  CHECK(A.rank() >= 1);
-
-  CHECK(A.dimension(0) == B.dimension(0));
-  if (A.rank() > 1) {
+    // compute layer-norm
     for (int i = 0; i < A.dimension(0); ++i) {
-      ForEach<T>(A.subtensor(i), B.subtensor(i), closure);
+      float elem = static_cast<float>((A.elem(i) - mean) / sd); 
+      C.elem(i) = elem * weight.elem(i) + bias.elem(i);
     }
-  } else if (A.rank() == 1) {
-    closure(A, B);
-  } else {
-    NOT_IMPL();
-  }
+  };
+
+  Tensor C = TensorLike(input);
+  Subtensorf Cs = MakeSubTensor<float>(C);
+  ApplyUnary1DTensorOp(input, Cs, closure);
+
+  return C;
 }
 
 // ---------------------------------------------------------------------------+
@@ -718,7 +758,27 @@ Tensor CpuOperators::Lookup(const Tensor &table, const Tensor &indices) {
       return impl_->Lookup_Float32(
           impl_->MakeConstSubTensor<float>(table),
           impl_->MakeConstSubTensor<LongType>(indices));
-      break;
+    default:
+      NOT_IMPL();
+  }
+
+  return Tensor();
+}
+
+Tensor CpuOperators::LayerNorm(
+    const Tensor &input,
+    const Tensor &weight,
+    const Tensor &bias,
+    float eps) {
+  CHECK(input.dtype() == weight.dtype() && input.dtype() == bias.dtype());
+
+  switch (input.dtype()) {
+    case DType::kFloat:
+      return impl_->LayerNorm_Float32(
+          impl_->MakeConstSubTensor<float>(input),
+          impl_->MakeConstSubTensor<float>(weight),
+          impl_->MakeConstSubTensor<float>(bias),
+          eps);
     default:
       NOT_IMPL();
   }

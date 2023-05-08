@@ -18,7 +18,6 @@ class CpuOperators : public Operators {
 
   // implement interface Operators
   Tensor Lookup(const Tensor &table, const Tensor &indices) override;
-  // Tensor LayerNorm(const Tensor &input) override;
   Tensor MatMul(const Tensor &a, const Tensor &b) override;
   Tensor Mul(const Tensor &input, float other) override;
   Tensor Softmax(const Tensor &input) override;
@@ -30,6 +29,11 @@ class CpuOperators : public Operators {
   Tensor Contiguous(const Tensor &input) override;
   bool AllClose(const Tensor &A, const Tensor &B) override;
   void Print(const Tensor &tensor) override;
+  Tensor LayerNorm(
+      const Tensor &input,
+      const Tensor &weight,
+      const Tensor &bias,
+      float eps) override;
 
  private:
   // internal implementation of the operators.

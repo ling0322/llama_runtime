@@ -28,6 +28,11 @@ class MultiheadAttention : public Module {
   int d_k_;
   int num_heads_;
 
+  static constexpr char kQProj[] = "q_proj";
+  static constexpr char kKProj[] = "k_proj";
+  static constexpr char kVProj[] = "v_proj";
+  static constexpr char kOutProj[] = "out_proj";
+
   std::unique_ptr<Linear> q_proj_;
   std::unique_ptr<Linear> k_proj_;
   std::unique_ptr<Linear> v_proj_;
