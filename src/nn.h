@@ -70,8 +70,8 @@ class Context {
   std::string name() const { return ns_; }
 
   // operator set
-  Operators *F() const { return F_; }
-  void set_F(Operators *F) { F_ = F; }
+  Operators *F() const { return F_.get(); }
+  void set_F(std::shared_ptr<Operators> F) { F_ = F; }
 
   // device.
   const Device &device() const; 
@@ -79,7 +79,7 @@ class Context {
 
  private:
   std::string ns_;
-  Operators *F_;
+  std::shared_ptr<Operators> F_;
   Device device_;
 };
 
@@ -89,9 +89,6 @@ class Module {
   // load the module states from `state_dict`
   virtual Status InitParameters(const TensorDict &state_dict) = 0;
 
-  // forward with cache (LSTM, transformers).
-  virtual Tensor Forward(TensorDict *cache, const Tensor &input) const;
-
   // get context of the module.
   const Context &ctx() const { return ctx_; }
 
@@ -99,16 +96,8 @@ class Module {
   Context ctx_;
 };
 
-// Module with single input tensor and output tensor. Usually, it's a feed-
-// forward nn module.
-class FeedforwardLayer {
- public:
-  virtual Tensor Forward(const Tensor &input) const = 0;
-};
-
 // linear layer.
-class Linear : public Module,
-               public FeedforwardLayer {
+class Linear : public Module {
  public:
   // create Linear module from context. 
   static StatusOr<Linear> Create(const Context &ctx,
@@ -119,7 +108,7 @@ class Linear : public Module,
   Status InitParameters(const TensorDict &state_dict) override;
 
   // forward input and return the output.
-  Tensor Forward(const Tensor &input) const override;
+  Tensor Forward(const Tensor &input) const;
 
  private:
   // tensor names.
@@ -136,8 +125,7 @@ class Linear : public Module,
 };
 
 // layer-norm layer.
-class LayerNorm : public Module,
-                  public FeedforwardLayer {
+class LayerNorm : public Module {
  public:
   static StatusOr<LayerNorm> Create(const Context &ctx,
                                     int d_model,
@@ -147,7 +135,7 @@ class LayerNorm : public Module,
   Status InitParameters(const TensorDict &state_dict) override;
 
   // forward input and return the output.
-  Tensor Forward(const Tensor &input) const override;
+  Tensor Forward(const Tensor &input) const;
  
  private:
   // tensor names.

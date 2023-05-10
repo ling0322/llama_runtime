@@ -10,8 +10,8 @@ using namespace nn;
 
 Tensor RefMatMul_Float32(const Tensor &A, const Tensor &B) {
   REQUIRE(A.dtype() == B.dtype());
-  REQUIRE(A.rank() == 2);
-  REQUIRE(B.rank() == 2);
+  REQUIRE(A.dim() == 2);
+  REQUIRE(B.dim() == 2);
   REQUIRE(A.shape(1) == B.shape(0));
   REQUIRE(A.dtype() == DType::kFloat);
 

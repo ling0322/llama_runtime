@@ -195,7 +195,11 @@ class StatusOr {
   const Status &status() const & {
     return status_;
   }
-  std::unique_ptr<T> &&pointer() && {
+  std::unique_ptr<T> unique_ptr() && {
+    ASSERT(status_.ok());
+    return std::move(ptr_);
+  }
+  std::shared_ptr<T> shared_ptr() && {
     ASSERT(status_.ok());
     return std::move(ptr_);
   }

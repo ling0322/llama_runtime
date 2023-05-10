@@ -46,12 +46,52 @@ class TensorData {
   DType dtype_;
 };
 
+// shape of a Tensor.
+class Size {
+ public:
+  friend class CpuOperators;
+
+  typedef int32_t ShapeType;
+
+  // an empty Tensor.
+  Size() = default;
+
+  // from shape.
+  Size(util::Span<const ShapeType> shape);
+
+  // Returns a Size that is a transposed version of current size. The given
+  // dimensions dim0 and dim1 are swapped.
+  Size Transpose(int dim0, int dim1) const;
+
+  Size(const Size &size);
+  Size(Size &&size) noexcept;
+  Size &operator=(const Size &size);
+  Size &operator=(Size &&size) noexcept;
+
+  bool empty() const;
+  int dim() const;
+  ShapeType shape(int index) const;
+  ShapeType stride(int index) const;
+  int64_t numel() const;
+
+ private:
+  struct Elem {
+    ShapeType shape;
+    ShapeType stride;
+  };
+
+  util::FixedArray<Elem> data_;
+
+  // convert negative dimension index to positive
+  int real_dim(int dim) const;
+};
+
 class Tensor {
  public:
   friend class CpuOperators;
 
   // integer type for shape and stride
-  typedef int32_t ShapeType;
+  typedef Size::ShapeType ShapeType;
 
   // rank for empty tansor.
   static constexpr int kEmptyRank = -1;
@@ -70,28 +110,33 @@ class Tensor {
   Tensor &operator=(Tensor &&tensor);
 
   // get numebr of dimentsions.
-  int rank() const;
+  int dim() const { return size_.dim(); }
 
   // get the size in dimention `d`. `d` supports positive number
   // (index) and negative number (index from back). Crash if `d` is out of
   // boundary
-  ShapeType shape(int d) const;
+  ShapeType shape(int d) const { return size_.shape(d); }
 
   // get stride for dimension `d`. 
-  ShapeType stride(int d) const;
+  ShapeType stride(int d) const { return size_.stride(d); }
 
   // get number of elements in this tensor.
-  int64_t numel() const;
+  int64_t numel() const { return size_.numel(); }
 
   // return true if this tensor is empty.
-  bool empty() const;
+  bool empty() const { return size_.empty(); }
 
   // get data type.
   DType dtype() const;
 
+  // return a new tensor with the same data as the self tensor but of a
+  // different shape.
   Tensor View(std::initializer_list<int> shape) const;
 
   Tensor Transpose(int dim0, int dim1) const;
+
+  // return true is the tensor is contigous
+  bool is_contiguous() const;
 
   // pointer of data in this tensor
   template <typename T>
@@ -100,32 +145,14 @@ class Tensor {
   const T *data() const { return reinterpret_cast<T *>(raw_data(TypeID<T>())); }
 
  protected:
-  struct Shape {
-    ShapeType dimension;
-    ShapeType stride;
-  };
-
   std::shared_ptr<TensorData> data_;
-  util::FixedArray<Shape> shape_;
+  Size size_;
   ByteType *data_ptr_;
 
   // check dtype and return the point of underlying data
   ByteType *raw_data(DType dtype) const;
-
-  // convert negative dimension index to positive
-  int real_dim(int dim) const;
-
-  // fill shape and stride values in shape_ according to given `shape`. Then
-  // return numel for the shape.
-  int64_t FillShapeStride(util::Span<const int> shape);
 };
 
-inline int Tensor::rank() const {
-  return data_ptr_ ? shape_.size() : kEmptyRank;
-}
-inline bool Tensor::empty() const {
-  return data_ptr_ == nullptr;
-}
 inline DType Tensor::dtype() const { 
   return data_ ? data_->dtype() : DType::kUnknown;
 }

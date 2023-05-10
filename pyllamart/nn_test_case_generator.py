@@ -10,6 +10,7 @@ D_MODEL0 = 16
 D_MODEL1 = 20
 SEQ_LEN = 5
 BATCH_SIZE = 2
+NUM_HEADS = 2
 
 def gen_linear():
 
@@ -64,19 +65,15 @@ def gen_layer_norm():
         write_lrt_tensor(b, fp)
 
 def gen_multi_head_attention():
-    layer = nn.MultiheadAttention(D_MODEL0, 2, batch_first=True)
+    layer = nn.MultiheadAttention(D_MODEL0, NUM_HEADS, batch_first=True)
     d = {}
     for i, name in enumerate(['q_proj', 'k_proj', 'v_proj']):
         offset = i * D_MODEL0
-        d[name] = {
-            'weight': layer.in_proj_weight[offset : offset + D_MODEL0],
-            'bias': layer.in_proj_bias[offset : offset + D_MODEL0]
-        }
+        d[name + ".weight"] = layer.in_proj_weight[offset : offset + D_MODEL0]
+        d[name + ".bias"] = layer.in_proj_bias[offset : offset + D_MODEL0]
 
-    d['out_proj'] = {
-        'weight': layer.out_proj.weight,
-        'bias': layer.out_proj.bias
-    }
+    d['out_proj.weight'] = layer.out_proj.weight
+    d['out_proj.bias'] = layer.out_proj.bias
 
     write_tensor_dict(d, 'attn-model.params.bin')
 
@@ -89,13 +86,9 @@ def gen_multi_head_attention():
         write_lrt_tensor(k, fp)
         write_lrt_tensor(v, fp)
 
-        o = layer(q, k, v, need_weights=False)
+        o, _ = layer(q, k, v)
         write_lrt_tensor(o, fp)
-
-
-
-
-
 
 if __name__ == '__main__':
     gen_multi_head_attention()
+    torch.Size([2,3,4])

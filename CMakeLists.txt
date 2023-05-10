@@ -21,6 +21,7 @@ set(llama_SOURCES
     "src/strings.cc"
     "src/tensor.cc"
     "src/tokenizer.cc"
+    "src/transformer.cc"
     "src/util.cc"
     "src/util_windows.cc")
 add_library(llama SHARED ${llama_SOURCES} )
@@ -31,8 +32,10 @@ set(llama_test_SOURCES
     ${llama_SOURCES}
     "src/gemm_test.cc"
     "src/nn_test.cc"
+    "src/nn_test_helper.cc"
     "src/test_helper.cc"
     "src/test_main.cc"
+    "src/transformer_test.cc"
     "third_party/catch2/catch_amalgamated.cpp")
 add_executable(llama_test ${llama_test_SOURCES})
 target_include_directories(llama_test PRIVATE ${llama_INCDIRS})

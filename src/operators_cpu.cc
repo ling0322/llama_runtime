@@ -17,7 +17,7 @@ constexpr int kPrintEdgeItems = 3;
 // the CPU implementation of Operators
 class CpuOperators::Impl {
  public:
-  typedef Tensor::Shape Shape;
+  typedef Size::Elem Shape;
 
   // sub-tensor. Stores the shape and data pointer to a sub region of the 
   // original Tensor. It's faster than Tensor when passing as parameters.
@@ -129,7 +129,7 @@ struct CpuOperators::Impl::SubTensor {
   }
 
   // get dimension or stride for an axis. NOTE: negative index is NOT supported.
-  int dimension(int index) { return shape[index].dimension; }
+  int dimension(int index) { return shape[index].shape; }
   int stride(int index) { return shape[index].stride; }
 
   // get element from 1D sub-tensor. NOTE: elem() will not check the shape.
@@ -141,7 +141,7 @@ struct CpuOperators::Impl::SubTensor {
   int64_t numel() {
     int64_t n = 1;
     for (const Shape &s : shape) {
-      n *= s.dimension;
+      n *= s.shape;
     }
     return n;
   }
@@ -153,7 +153,7 @@ struct CpuOperators::Impl::SubTensor {
 template<typename T>
 inline auto CpuOperators::Impl::MakeSubTensor(Tensor &tensor) -> SubTensor<T> {
   return SubTensor<T>{
-    util::MakeConstSpan(tensor.shape_),
+    util::MakeConstSpan(tensor.size_.data_),
     tensor.data<T>(),
   };
 } 
@@ -162,7 +162,7 @@ template<typename T>
 inline auto CpuOperators::Impl::MakeConstSubTensor(
     const Tensor &tensor) -> SubTensor<const T> {
   return SubTensor<const T>{
-    util::MakeConstSpan(tensor.shape_),
+    util::MakeConstSpan(tensor.size_.data_),
     tensor.data<T>(),
   };
 } 
@@ -250,7 +250,9 @@ void CpuOperators::Impl::ForEach(
 Tensor CpuOperators::Impl::Tensor_(util::Span<const int> shape, DType dtype) {
   Tensor tensor;
 
-  int64_t numel = tensor.FillShapeStride(util::MakeConstSpan(shape));
+  tensor.size_ = Size(util::MakeConstSpan(shape));
+  int64_t numel = tensor.size_.numel();
+
   tensor.data_ = std::make_shared<TensorData>(numel, dtype);
   tensor.data_ptr_ = tensor.data_->data();
 
@@ -379,12 +381,12 @@ void CpuOperators::Impl::BMM_Float32(
 
 Tensor CpuOperators::Impl::TensorLike(SubtensorCf input) {
   std::vector<int> shape;
-  for (const Tensor::Shape &s : input.shape) {
-    shape.push_back(s.dimension);
+  for (const Size::Elem &s : input.shape) {
+    shape.push_back(s.shape);
   }
 
   Tensor tensor;
-  tensor.FillShapeStride(util::MakeConstSpan(shape));
+  tensor.size_ = Size(util::MakeConstSpan(shape));
 
   // data
   int64_t numel = input.numel();
@@ -617,8 +619,8 @@ Tensor CpuOperators::Tensor_(std::initializer_list<int> shape, DType dtype) {
 
 Tensor CpuOperators::TensorLike(const Tensor &input) {
   std::vector<Tensor::ShapeType> shape_vec;
-  for (const Tensor::Shape &shape : input.shape_) {
-    shape_vec.push_back(shape.dimension);
+  for (const Size::Elem &elem : input.size_.data_) {
+    shape_vec.push_back(elem.shape);
   }
 
   return impl_->Tensor_(util::MakeConstSpan(shape_vec), input.dtype());

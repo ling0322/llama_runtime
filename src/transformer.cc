@@ -5,6 +5,11 @@
 namespace llama {
 namespace nn {
 
+MultiheadAttention::MultiheadAttention()
+    : d_model_(0),
+      d_k_(0),
+      num_heads_(0) {}
+
 StatusOr<MultiheadAttention> MultiheadAttention::Create(
     const Context &ctx,
     int num_heads,
@@ -17,6 +22,7 @@ StatusOr<MultiheadAttention> MultiheadAttention::Create(
   layer->d_model_ = d_model;
   layer->d_k_ = d_model / num_heads;
   layer->num_heads_ = num_heads;
+  layer->ctx_ = ctx;
 
   auto q_proj = Linear::Create(ctx.WithName(kQProj), d_model, d_model);
   auto k_proj = Linear::Create(ctx.WithName(kKProj), d_model, d_model);
@@ -28,10 +34,10 @@ StatusOr<MultiheadAttention> MultiheadAttention::Create(
   RETURN_IF_ERROR(v_proj);
   RETURN_IF_ERROR(out_proj);
 
-  layer->q_proj_ = std::move(q_proj).pointer();
-  layer->k_proj_ = std::move(k_proj).pointer();
-  layer->v_proj_ = std::move(v_proj).pointer();
-  layer->out_proj_ = std::move(out_proj).pointer();
+  layer->q_proj_ = std::move(q_proj).unique_ptr();
+  layer->k_proj_ = std::move(k_proj).unique_ptr();
+  layer->v_proj_ = std::move(v_proj).unique_ptr();
+  layer->out_proj_ = std::move(out_proj).unique_ptr();
 
   return layer;
 }
@@ -50,7 +56,7 @@ Tensor MultiheadAttention::Attention(const Tensor &q, const Tensor &k,
   Operators *F = ctx_.F();
 
   Tensor scores = F->MatMul(q, k.Transpose(-2, -1));
-  scores = F->Mul(scores,  1.0 / d_k_);
+  scores = F->Mul(scores,  1.0f / d_k_);
   if (!mask.empty()) {
     scores = F->Add(scores, mask);
   }
@@ -64,10 +70,10 @@ Tensor MultiheadAttention::Forward(const Tensor &q, const Tensor &k,
                                    const Tensor &v, const Tensor &mask) {
   Operators *F = ctx_.F();
 
-  CHECK(q.rank() == 3);
-  CHECK(k.rank() == 3);
-  CHECK(v.rank() == 3);
-  CHECK(mask.empty() || mask.rank() == 2);
+  CHECK(q.dim() == 3);
+  CHECK(k.dim() == 3);
+  CHECK(v.dim() == 3);
+  CHECK(mask.empty() || mask.dim() == 2);
 
   int bs = q.shape(0);
   Tensor q_proj = q_proj_->Forward(q);

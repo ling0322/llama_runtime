@@ -1,62 +1,35 @@
 #include "test_helper.h"
 #include "nn.h"
+
+#include "nn_test_helper.h"
 #include "operators.h"
 #include "util.h"
-
-namespace llama {
-namespace nn {
-
-constexpr int kDModel0 = 16;
-constexpr int kDModel1 = 20;
-
-// test nn module that only have one input value and one return value.
-void TestSingleInputOutputModule(Context ctx,
-                                 const std::string &model_path,
-                                 const std::string &test_case_path,
-                                 Module *layer) {
-  TensorDict state_dict;
-  Status status = state_dict.Read(model_path);
-  REQUIRE(status.ok());
-
-  status = layer->InitParameters(state_dict);
-  REQUIRE(status.ok());
-
-  StatusOr<ReadableFile> fp = ReadableFile::Open(test_case_path);
-  REQUIRE(fp.ok());
-
-  Tensor A, C, C_ref;
-
-  Operators *F = ctx.F();
-  for (; ; ) {
-    status = A.Read(fp.get());
-    if (IsOutOfRange(status)) {
-      // EOF reached
-      break;
-    }
-    REQUIRE(status.ok());
-
-    status = C_ref.Read(fp.get());
-    REQUIRE(status.ok());
-
-    C = layer->Forward(A);
-    REQUIRE(F->AllClose(C, C_ref));
-  }
-}
-
-}  // namespace nn
-}  // namespace llama
 
 using namespace llama;
 using namespace nn;
 
+// test nn module that only have one input tensor and one return tensor.
+template<class TModule>
+void TestSingleInOutTensorModule(Context ctx,
+                                 const std::string &model_path,
+                                 const std::string &test_case_path,
+                                 TModule *module) {
+  MustReadParameters(model_path, module);
+  std::vector<Tensor> tensors = MustReadAllTensors(test_case_path);
+
+  REQUIRE(tensors.size() % 2 == 0);
+  for (int i = 0; i < tensors.size(); i += 2) {
+    Tensor A = tensors[i];
+    Tensor C_ref = tensors[i + 1];
+
+    Tensor C = module->Forward(A);
+    REQUIRE(ctx.F()->AllClose(C, C_ref));
+  }
+}
+
 TEST_CASE("test Linear module", "[core][nn][module]") {
   util::Path model_dir = util::Path("data") / "test";
-  StatusOr<Operators> F = Operators::FromDevice(Device::CPU());
-  REQUIRE(F.ok());
-
-  Context ctx;
-  ctx.set_device(Device::CPU());
-  ctx.set_F(F.get());
+  Context ctx = MustGetCtxForCPU();
 
   // linear
   util::Path model_path = model_dir / "linear-model.params.bin";
@@ -65,7 +38,7 @@ TEST_CASE("test Linear module", "[core][nn][module]") {
   StatusOr<Linear> linear = Linear::Create(ctx, kDModel0, kDModel1);
   REQUIRE(linear.ok());
 
-  TestSingleInputOutputModule(
+  TestSingleInOutTensorModule<Linear>(
       ctx,
       model_path.string(),
       tensor_file.string(),
@@ -78,7 +51,7 @@ TEST_CASE("test Linear module", "[core][nn][module]") {
   StatusOr<LayerNorm> layer_norm = LayerNorm::Create(ctx, kDModel0);
   REQUIRE(linear.ok());
 
-  TestSingleInputOutputModule(
+  TestSingleInOutTensorModule<LayerNorm>(
       ctx,
       model_path.string(),
       tensor_file.string(),

@@ -10,20 +10,6 @@ namespace llama {
 namespace nn {
 
 // ---------------------------------------------------------------------------+
-// class Module                                                               |
-// ---------------------------------------------------------------------------+
-
-Tensor Module::Forward(const Tensor &input) const {
-  NOT_IMPL();
-  return Tensor();
-}
-
-Tensor Module::Forward(TensorDict *cache, const Tensor &input) const {
-  NOT_IMPL();
-  return Tensor();
-}
-
-// ---------------------------------------------------------------------------+
 // class Device                                                               |
 // ---------------------------------------------------------------------------+
 
@@ -158,14 +144,14 @@ StatusOr<Linear> Linear::Create(
 Status Linear::InitParameters(const TensorDict &state_dict) {
   std::string name_w = ctx_.name(kWeight);
   RETURN_IF_ERROR(state_dict.get(name_w, &w_));
-  if (w_.rank() != 2 || w_.shape(0) != out_features_ ||
+  if (w_.dim() != 2 || w_.shape(0) != out_features_ ||
       w_.shape(1) != in_features_) {
     RETURN_ABORTED() << "invalid shape of tensor " << name_w;
   }
 
   std::string name_b = ctx_.name(kBias);
   RETURN_IF_ERROR(state_dict.get(name_b, &b_));
-  if (b_.rank() != 1 || b_.shape(0) != out_features_) {
+  if (b_.dim() != 1 || b_.shape(0) != out_features_) {
     RETURN_ABORTED() << "invalid shape of tensor " << name_b;
   }
 
@@ -204,13 +190,13 @@ StatusOr<LayerNorm> LayerNorm::Create(
 Status LayerNorm::InitParameters(const TensorDict &state_dict) {
   std::string name_w = ctx_.name(kWeight);
   RETURN_IF_ERROR(state_dict.get(name_w, &w_));
-  if (w_.rank() != 1 || w_.shape(0) != d_model_) {
+  if (w_.dim() != 1 || w_.shape(0) != d_model_) {
     RETURN_ABORTED() << "invalid shape of tensor " << name_w;
   }
 
   std::string name_b = ctx_.name(kBias);
   RETURN_IF_ERROR(state_dict.get(name_b, &b_));
-  if (b_.rank() != 1 || b_.shape(0) != d_model_) {
+  if (b_.dim() != 1 || b_.shape(0) != d_model_) {
     RETURN_ABORTED() << "invalid shape of tensor " << name_b;
   }
 

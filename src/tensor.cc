@@ -8,7 +8,7 @@ namespace llama {
 namespace nn {
 
 // ---------------------------------------------------------------------------+
-// class DType                                                           |
+// class DType                                                                |
 // ---------------------------------------------------------------------------+
 
 template <>
@@ -45,6 +45,88 @@ bool IsValidDType(DType dtype) {
 }
 
 // ---------------------------------------------------------------------------+
+// class Size                                                                 |
+// ---------------------------------------------------------------------------+
+
+Size::Size(const Size &size) : data_(size.data_.Copy()) {}
+Size::Size(Size &&size) noexcept : data_(std::move(size.data_)) {}
+Size &Size::operator=(const Size &size) {
+  data_ = size.data_.Copy();
+  return *this;
+}
+Size &Size::operator=(Size &&size) noexcept {
+  data_ = std::move(size.data_);
+  return *this;
+}
+
+Size::Size(util::Span<const ShapeType> shape) {
+  data_ = util::FixedArray<Elem>(shape.size());
+  util::FixedArray<Elem>::iterator it = data_.begin();
+  for (int n : shape) {
+    it->shape = n;
+    ++it;
+  }
+
+  int64_t stride = 1;
+  for (int d = shape.size() - 1; d >= 0; --d) {
+    CHECK(stride < std::numeric_limits<ShapeType>::max());
+    data_[d].stride = static_cast<ShapeType>(stride);
+    stride *= data_[d].shape;
+  }
+}
+
+Size Size::Transpose(int dim0, int dim1) const {
+  dim0 = real_dim(dim0);
+  dim1 = real_dim(dim1);
+
+  Size size = *this;
+  Elem dim0_elem = size.data_[dim0];
+  size.data_[dim0] = size.data_[dim1];
+  size.data_[dim1] = dim0_elem;
+
+  return size;
+}
+
+int Size::real_dim(int d) const {
+  CHECK(!empty());
+  int _rank = dim();
+  if (d < 0) {
+    d = _rank + d;
+  }
+
+  CHECK(d >= 0 && d < _rank);
+  return d;
+}
+
+int Size::dim() const {
+  return static_cast<int>(data_.size());
+}
+
+inline bool Size::empty() const {
+  return data_.empty();
+}
+
+int Size::shape(int d) const {
+  return data_[real_dim(d)].shape;
+}
+
+int Size::stride(int d) const {
+  return data_[real_dim(d)].stride;
+}
+
+int64_t Size::numel() const {
+  if (empty()) {
+    return 0;
+  }
+  
+  int64_t n = 1;
+  for (const Elem &elem : data_) {
+    n *= elem.shape;
+  }
+  return n;
+}
+
+// ---------------------------------------------------------------------------+
 // class TensorData                                                           |
 // ---------------------------------------------------------------------------+
 
@@ -72,13 +154,13 @@ Tensor::~Tensor() {
 
 Tensor::Tensor(const Tensor &tensor) {
   data_ = tensor.data_;
-  shape_ = tensor.shape_.Copy();
+  size_ = tensor.size_;
   data_ptr_ = tensor.data_ptr_;
 }
 
 Tensor &Tensor::operator=(const Tensor &tensor) {
   data_ = tensor.data_;
-  shape_ = tensor.shape_.Copy();
+  size_ = tensor.size_;
   data_ptr_ = tensor.data_ptr_;
 
   return *this;
@@ -86,13 +168,13 @@ Tensor &Tensor::operator=(const Tensor &tensor) {
 
 Tensor::Tensor(Tensor &&tensor) noexcept {
   data_ = tensor.data_;
-  shape_ = std::move(tensor.shape_);
+  size_ = std::move(tensor.size_);
   data_ptr_ = tensor.data_ptr_;
 }
 
 Tensor &Tensor::operator=(Tensor &&tensor) {
   data_ = tensor.data_;
-  shape_ = std::move(tensor.shape_);
+  size_ = std::move(tensor.size_);
   data_ptr_ = tensor.data_ptr_;
 
   return *this;
@@ -142,7 +224,7 @@ Status Tensor::Read(ReadableFile *fp) {
   if (numel > 4194304) {
     RETURN_ABORTED() << "tensor too big";
   }
-  FillShapeStride(util::MakeConstSpan(shape));
+  size_ = Size(util::MakeConstSpan(shape));
 
   // data
   data_ = std::make_shared<TensorData>(numel, dtype);
@@ -162,83 +244,55 @@ Status Tensor::Read(ReadableFile *fp) {
   return OkStatus();
 }
 
-int Tensor::real_dim(int d) const {
-  CHECK(!empty());
-  int _rank = rank();
-  if (d < 0) {
-    d = _rank + d;
-  }
-
-  CHECK(d >= 0 && d < _rank);
-  return d;
-}
-
-int Tensor::shape(int d) const {
-  return shape_[real_dim(d)].dimension;
-}
-
-int Tensor::stride(int d) const {
-  return shape_[real_dim(d)].stride;
-}
-
-int64_t Tensor::numel() const {
-  if (empty()) {
-    return 0;
-  }
-  
-  int64_t n = 1;
-  for (const Shape &shape : shape_) {
-    n *= shape.dimension;
-  }
-  return n;
-}
-
 ByteType *Tensor::raw_data(DType dtype) const {
   CHECK(data_);
   CHECK(data_->dtype() == dtype);
   return data_ptr_;
 }
 
-int64_t Tensor::FillShapeStride(util::Span<const int> shape) {
-  shape_ = util::FixedArray<Shape>(shape.size());
-  Shape *ps = shape_.data();
-  for (int dimension : shape) {
-    ps->dimension = dimension;
-    ++ps;
-  }
-
-  int64_t stride = 1;
-  for (int d = shape.size() - 1; d >= 0; --d) {
-    CHECK(stride < std::numeric_limits<ShapeType>::max());
-    shape_[d].stride = static_cast<ShapeType>(stride);
-    stride *= shape_[d].dimension;
-  }
-
-  return stride;
-}
-
 Tensor Tensor::View(std::initializer_list<int> shape) const {
+  CHECK(is_contiguous()) << "only contiguous tensor supports View()";
+
+  std::vector<ShapeType> real_shape{shape.begin(), shape.end()};
+  std::vector<ShapeType>::iterator it_inferred = real_shape.end();
+  std::vector<ShapeType>::iterator it = real_shape.begin();
+  int64_t numel = 1;
+  for (; it != real_shape.end(); ++it) {
+    if (*it < 0) {
+      CHECK(it_inferred == real_shape.end()) << "more than 1 inferred dim";
+      it_inferred = it;
+    } else {
+      numel *= *it;
+    }
+  }
+
+  // handle -1 shape
+  if (it_inferred == real_shape.end()) {
+    CHECK(numel == this->numel()) << "numel mismatch after View()";
+  } else {
+    CHECK(this->numel() % numel == 0) << "inferred shape is not a integer";
+    *it_inferred = this->numel() / numel;
+  }
+
+
   Tensor view;
   view.data_ = data_;
   view.data_ptr_ = data_ptr_;
-  view.FillShapeStride(util::MakeConstSpan(shape));
+  view.size_ = Size(util::MakeConstSpan(real_shape));
 
-  CHECK(view.numel() == numel());
+  CHECK(view.numel() == this->numel());
   return view;
 }
 
-Tensor Tensor::Transpose(int dim0, int dim1) const {
-  dim0 = real_dim(dim0);
-  dim1 = real_dim(dim1);
+bool Tensor::is_contiguous() const {
+  return numel() == shape(0) * stride(0);
+}
 
+Tensor Tensor::Transpose(int dim0, int dim1) const {
   Tensor tensor;
   tensor.data_ = data_;
   tensor.data_ptr_ = data_ptr_;
-  tensor.shape_ = shape_.Copy();
-
-  Shape dim0_shape = tensor.shape_[dim0];
-  tensor.shape_[dim0] = tensor.shape_[dim1];
-  tensor.shape_[dim1] = dim0_shape;
+  tensor.size_ = size_.Transpose(dim0, dim1);
 
   return tensor;
 }
