@@ -107,6 +107,7 @@ class CpuOperators::Impl {
       SubtensorCf weight,
       SubtensorCf bias,
       float eps);
+  Tensor CausalMask_Float32(int max_len);
 };
 
 // ---------------------------------------------------------------------------+
@@ -628,6 +629,24 @@ Tensor CpuOperators::Impl::LayerNorm_Float32(
   ApplyUnary1DTensorOp(input, Cs, closure);
 
   return C;
+}
+
+Tensor CpuOperators::Impl::CausalMask_Float32(int seq_len) {
+  Tensor mask = Tensor_(util::MakeConstSpan({seq_len, seq_len}), DType::kFloat);
+  CHECK(mask.is_contiguous());
+
+  float *data = mask.data<float>();
+  for (int i = 0; i < seq_len; ++i) {
+    float *row = data + i * seq_len;
+    for (int j = 0; j <= i; ++j) {
+      row[j] = 0.0f;
+    }
+    for (int j = i + 1; j < seq_len; ++j) {
+      row[j] = std::numeric_limits<float>::infinity();
+    }
+  }
+
+  return mask;
 }
 
 // ---------------------------------------------------------------------------+

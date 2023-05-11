@@ -84,6 +84,14 @@ class Operators {
 
   // Print the tensor to stdout,
   virtual void Print(const Tensor &tensor) = 0;
+
+  // Returns a tensor of causal mask. For the position not allowed to attend
+  // it would be +inf, for the position allowed leave 0.0f.
+  // Args:
+  //   max_len: max length of the sequence.
+  // Returns:
+  //   <float>(max_len, max_len): the causal mask.
+  virtual Tensor CausalMask(int max_len) = 0;
 };
 
 }  // namespace nn

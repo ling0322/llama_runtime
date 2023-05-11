@@ -34,6 +34,7 @@ class CpuOperators : public Operators {
       const Tensor &weight,
       const Tensor &bias,
       float eps) override;
+  Tensor CausalMask(int max_len) override;
 
  private:
   // internal implementation of the operators.
