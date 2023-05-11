@@ -85,6 +85,7 @@ class CpuOperators::Impl {
 
   Tensor Mul_Float32(SubtensorCf A, float k);
   Tensor Add_Float32(SubtensorCf A, SubtensorCf B);
+  Tensor Softmax_Float32(SubtensorCf A);
 
   void Rand_Float32(Tensor *tensor);
   void Zeros_Float32(Subtensorf tensor);
@@ -92,7 +93,6 @@ class CpuOperators::Impl {
   void PrintND_Float32(SubtensorCf A, int pad_space);
   void Print_Float32(SubtensorCf tensor);
   
-  void Softmax_Float32(SubtensorCf A, Subtensorf C);
   bool AllClose_Float32(SubtensorCf A, SubtensorCf B, float rtol, float atol);
   void GEMM_Float32(SubtensorCf A, SubtensorCf B, Subtensorf C);
   void BMM_Float32(SubtensorCf A, SubtensorCf B, Subtensorf C);
@@ -282,9 +282,10 @@ void CpuOperators::Impl::Zeros_Float32(Subtensorf tensor) {
 }
 
 Tensor CpuOperators::Impl::MatMul_Float32(SubtensorCf A, SubtensorCf B) {
-  if (A.rank() == B.rank()) {
+  CHECK(A.rank() >= B.rank() && B.rank() >= 2);
+
+  if (A.rank() == B.rank() && A.rank() == 2) {
     // Both A and B is 2D tensor, call GEMM
-    CHECK(A.rank() == 2);
     Tensor C = Tensor_(util::MakeConstSpan({A.dimension(0), B.dimension(1)}),
                        DType::kFloat);
     Subtensorf Cs = MakeSubTensor<float>(C);
@@ -295,18 +296,29 @@ Tensor CpuOperators::Impl::MatMul_Float32(SubtensorCf A, SubtensorCf B) {
   } else {
     // BMM
     std::vector<int> shape;
-    int batch_dims = A.rank() - B.rank();
-    for (int i = 0; i < batch_dims; ++i) {
+
+    // broadcast B
+    int broadcast_dims = A.rank() - B.rank();
+    for (int i = 0; i < broadcast_dims; ++i) {
       shape.push_back(A.dimension(i));
     }
-    shape.push_back(A.dimension(batch_dims));
-    shape.push_back(B.dimension(1));
+
+    // batch dim: B.shape(i) == A.shape(broadcast_dims + i)
+    int batch_dims = B.rank() - 2;
+    for (int i = 0; i < batch_dims; ++i) {
+      CHECK(A.dimension(broadcast_dims + i) == B.dimension(i));
+      shape.push_back(B.dimension(i));
+    }
+
+    // GEMM dims (A.shape(-2), B.shape(-1))
+    shape.push_back(A.dimension(broadcast_dims + batch_dims));
+    shape.push_back(B.dimension(batch_dims + 1));
+
     Tensor C = Tensor_(util::MakeConstSpan(shape), DType::kFloat);
     Subtensorf Cs = MakeSubTensor<float>(C);
     Zeros_Float32(Cs);
 
     BMM_Float32(A, B, Cs);
-    
     return C;
   }
 }
@@ -363,17 +375,26 @@ void CpuOperators::Impl::BMM_Float32(
     Subtensorf C) {
   CHECK(A.rank() == C.rank());
   CHECK(A.rank() >= B.rank());
-  CHECK(B.rank() == 2);
 
   CHECK(A.dimension(0) == C.dimension(0));
-  if (A.rank() > B.rank()) {
+  if (A.rank() == B.rank() && B.rank() == 2) {
+    GEMM_Float32(A, B, C);
+  } else if (A.rank() > B.rank()) {
+    // broadcast B
     for (int i = 0; i < A.dimension(0); ++i) {
       SubtensorCf As = A.subtensor(i);
       Subtensorf Cs = C.subtensor(i);
       BMM_Float32(As, B, Cs);
     }
   } else if (A.rank() == B.rank()) {
-    GEMM_Float32(A, B, C);
+    // batch dim
+    CHECK(A.dimension(0) == B.dimension(0));
+    for (int i = 0; i < A.dimension(0); ++i) {
+      SubtensorCf As = A.subtensor(i);
+      SubtensorCf Bs = B.subtensor(i);
+      Subtensorf Cs = C.subtensor(i);
+      BMM_Float32(As, Bs, Cs);
+    }
   } else {
     NOT_IMPL();
   }
@@ -471,7 +492,10 @@ Tensor CpuOperators::Impl::Add_Float32(SubtensorCf A, SubtensorCf B) {
   return C;
 }
 
-void CpuOperators::Impl::Softmax_Float32(SubtensorCf A, Subtensorf C) {
+Tensor CpuOperators::Impl::Softmax_Float32(SubtensorCf A) {
+  Tensor C = TensorLike(A);
+  Subtensorf Cs = MakeSubTensor<float>(C);
+
   auto softmax_op = [](SubtensorCf A, Subtensorf C) {
     double sum = 0;
     for (int i = 0; i < A.dimension(0); ++i) {
@@ -487,7 +511,8 @@ void CpuOperators::Impl::Softmax_Float32(SubtensorCf A, Subtensorf C) {
     }
   };
 
-  ApplyUnary1DTensorOp<float>(A, C, softmax_op);
+  ApplyUnary1DTensorOp<float>(A, Cs, softmax_op);
+  return C;
 }
 
 bool CpuOperators::Impl::AllClose_Float32(
@@ -690,18 +715,15 @@ Tensor CpuOperators::Add(const Tensor &input, const Tensor &other) {
 }
 
 Tensor CpuOperators::Softmax(const Tensor &input) {
-  Tensor output;
   switch (input.dtype()) {
     case DType::kFloat:
-      impl_->Softmax_Float32(
-          impl_->MakeConstSubTensor<float>(input),
-          impl_->MakeSubTensor<float>(output));
+      return impl_->Softmax_Float32(impl_->MakeConstSubTensor<float>(input));
       break;
     default:
       NOT_IMPL();
   }
 
-  return output;
+  return Tensor();
 }
 
 bool CpuOperators::AllClose(const Tensor &A, const Tensor &B) {
@@ -737,7 +759,7 @@ Tensor CpuOperators::Mul(const Tensor &A, float k) {
 }
 
 Tensor CpuOperators::Contiguous(const Tensor &input) {
-  if (input.shape(0) * input.stride(0) == input.numel()) {
+  if (input.is_contiguous()) {
     return input;
   } else {
     Tensor C = TensorLike(input);
@@ -746,6 +768,7 @@ Tensor CpuOperators::Contiguous(const Tensor &input) {
         impl_->Copy_Float32(
             impl_->MakeConstSubTensor<float>(input),
             impl_->MakeSubTensor<float>(C));
+        break;
       default:
         NOT_IMPL();
     }

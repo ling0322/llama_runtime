@@ -56,7 +56,8 @@ Tensor MultiheadAttention::Attention(const Tensor &q, const Tensor &k,
   Operators *F = ctx_.F();
 
   Tensor scores = F->MatMul(q, k.Transpose(-2, -1));
-  scores = F->Mul(scores,  1.0f / d_k_);
+  scores = F->Mul(scores,  1.0f / sqrtf(1.0f * d_k_));
+
   if (!mask.empty()) {
     scores = F->Add(scores, mask);
   }
@@ -85,7 +86,7 @@ Tensor MultiheadAttention::Forward(const Tensor &q, const Tensor &k,
   v_proj = v_proj.View({bs, -1, num_heads_, d_k_}).Transpose(1, 2);
 
   Tensor scores = Attention(q_proj, k_proj, v_proj, mask);
-  scores.Transpose(1, 2);
+  scores = scores.Transpose(1, 2);
 
   Tensor concat = F->Contiguous(scores).View({bs, -1, d_model_});
   Tensor output = out_proj_->Forward(concat);

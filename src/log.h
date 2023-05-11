@@ -6,7 +6,7 @@
 
 #define LOG(severity) llama::LogWrapper ## severity(__FILE__, __LINE__)
 #define CHECK(cond) \
-    if (cond) {} else LOG(FATAL).DefaultMessage("Check " #cond " failed")
+    if (cond) {} else LOG(FATAL).DefaultMessage("Check " #cond " failed.")
 #define CHECK_OK(expr) \
     do { auto s = (expr); if (!s.ok()) { LOG(FATAL) << s.what(); } } \
     while (0)

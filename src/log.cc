@@ -13,9 +13,9 @@ LogWrapper::LogWrapper(LogSeverity severity,
                        int source_line) 
     : severity_(severity),
       source_line_(source_line) {
-  PCStrType s = strrchr(__FILE__, '/');
+  PCStrType s = strrchr(source_file, '/');
   if (!s) {
-    s = strrchr(__FILE__, '\\');
+    s = strrchr(source_file, '\\');
   }
 
   if (s) {
@@ -27,6 +27,8 @@ LogWrapper::LogWrapper(LogSeverity severity,
 
 LogWrapper::~LogWrapper() {
   std::string message = os_.str();
+  if (message.empty()) message = default_message_;
+
   printf("%s %s %s:%d] %s\n", 
          Severity(),
          Time(),

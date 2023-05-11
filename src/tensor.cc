@@ -285,7 +285,13 @@ Tensor Tensor::View(std::initializer_list<int> shape) const {
 }
 
 bool Tensor::is_contiguous() const {
-  return numel() == shape(0) * stride(0);
+  int numel = 1;
+  for (int i = dim() - 1; i >= 0; --i) {
+    if (numel != stride(i)) return false;
+    numel *= shape(i);
+  }
+
+  return true;
 }
 
 Tensor Tensor::Transpose(int dim0, int dim1) const {
