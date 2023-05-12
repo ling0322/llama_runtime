@@ -21,7 +21,7 @@ Device Device::CPU() {
 }
 
 // ---------------------------------------------------------------------------+
-// class TensorDict                                                           |
+// class TensorMap                                                            |
 // ---------------------------------------------------------------------------+
 
 // tensor_dict format
@@ -32,7 +32,7 @@ Device Device::CPU() {
 //     byte[name_len]: name
 //     Tensor
 //   int16_t: magic number 0x55aa
-Status TensorDict::Read(const std::string &filename) {
+Status TensorMap::Read(const std::string &filename) {
   dict_.clear();
 
   StatusOr<ReadableFile> fp = ReadableFile::Open(filename);
@@ -70,14 +70,14 @@ Status TensorDict::Read(const std::string &filename) {
   return OkStatus();
 }
 
-Tensor &TensorDict::operator[](const std::string &name) {
+Tensor TensorMap::Get(const std::string &name) {
   auto it = dict_.find(name);
   CHECK(it != dict_.end());
 
   return it->second;
 }
 
-Status TensorDict::get(const std::string &name, Tensor *tensor) const {
+Status TensorMap::TryGet(const std::string &name, Tensor *tensor) const {
   auto it = dict_.find(name);
   if (it == dict_.end()) {
     RETURN_ABORTED() << "tensor " << name << " not found";
@@ -87,7 +87,7 @@ Status TensorDict::get(const std::string &name, Tensor *tensor) const {
   return OkStatus();
 }
 
-bool TensorDict::has_tensor(const std::string &name) const {
+bool TensorMap::exists(const std::string &name) const {
   return dict_.find(name) != dict_.end();
 }
 
@@ -141,16 +141,16 @@ StatusOr<Linear> Linear::Create(
   return linear;
 }
 
-Status Linear::InitParameters(const TensorDict &state_dict) {
+Status Linear::InitParameters(const TensorMap &state_dict) {
   std::string name_w = ctx_.name(kWeight);
-  RETURN_IF_ERROR(state_dict.get(name_w, &w_));
+  RETURN_IF_ERROR(state_dict.TryGet(name_w, &w_));
   if (w_.dim() != 2 || w_.shape(0) != out_features_ ||
       w_.shape(1) != in_features_) {
     RETURN_ABORTED() << "invalid shape of tensor " << name_w;
   }
 
   std::string name_b = ctx_.name(kBias);
-  RETURN_IF_ERROR(state_dict.get(name_b, &b_));
+  RETURN_IF_ERROR(state_dict.TryGet(name_b, &b_));
   if (b_.dim() != 1 || b_.shape(0) != out_features_) {
     RETURN_ABORTED() << "invalid shape of tensor " << name_b;
   }
@@ -187,15 +187,15 @@ StatusOr<LayerNorm> LayerNorm::Create(
   return layer;
 }
 
-Status LayerNorm::InitParameters(const TensorDict &state_dict) {
+Status LayerNorm::InitParameters(const TensorMap &state_dict) {
   std::string name_w = ctx_.name(kWeight);
-  RETURN_IF_ERROR(state_dict.get(name_w, &w_));
+  RETURN_IF_ERROR(state_dict.TryGet(name_w, &w_));
   if (w_.dim() != 1 || w_.shape(0) != d_model_) {
     RETURN_ABORTED() << "invalid shape of tensor " << name_w;
   }
 
   std::string name_b = ctx_.name(kBias);
-  RETURN_IF_ERROR(state_dict.get(name_b, &b_));
+  RETURN_IF_ERROR(state_dict.TryGet(name_b, &b_));
   if (b_.dim() != 1 || b_.shape(0) != d_model_) {
     RETURN_ABORTED() << "invalid shape of tensor " << name_b;
   }

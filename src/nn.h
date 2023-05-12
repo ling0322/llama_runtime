@@ -37,18 +37,21 @@ class Device {
 
 // string -> Tensor dictioary. Usually used to store state-dict or kv-cache
 // for a neural network
-class TensorDict {
+class TensorMap {
  public:
   Status Read(const std::string &filename);
 
   // get tensor by name. abort if not exist.
-  Tensor &operator[](const std::string &name);
+  Tensor Get(const std::string &name);
 
-  // get tensor by name. return abort if not exist.
-  Status get(const std::string &name, Tensor *tensor) const;
+  // put tensor.
+  Tensor Put(const std::string &name, CTensorRef tensor);
+
+  // try to get tensor by name. return AbortError() if not exist.
+  Status TryGet(const std::string &name, Tensor *tensor) const;
 
   // return true if the tensor exists. 
-  bool has_tensor(const std::string &name) const;
+  bool exists(const std::string &name) const;
 
  private:
   std::unordered_map<std::string, Tensor> dict_;
@@ -87,7 +90,7 @@ class Context {
 class Module {
  public:
   // load the module states from `state_dict`
-  virtual Status InitParameters(const TensorDict &state_dict) = 0;
+  virtual Status InitParameters(const TensorMap &state_dict) = 0;
 
   // get context of the module.
   const Context &ctx() const { return ctx_; }
@@ -105,7 +108,7 @@ class Linear : public Module {
                                  int out_features);
 
   // initialize the module from context
-  Status InitParameters(const TensorDict &state_dict) override;
+  Status InitParameters(const TensorMap &state_dict) override;
 
   // forward input and return the output.
   Tensor Forward(const Tensor &input) const;
@@ -132,7 +135,7 @@ class LayerNorm : public Module {
                                     float eps = 1e-5);
   
   // initialize the module from context
-  Status InitParameters(const TensorDict &state_dict) override;
+  Status InitParameters(const TensorMap &state_dict) override;
 
   // forward input and return the output.
   Tensor Forward(const Tensor &input) const;

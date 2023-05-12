@@ -860,7 +860,7 @@ Tensor CpuOperators::CausalMask(int max_len) {
 
 
 Tensor CpuOperators::Cat(const Tensor &A, const Tensor &B, int dim) {
-
+  std::vector<int> shape;
   Tensor C = TensorLike(input);
   switch (input.dtype()) {
     case DType::kFloat:

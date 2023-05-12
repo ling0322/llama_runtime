@@ -14,23 +14,21 @@ TEST_CASE("test MultiHeadAttention module", "[core][nn][transformer]") {
   Context ctx = MustGetCtxForCPU();
 
   // linear
-  util::Path model_path = model_dir / "attn-model.params.bin";
-  util::Path tensor_file = model_dir / "attn-model.test_tensors.bin";
+  util::Path model_path = model_dir / "self-attn.params.bin";
+  util::Path tensor_file = model_dir / "self-attn.test_tensors.bin";
 
-  auto attn = MultiheadAttention::Create(ctx, kNumHeads, kDModel0);
+  auto attn = MultiheadSelfAttention::Create(ctx, kNumHeads, kDModel0);
   REQUIRE(attn.ok());
 
   MustReadParameters(model_path.string(), attn.get());
   std::vector<Tensor> tensors = MustReadAllTensors(tensor_file.string());
   REQUIRE(tensors.size() % 2 == 0);
 
-  Tensor q = tensors[0];
-  Tensor k = tensors[1];
-  Tensor v = tensors[2];
+  Tensor inputs = tensors[0];
   Tensor o_ref = tensors[3];
 
   Tensor mask = ctx.F()->CausalMask(kSeqLen);
 
-  Tensor o = attn->Forward(q, k, v, mask);
+  Tensor o = attn->Forward(nullptr, inputs, mask);
   REQUIRE(ctx.F()->AllClose(o, o_ref));
 }

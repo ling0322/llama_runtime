@@ -5,16 +5,16 @@
 namespace llama {
 namespace nn {
 
-MultiheadAttention::MultiheadAttention()
+MultiheadSelfAttention::MultiheadSelfAttention()
     : d_model_(0),
       d_k_(0),
       num_heads_(0) {}
 
-StatusOr<MultiheadAttention> MultiheadAttention::Create(
+StatusOr<MultiheadSelfAttention> MultiheadSelfAttention::Create(
     const Context &ctx,
     int num_heads,
     int d_model) {
-  std::unique_ptr<MultiheadAttention> layer{new MultiheadAttention()};
+  std::unique_ptr<MultiheadSelfAttention> layer{new MultiheadSelfAttention()};
   if (d_model % num_heads != 0) {
     RETURN_ABORTED() << "invalid d_model and num_heads";
   }
@@ -23,6 +23,9 @@ StatusOr<MultiheadAttention> MultiheadAttention::Create(
   layer->d_k_ = d_model / num_heads;
   layer->num_heads_ = num_heads;
   layer->ctx_ = ctx;
+
+  layer->pastk_name_ = ctx.name("k");
+  layer->pastv_name_ = ctx.name("v");
 
   auto q_proj = Linear::Create(ctx.WithName(kQProj), d_model, d_model);
   auto k_proj = Linear::Create(ctx.WithName(kKProj), d_model, d_model);
@@ -42,7 +45,7 @@ StatusOr<MultiheadAttention> MultiheadAttention::Create(
   return layer;
 }
 
-Status MultiheadAttention::InitParameters(const TensorDict &state_dict) {
+Status MultiheadSelfAttention::InitParameters(const TensorMap &state_dict) {
   RETURN_IF_ERROR(q_proj_->InitParameters(state_dict));
   RETURN_IF_ERROR(k_proj_->InitParameters(state_dict));
   RETURN_IF_ERROR(v_proj_->InitParameters(state_dict));
@@ -51,7 +54,7 @@ Status MultiheadAttention::InitParameters(const TensorDict &state_dict) {
   return OkStatus();
 }
 
-Tensor MultiheadAttention::Attention(const Tensor &q, const Tensor &k,
+Tensor MultiheadSelfAttention::Attention(const Tensor &q, const Tensor &k,
                                      const Tensor &v, const Tensor &mask) {
   Operators *F = ctx_.F();
 
@@ -67,19 +70,34 @@ Tensor MultiheadAttention::Attention(const Tensor &q, const Tensor &k,
   return outputs;
 }
 
-Tensor MultiheadAttention::Forward(const Tensor &q, const Tensor &k,
-                                   const Tensor &v, const Tensor &mask) {
+Tensor MultiheadSelfAttention::Forward(TensorMap *past,
+                                       CTensorRef inputs,
+                                       CTensorRef mask) {
   Operators *F = ctx_.F();
 
-  CHECK(q.dim() == 3);
-  CHECK(k.dim() == 3);
-  CHECK(v.dim() == 3);
+  CHECK(inputs.dim() == 3);
   CHECK(mask.empty() || mask.dim() == 2);
 
-  int bs = q.shape(0);
-  Tensor q_proj = q_proj_->Forward(q);
-  Tensor k_proj = k_proj_->Forward(k);
-  Tensor v_proj = v_proj_->Forward(v);
+  int bs = inputs.shape(0);
+  Tensor q_proj = q_proj_->Forward(inputs);
+  Tensor k_proj = k_proj_->Forward(inputs);
+  Tensor v_proj = v_proj_->Forward(inputs);
+
+  // update k_proj and v_proj according to the kv_cache from past.
+  if (past && past->exists(pastk_name_) && past->exists(pastv_name_)) {
+    CTensorRef past_k = past->Get(pastk_name_);
+    CTensorRef past_v = past->Get(pastv_name_);
+    k_proj = F->Cat(past_k, k_proj, 1);
+    v_proj = F->Cat(past_v, v_proj, 1);
+    
+    CHECK(k_proj.shape(1) == v_proj.shape(1));
+  }
+
+  // update kv_cache in past.
+  if (past) {
+    past->Put(pastk_name_, k_proj);
+    past->Put(pastv_name_, v_proj);
+  }
 
   q_proj = q_proj.View({bs, -1, num_heads_, d_k_}).Transpose(1, 2);
   k_proj = k_proj.View({bs, -1, num_heads_, d_k_}).Transpose(1, 2);

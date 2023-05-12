@@ -157,6 +157,8 @@ inline DType Tensor::dtype() const {
   return data_ ? data_->dtype() : DType::kUnknown;
 }
 
+typedef const Tensor & CTensorRef;
+
 }  // namespace nn
 }  // namespace llama
 

@@ -9,7 +9,7 @@ torch.manual_seed(0)
 
 D_MODEL0 = 16
 D_MODEL1 = 20
-SEQ_LEN = 5
+SEQ_LEN = 10
 BATCH_SIZE = 2
 NUM_HEADS = 2
 
@@ -76,21 +76,15 @@ def gen_multi_head_attention():
     d['out_proj.weight'] = layer.out_proj.weight
     d['out_proj.bias'] = layer.out_proj.bias
 
-    write_tensor_dict(d, 'attn-model.params.bin')
+    write_tensor_dict(d, 'self-attn.params.bin')
 
-    with open('attn-model.test_tensors.bin', 'wb') as fp:
-        q = torch.rand(BATCH_SIZE, SEQ_LEN, D_MODEL0)
-        k = torch.rand(BATCH_SIZE, SEQ_LEN, D_MODEL0)
-        v = torch.rand(BATCH_SIZE, SEQ_LEN, D_MODEL0)
-
-        write_lrt_tensor(q, fp)
-        write_lrt_tensor(k, fp)
-        write_lrt_tensor(v, fp)
+    with open('self-attn.test_tensors.bin', 'wb') as fp:
+        inputs = torch.rand(BATCH_SIZE, SEQ_LEN, D_MODEL0)
+        write_lrt_tensor(inputs, fp)
 
         mask = torch.tril(torch.ones((SEQ_LEN, SEQ_LEN)))
-        o, _ = layer(q, k, v, attn_mask=mask)
+        o, _ = layer(inputs, inputs, inputs, attn_mask=mask)
         write_lrt_tensor(o, fp)
-
 
 if __name__ == '__main__':
     gen_multi_head_attention()

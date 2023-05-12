@@ -7,27 +7,30 @@
 namespace llama {
 namespace nn {
 
-class MultiheadAttention : public Module {
+class MultiheadSelfAttention : public Module {
  public:
   // create multi-head attention module from context. 
-  static StatusOr<MultiheadAttention> Create(
+  static StatusOr<MultiheadSelfAttention> Create(
       const Context &ctx,
       int num_heads,
       int d_model);
 
   // initialize the module from context
-  Status InitParameters(const TensorDict &state_dict) override;
+  Status InitParameters(const TensorMap &state_dict) override;
 
-  Tensor Forward(TensorDict *kv_cache,
-                 const Tensor &q,
-                 const Tensor &k,
-                 const Tensor &v,
-                 const Tensor &mask = Tensor());
+  // forward the inputs into multi-head self-attention. inputs was both q, k
+  // and v for the attention module.
+  // If past is not nullptr, it will concat kv_cache from past before compute
+  // attention, then put the updated kv_cache back to past.
+  Tensor Forward(TensorMap *past, CTensorRef inputs, CTensorRef mask);
 
  private:
   int d_model_;
   int d_k_;
   int num_heads_;
+
+  std::string pastk_name_;
+  std::string pastv_name_;
 
   static constexpr char kQProj[] = "q_proj";
   static constexpr char kKProj[] = "k_proj";
@@ -39,7 +42,7 @@ class MultiheadAttention : public Module {
   std::unique_ptr<Linear> v_proj_;
   std::unique_ptr<Linear> out_proj_;
 
-  MultiheadAttention();
+  MultiheadSelfAttention();
 
   Tensor Attention(const Tensor &q,
                    const Tensor &k,

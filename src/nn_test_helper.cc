@@ -8,7 +8,7 @@ namespace llama {
 namespace nn {
 
 void MustReadParameters(const std::string &model_path, Module *module) {
-  TensorDict state_dict;
+  TensorMap state_dict;
   Status status = state_dict.Read(model_path);
   REQUIRE(status.ok());
 

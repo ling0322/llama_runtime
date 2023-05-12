@@ -10,7 +10,7 @@ namespace nn {
 
 constexpr int kDModel0 = 16;
 constexpr int kDModel1 = 20;
-constexpr int kSeqLen = 5;
+constexpr int kSeqLen = 10;
 constexpr int kBatchSize = 2;
 constexpr int kNumHeads = 2;
 
