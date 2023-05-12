@@ -29,6 +29,8 @@ TEST_CASE("test MultiHeadAttention module", "[core][nn][transformer]") {
   Tensor v = tensors[2];
   Tensor o_ref = tensors[3];
 
-  Tensor o = attn->Forward(q, k, v);
+  Tensor mask = ctx.F()->CausalMask(kSeqLen);
+
+  Tensor o = attn->Forward(q, k, v, mask);
   REQUIRE(ctx.F()->AllClose(o, o_ref));
 }

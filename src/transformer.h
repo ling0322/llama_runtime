@@ -18,7 +18,8 @@ class MultiheadAttention : public Module {
   // initialize the module from context
   Status InitParameters(const TensorDict &state_dict) override;
 
-  Tensor Forward(const Tensor &q,
+  Tensor Forward(TensorDict *kv_cache,
+                 const Tensor &q,
                  const Tensor &k,
                  const Tensor &v,
                  const Tensor &mask = Tensor());

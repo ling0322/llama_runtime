@@ -92,6 +92,16 @@ class Operators {
   // Returns:
   //   <float>(max_len, max_len): the causal mask.
   virtual Tensor CausalMask(int max_len) = 0;
+
+  // Concat two tensors in the given dimension. Besides the dimension to
+  // concat, the two tensors must have the same shape.
+  // Args:
+  //   A: the first tensor.
+  //   B: the second tensor.
+  //   dim (int): the dimension to concat alone.
+  // Returns:
+  //   C: concatenated tensor.
+  virtual Tensor Cat(const Tensor &A, const Tensor &B, int dim);
 };
 
 }  // namespace nn

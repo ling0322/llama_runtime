@@ -97,6 +97,8 @@ class CpuOperators::Impl {
   void GEMM_Float32(SubtensorCf A, SubtensorCf B, Subtensorf C);
   void BMM_Float32(SubtensorCf A, SubtensorCf B, Subtensorf C);
 
+  void Cat_Float32(SubtensorCf A, SubtensorCf B, int dim, Subtensorf C);
+
   // Copy data from src to tgt. tgt and src should have the same dtype and
   // shape
   void Copy_Float32(SubtensorCf src, Subtensorf tgt);
@@ -649,6 +651,28 @@ Tensor CpuOperators::Impl::CausalMask_Float32(int seq_len) {
   return mask;
 }
 
+void CpuOperators::Impl::Cat_Float32(
+    SubtensorCf A,
+    SubtensorCf B,
+    int dim,
+    Subtensorf C) {
+  CHECK(A.rank() == B.rank() && A.rank() == C.rank());
+  if (dim == 0) {
+    CHECK(A.dimension(0) + B.dimension(0) == C.dimension(0));
+    for (int i = 0; i < A.dimension(0); ++i) {
+      Copy_Float32(A.subtensor(i), C.subtensor(i));
+    }
+    for (int i = 0; i < B.dimension(0); ++i) {
+      Copy_Float32(B.subtensor(i), C.subtensor(i + A.dimension(0)));
+    }
+  } else {
+    CHECK(A.dimension(0) == B.dimension(0));
+    for (int i = 0; i < A.dimension(0); ++i) {
+      Cat_Float32(A.subtensor(0), B.subtensor(0), dim - 1, C.subtensor(0));
+    }
+  }
+}
+
 // ---------------------------------------------------------------------------+
 // class CpuOperators                                                         |
 // ---------------------------------------------------------------------------+
@@ -828,6 +852,26 @@ Tensor CpuOperators::LayerNorm(
   }
 
   return Tensor();
+}
+
+Tensor CpuOperators::CausalMask(int max_len) {
+  return impl_->CausalMask_Float32(max_len);
+}
+
+
+Tensor CpuOperators::Cat(const Tensor &A, const Tensor &B, int dim) {
+
+  Tensor C = TensorLike(input);
+  switch (input.dtype()) {
+    case DType::kFloat:
+      impl_->Copy_Float32(
+          impl_->MakeConstSubTensor<float>(input),
+          impl_->MakeSubTensor<float>(C));
+      break;
+    default:
+      NOT_IMPL();
+  }
+
 }
 
 }  // namespace nn
