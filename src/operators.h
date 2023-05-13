@@ -101,7 +101,7 @@ class Operators {
   //   dim (int): the dimension to concat alone.
   // Returns:
   //   C: concatenated tensor.
-  virtual Tensor Cat(const Tensor &A, const Tensor &B, int dim);
+  virtual Tensor Cat(const Tensor &A, const Tensor &B, int dim) = 0;
 };
 
 }  // namespace nn

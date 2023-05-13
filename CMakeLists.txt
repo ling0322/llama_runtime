@@ -35,6 +35,7 @@ set(llama_test_SOURCES
     "src/nn_test_helper.cc"
     "src/test_helper.cc"
     "src/test_main.cc"
+    "src/tensor_test.cc"
     "src/transformer_test.cc"
     "third_party/catch2/catch_amalgamated.cpp")
 add_executable(llama_test ${llama_test_SOURCES})

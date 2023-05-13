@@ -87,6 +87,16 @@ Size Size::Transpose(int dim0, int dim1) const {
   return size;
 }
 
+Size Size::Subrange(int begin, int end) const {
+  Size size;
+  size.data_ = data_.Copy();
+
+  CHECK(end > begin);
+  size.data_[0].shape = end - begin;
+
+  return size;
+}
+
 int Size::real_dim(int d) const {
   CHECK(!empty());
   int _rank = dim();
@@ -292,6 +302,17 @@ bool Tensor::is_contiguous() const {
   }
 
   return true;
+}
+
+Tensor Tensor::Subtensor(int begin, int end) const {
+  CHECK(begin >= 0 && begin < end && end < shape(0));
+
+  Tensor tensor;
+  tensor.data_ = data_;
+  tensor.size_ = size_.Subrange(begin, end);
+  tensor.data_ptr_ = data_ptr_ + size_.stride(0) * begin;
+
+  return tensor;
 }
 
 Tensor Tensor::Transpose(int dim0, int dim1) const {

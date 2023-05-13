@@ -26,6 +26,12 @@ std::vector<Tensor> MustReadAllTensors(const std::string &filename);
 // Create a context for CPU device.
 Context MustGetCtxForCPU();
 
+// Create a float tensor in CPU with the specified shape and data. It will
+// copy elements from `data` to its internal storage.
+Tensor MakeTensor(Operators *F,
+                  std::initializer_list<int> shape,
+                  std::initializer_list<float> data);
+
 }  // namespace nn
 }  // namespace llama
 

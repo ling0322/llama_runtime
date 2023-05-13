@@ -63,6 +63,9 @@ class Size {
   // dimensions dim0 and dim1 are swapped.
   Size Transpose(int dim0, int dim1) const;
 
+  // Return a new Size which is a subrange of current size.
+  Size Subrange(int begin, int end) const;
+
   Size(const Size &size);
   Size(Size &&size) noexcept;
   Size &operator=(const Size &size);
@@ -133,9 +136,13 @@ class Tensor {
   // different shape.
   Tensor View(std::initializer_list<int> shape) const;
 
+  // get the subtensor tensor[dim] or tensor[begin : end]. Crash if dim, begin
+  // or end out of boundary.
+  Tensor Subtensor(int begin, int end) const;
+
   Tensor Transpose(int dim0, int dim1) const;
 
-  // return true is the tensor is contigous
+  // return true if the tensor is contigous.
   bool is_contiguous() const;
 
   // pointer of data in this tensor

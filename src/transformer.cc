@@ -62,6 +62,7 @@ Tensor MultiheadSelfAttention::Attention(const Tensor &q, const Tensor &k,
   scores = F->Mul(scores,  1.0f / sqrtf(1.0f * d_k_));
 
   if (!mask.empty()) {
+      F->Print(mask);
     scores = F->Add(scores, mask);
   }
 
@@ -72,11 +73,11 @@ Tensor MultiheadSelfAttention::Attention(const Tensor &q, const Tensor &k,
 
 Tensor MultiheadSelfAttention::Forward(TensorMap *past,
                                        CTensorRef inputs,
-                                       CTensorRef mask) {
+                                       CTensorRef attn_mask) {
   Operators *F = ctx_.F();
 
   CHECK(inputs.dim() == 3);
-  CHECK(mask.empty() || mask.dim() == 2);
+  CHECK(attn_mask.empty() || attn_mask.dim() == 2);
 
   int bs = inputs.shape(0);
   Tensor q_proj = q_proj_->Forward(inputs);
@@ -84,9 +85,12 @@ Tensor MultiheadSelfAttention::Forward(TensorMap *past,
   Tensor v_proj = v_proj_->Forward(inputs);
 
   // update k_proj and v_proj according to the kv_cache from past.
+  int past_len = 0;
   if (past && past->exists(pastk_name_) && past->exists(pastv_name_)) {
     CTensorRef past_k = past->Get(pastk_name_);
     CTensorRef past_v = past->Get(pastv_name_);
+    past_len = past_k.shape(1);
+
     k_proj = F->Cat(past_k, k_proj, 1);
     v_proj = F->Cat(past_v, v_proj, 1);
     
@@ -103,6 +107,7 @@ Tensor MultiheadSelfAttention::Forward(TensorMap *past,
   k_proj = k_proj.View({bs, -1, num_heads_, d_k_}).Transpose(1, 2);
   v_proj = v_proj.View({bs, -1, num_heads_, d_k_}).Transpose(1, 2);
 
+  Tensor mask = attn_mask.Subtensor(past_len, past_len + q_proj.shape(1));
   Tensor scores = Attention(q_proj, k_proj, v_proj, mask);
   scores = scores.Transpose(1, 2);
 

@@ -10,6 +10,7 @@ namespace nn {
 void MustReadParameters(const std::string &model_path, Module *module) {
   TensorMap state_dict;
   Status status = state_dict.Read(model_path);
+  puts(status.what().c_str());
   REQUIRE(status.ok());
 
   status = module->InitParameters(state_dict);
@@ -45,6 +46,17 @@ Context MustGetCtxForCPU() {
   ctx.set_F(std::move(F).shared_ptr());
 
   return ctx;
+}
+
+Tensor MakeTensor(Operators *F,
+                  std::initializer_list<int> shape,
+                  std::initializer_list<float> data) {
+  Tensor tensor = F->Tensor_(shape, DType::kFloat);
+
+  CHECK(tensor.numel() == data.size());
+  std::copy(data.begin(), data.end(), tensor.data<float>());
+
+  return tensor;
 }
 
 }  // namespace nn

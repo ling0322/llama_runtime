@@ -25,7 +25,7 @@ TEST_CASE("test MultiHeadAttention module", "[core][nn][transformer]") {
   REQUIRE(tensors.size() % 2 == 0);
 
   Tensor inputs = tensors[0];
-  Tensor o_ref = tensors[3];
+  Tensor o_ref = tensors[1];
 
   Tensor mask = ctx.F()->CausalMask(kSeqLen);
 

@@ -45,7 +45,7 @@ class TensorMap {
   Tensor Get(const std::string &name);
 
   // put tensor.
-  Tensor Put(const std::string &name, CTensorRef tensor);
+  void Put(const std::string &name, CTensorRef tensor);
 
   // try to get tensor by name. return AbortError() if not exist.
   Status TryGet(const std::string &name, Tensor *tensor) const;

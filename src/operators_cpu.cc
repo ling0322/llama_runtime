@@ -860,18 +860,32 @@ Tensor CpuOperators::CausalMask(int max_len) {
 
 
 Tensor CpuOperators::Cat(const Tensor &A, const Tensor &B, int dim) {
+  CHECK(A.dim() == B.dim());
+
   std::vector<int> shape;
-  Tensor C = TensorLike(input);
-  switch (input.dtype()) {
+  for (int d = 0; d < A.dim(); ++d) {
+    if (d = dim) {
+      shape.push_back(A.shape(d) + B.shape(d));
+    } else {
+      CHECK(A.shape(d) == B.shape(d));
+      shape.push_back(A.shape(d));
+    }
+  }
+
+  Tensor C = impl_->Tensor_(util::MakeConstSpan(shape), A.dtype());
+  switch (A.dtype()) {
     case DType::kFloat:
-      impl_->Copy_Float32(
-          impl_->MakeConstSubTensor<float>(input),
+      impl_->Cat_Float32(
+          impl_->MakeConstSubTensor<float>(A),
+          impl_->MakeConstSubTensor<float>(B),
+          dim,
           impl_->MakeSubTensor<float>(C));
       break;
     default:
       NOT_IMPL();
   }
 
+  return C;
 }
 
 }  // namespace nn
