@@ -99,13 +99,24 @@ Size Size::Transpose(int dim0, int dim1) const {
 
 int Size::real_dim(int d) const {
   CHECK(!empty());
-  int _rank = dim();
+  int rank = dim();
   if (d < 0) {
-    d = _rank + d;
+    d = rank + d;
   }
 
-  CHECK(d >= 0 && d < _rank);
+  CHECK(d >= 0 && d < rank);
   return d;
+}
+
+int Size::real_index(int dim, int index) const {
+  CHECK(!empty());
+  dim = real_dim(dim);
+
+  int shape = data_[dim].shape;
+  index = index >= 0 ? index : shape + index;
+
+  CHECK(index >= 0 && index < shape);
+  return index;
 }
 
 int Size::dim() const {
@@ -136,11 +147,12 @@ int64_t Size::numel() const {
   return n;
 }
 
-void Size::set_shape0(ShapeType shape) {
-  CHECK(dim() > 0);
-  CHECK(shape <= data_[0].shape);
+void Size::set_shape(int dim, ShapeType shape) {
+  dim = real_dim(dim);
+  CHECK(dim >= 0 && dim <= this->dim());
+  CHECK(shape <= data_[dim].shape);
 
-  data_[0].shape = shape;
+  data_[dim].shape = shape;
 }
 
 // ---------------------------------------------------------------------------+
@@ -311,32 +323,41 @@ bool Tensor::is_contiguous() const {
   return true;
 }
 
-Tensor Tensor::Subtensor(int begin, int end) const {
-  CHECK(begin >= 0 && begin < end && end <= shape(0));
+Tensor Tensor::Slice(int dim, int begin, int end) const {
+  dim = size_.real_dim(dim);
+  CHECK(dim >= 0 && dim < this->dim());
+
+  begin = size_.real_index(dim, begin);
+  end = size_.real_index(dim, end);
+  CHECK(begin >= 0 && begin < end && end <= shape(dim));
 
   Tensor tensor;
   tensor.data_ = data_;
   tensor.size_ = size_;
-  tensor.size_.set_shape0(end - begin);
+  tensor.size_.set_shape(dim, end - begin);
 
   int dtype_size = SizeOfDType(tensor.dtype());
-  tensor.data_ptr_ = data_ptr_ + size_.stride(0) * dtype_size * begin;
+  tensor.data_ptr_ = data_ptr_ + size_.stride(dim) * dtype_size * begin;
 
   return tensor;
 }
 
-Tensor Tensor::Subtensor(int dim) const {
-  CHECK(dim >= 0 && dim < shape(0));
+Tensor Tensor::Slice(int begin, int end) const {
+  return Slice(0, begin, end);
+}
+
+Tensor Tensor::Subtensor(int index) const {
+  index = size_.real_index(0, index);
+  CHECK(index >= 0 && index < shape(0));
 
   Tensor tensor;
   tensor.data_ = data_;
   tensor.size_ = size_.Subsize(1);
 
   int dtype_size = SizeOfDType(tensor.dtype());
-  tensor.data_ptr_ = data_ptr_ + size_.stride(0) * dtype_size * dim;
+  tensor.data_ptr_ = data_ptr_ + size_.stride(0) * dtype_size * index;
 
   return tensor;
-
 }
 
 Tensor Tensor::Transpose(int dim0, int dim1) const {

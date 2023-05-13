@@ -34,6 +34,6 @@ TEST_CASE("test self-attention module", "[core][nn][transformer]") {
 
   // autoregressive mode
   TensorMap kv_cache;
-  Tensor x = inputs.Subtensor(0, 5);
+  Tensor x = inputs.Slice(0, 5);
   o = attn->Forward(&kv_cache, x, mask);
 }
