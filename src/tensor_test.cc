@@ -24,4 +24,9 @@ TEST_CASE("test subtensor", "[core][nn][tensor]") {
 
   ctx.F()->Print(tensor.Subtensor(1, 3));
   REQUIRE(ctx.F()->AllClose(tensor.Subtensor(1, 3), subtensor));
+
+  subtensor = MakeTensor(ctx.F(), {4}, {
+    0.4f, 0.5f, 0.6f, 0.7f,
+  });
+  REQUIRE(ctx.F()->AllClose(tensor.Subtensor(1), subtensor));
 }

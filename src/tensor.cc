@@ -75,6 +75,16 @@ Size::Size(util::Span<const ShapeType> shape) {
   }
 }
 
+Size Size::Subsize(int d) const {
+  CHECK(d < dim());
+
+  Size subsize;
+  subsize.data_ = util::FixedArray<Elem>(dim() - d);
+  std::copy(data_.begin() + d, data_.end(), subsize.data_.begin());
+
+  return subsize;
+}
+
 Size Size::Transpose(int dim0, int dim1) const {
   dim0 = real_dim(dim0);
   dim1 = real_dim(dim1);
@@ -83,16 +93,6 @@ Size Size::Transpose(int dim0, int dim1) const {
   Elem dim0_elem = size.data_[dim0];
   size.data_[dim0] = size.data_[dim1];
   size.data_[dim1] = dim0_elem;
-
-  return size;
-}
-
-Size Size::Subrange(int begin, int end) const {
-  Size size;
-  size.data_ = data_.Copy();
-
-  CHECK(end > begin);
-  size.data_[0].shape = end - begin;
 
   return size;
 }
@@ -134,6 +134,13 @@ int64_t Size::numel() const {
     n *= elem.shape;
   }
   return n;
+}
+
+void Size::set_shape0(ShapeType shape) {
+  CHECK(dim() > 0);
+  CHECK(shape <= data_[0].shape);
+
+  data_[0].shape = shape;
 }
 
 // ---------------------------------------------------------------------------+
@@ -305,14 +312,31 @@ bool Tensor::is_contiguous() const {
 }
 
 Tensor Tensor::Subtensor(int begin, int end) const {
-  CHECK(begin >= 0 && begin < end && end < shape(0));
+  CHECK(begin >= 0 && begin < end && end <= shape(0));
 
   Tensor tensor;
   tensor.data_ = data_;
-  tensor.size_ = size_.Subrange(begin, end);
-  tensor.data_ptr_ = data_ptr_ + size_.stride(0) * begin;
+  tensor.size_ = size_;
+  tensor.size_.set_shape0(end - begin);
+
+  int dtype_size = SizeOfDType(tensor.dtype());
+  tensor.data_ptr_ = data_ptr_ + size_.stride(0) * dtype_size * begin;
 
   return tensor;
+}
+
+Tensor Tensor::Subtensor(int dim) const {
+  CHECK(dim >= 0 && dim < shape(0));
+
+  Tensor tensor;
+  tensor.data_ = data_;
+  tensor.size_ = size_.Subsize(1);
+
+  int dtype_size = SizeOfDType(tensor.dtype());
+  tensor.data_ptr_ = data_ptr_ + size_.stride(0) * dtype_size * dim;
+
+  return tensor;
+
 }
 
 Tensor Tensor::Transpose(int dim0, int dim1) const {

@@ -9,7 +9,7 @@ using namespace llama;
 using namespace nn;
 
 
-TEST_CASE("test MultiHeadAttention module", "[core][nn][transformer]") {
+TEST_CASE("test self-attention module", "[core][nn][transformer]") {
   util::Path model_dir = util::Path("data") / "test";
   Context ctx = MustGetCtxForCPU();
 
@@ -31,4 +31,9 @@ TEST_CASE("test MultiHeadAttention module", "[core][nn][transformer]") {
 
   Tensor o = attn->Forward(nullptr, inputs, mask);
   REQUIRE(ctx.F()->AllClose(o, o_ref));
+
+  // autoregressive mode
+  TensorMap kv_cache;
+  Tensor x = inputs.Subtensor(0, 5);
+  o = attn->Forward(&kv_cache, x, mask);
 }

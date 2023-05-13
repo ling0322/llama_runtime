@@ -46,12 +46,16 @@ class TensorData {
   DType dtype_;
 };
 
-// shape of a Tensor.
+// Stores shape and stride of a Tensor.
 class Size {
  public:
   friend class CpuOperators;
 
   typedef int32_t ShapeType;
+  struct Elem {
+    ShapeType shape;
+    ShapeType stride;
+  };
 
   // an empty Tensor.
   Size() = default;
@@ -63,8 +67,8 @@ class Size {
   // dimensions dim0 and dim1 are swapped.
   Size Transpose(int dim0, int dim1) const;
 
-  // Return a new Size which is a subrange of current size.
-  Size Subrange(int begin, int end) const;
+  // Returns a sub-Size starting at specified dimension.
+  Size Subsize(int d) const;
 
   Size(const Size &size);
   Size(Size &&size) noexcept;
@@ -77,12 +81,11 @@ class Size {
   ShapeType stride(int index) const;
   int64_t numel() const;
 
- private:
-  struct Elem {
-    ShapeType shape;
-    ShapeType stride;
-  };
+  // set the value of shape(0). By design, other dimensions should not be
+  // modified. Also `shape` should not greater than shape(0).
+  void set_shape0(ShapeType shape);
 
+ private:
   util::FixedArray<Elem> data_;
 
   // convert negative dimension index to positive
@@ -139,6 +142,7 @@ class Tensor {
   // get the subtensor tensor[dim] or tensor[begin : end]. Crash if dim, begin
   // or end out of boundary.
   Tensor Subtensor(int begin, int end) const;
+  Tensor Subtensor(int dim) const;
 
   Tensor Transpose(int dim0, int dim1) const;
 

@@ -107,7 +107,7 @@ Tensor MultiheadSelfAttention::Forward(TensorMap *past,
   k_proj = k_proj.View({bs, -1, num_heads_, d_k_}).Transpose(1, 2);
   v_proj = v_proj.View({bs, -1, num_heads_, d_k_}).Transpose(1, 2);
 
-  Tensor mask = attn_mask.Subtensor(past_len, past_len + q_proj.shape(1));
+  Tensor mask = attn_mask.Subtensor(past_len, past_len + q_proj.shape(2));
   Tensor scores = Attention(q_proj, k_proj, v_proj, mask);
   scores = scores.Transpose(1, 2);
 
