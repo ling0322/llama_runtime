@@ -676,7 +676,7 @@ void CpuOperators::Impl::Cat_Float32(
   } else {
     CHECK(A.dimension(0) == B.dimension(0));
     for (int i = 0; i < A.dimension(0); ++i) {
-      Cat_Float32(A.subtensor(0), B.subtensor(0), dim - 1, C.subtensor(0));
+      Cat_Float32(A.subtensor(i), B.subtensor(i), dim - 1, C.subtensor(i));
     }
   }
 }

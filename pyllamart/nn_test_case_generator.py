@@ -82,8 +82,10 @@ def gen_multi_head_attention():
         inputs = torch.rand(BATCH_SIZE, SEQ_LEN, D_MODEL0)
         write_lrt_tensor(inputs, fp)
 
-        mask = torch.tril(torch.ones((SEQ_LEN, SEQ_LEN)))
+        mask = torch.logical_not(torch.tril(torch.ones((SEQ_LEN, SEQ_LEN), dtype=torch.bool)))
+        print(mask)
         o, _ = layer(inputs, inputs, inputs, attn_mask=mask)
+        print(o)
         write_lrt_tensor(o, fp)
 
 if __name__ == '__main__':

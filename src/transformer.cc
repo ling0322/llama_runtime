@@ -65,11 +65,7 @@ Tensor MultiheadSelfAttention::Attention(
   scores = F->Mul(scores,  1.0f / sqrtf(1.0f * d_k_));
 
   if (!mask.empty()) {
-      puts("Attention");
-    F->Print(mask);
-    F->Print(scores);
     scores = F->Add(scores, mask);
-    F->Print(scores);
   }
 
   scores = F->Softmax(scores);
@@ -113,11 +109,11 @@ Tensor MultiheadSelfAttention::Forward(TensorMap *past,
   k_proj = k_proj.View({bs, -1, num_heads_, d_k_}).Transpose(1, 2);
   v_proj = v_proj.View({bs, -1, num_heads_, d_k_}).Transpose(1, 2);
 
-  Tensor mask = attn_mask.Slice(0, past_len, past_len + q_proj.shape(2))
-                         .Slice(1, 0, k_proj.shape(2));
+  Tensor mask = attn_mask.empty() 
+      ? attn_mask 
+      : attn_mask.Slice(0, past_len, past_len + q_proj.shape(2))
+                 .Slice(1, 0, k_proj.shape(2));
   Tensor scores = Attention(q_proj, k_proj, v_proj, mask);
-  puts("scores");
-  F->Print(scores);
   scores = scores.Transpose(1, 2);
 
   Tensor concat = F->Contiguous(scores).View({bs, -1, d_model_});
