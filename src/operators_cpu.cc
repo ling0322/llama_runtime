@@ -479,7 +479,12 @@ void CpuOperators::Impl::Print_Float32(SubtensorCf tensor) {
       PrintND_Float32(tensor, 7);
       break;
   }
-  puts(")");
+  printf(", shape=(");
+  for (int d = 0; d < tensor.rank(); ++d) {
+    if (d) printf(", ");
+    printf("%d", tensor.dimension(d));
+  }
+  puts("))");
 }
 
 Tensor CpuOperators::Impl::Add_Float32(SubtensorCf A, SubtensorCf B) {
@@ -530,6 +535,9 @@ bool CpuOperators::Impl::AllClose_Float32(
     for (int i = 0; i < A.dimension(0); ++i) {
       float va = A.elem(i);
       float vb = B.elem(i);
+      if (!(std::isfinite(va) && std::isfinite(vb))) {
+        all_close = false;
+      }
       if (fabs(va - vb) > atol + rtol * fabs(vb)) {
         all_close = false;
       }
@@ -644,7 +652,7 @@ Tensor CpuOperators::Impl::CausalMask_Float32(int seq_len) {
       row[j] = 0.0f;
     }
     for (int j = i + 1; j < seq_len; ++j) {
-      row[j] = std::numeric_limits<float>::infinity();
+      row[j] = -std::numeric_limits<float>::infinity();
     }
   }
 
@@ -864,7 +872,7 @@ Tensor CpuOperators::Cat(const Tensor &A, const Tensor &B, int dim) {
 
   std::vector<int> shape;
   for (int d = 0; d < A.dim(); ++d) {
-    if (d = dim) {
+    if (d == dim) {
       shape.push_back(A.shape(d) + B.shape(d));
     } else {
       CHECK(A.shape(d) == B.shape(d));

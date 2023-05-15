@@ -115,7 +115,7 @@ int Size::real_index(int dim, int index) const {
   int shape = data_[dim].shape;
   index = index >= 0 ? index : shape + index;
 
-  CHECK(index >= 0 && index < shape);
+  CHECK(index >= 0 && index <= shape);
   return index;
 }
 

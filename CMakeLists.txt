@@ -33,6 +33,7 @@ set(llama_test_SOURCES
     "src/gemm_test.cc"
     "src/nn_test.cc"
     "src/nn_test_helper.cc"
+    "src/operators_test.cc"
     "src/test_helper.cc"
     "src/test_main.cc"
     "src/tensor_test.cc"

@@ -31,7 +31,6 @@ TEST_CASE("test Linear module", "[core][nn][module]") {
   util::Path model_dir = util::Path("data") / "test";
   Context ctx = MustGetCtxForCPU();
 
-  // linear
   util::Path model_path = model_dir / "linear-model.params.bin";
   util::Path tensor_file = model_dir / "linear-model.test_tensors.bin";
 
@@ -43,13 +42,17 @@ TEST_CASE("test Linear module", "[core][nn][module]") {
       model_path.string(),
       tensor_file.string(),
       linear.get());
+}
 
-  // layer-norm
-  model_path = model_dir / "layer-norm-model.params.bin";
-  tensor_file = model_dir / "layer-norm-model.test_tensors.bin";
+TEST_CASE("test LayerNorm module", "[core][nn][module]") {
+  util::Path model_dir = util::Path("data") / "test";
+  Context ctx = MustGetCtxForCPU();
+
+  util::Path model_path = model_dir / "layer-norm-model.params.bin";
+  util::Path tensor_file = model_dir / "layer-norm-model.test_tensors.bin";
 
   StatusOr<LayerNorm> layer_norm = LayerNorm::Create(ctx, kDModel0);
-  REQUIRE(linear.ok());
+  REQUIRE(layer_norm.ok());
 
   TestSingleInOutTensorModule<LayerNorm>(
       ctx,
