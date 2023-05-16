@@ -48,6 +48,7 @@ Context MustGetCtxForCPU() {
   return ctx;
 }
 
+template<>
 Tensor MakeTensor(Operators *F,
                   std::initializer_list<int> shape,
                   std::initializer_list<float> data) {
@@ -55,6 +56,18 @@ Tensor MakeTensor(Operators *F,
 
   CHECK(tensor.numel() == data.size());
   std::copy(data.begin(), data.end(), tensor.data<float>());
+
+  return tensor;
+}
+
+template<>
+Tensor MakeTensor(Operators *F,
+                  std::initializer_list<int> shape,
+                  std::initializer_list<LongType> data) {
+  Tensor tensor = F->Tensor_(shape, DType::kLong);
+
+  CHECK(tensor.numel() == data.size());
+  std::copy(data.begin(), data.end(), tensor.data<LongType>());
 
   return tensor;
 }

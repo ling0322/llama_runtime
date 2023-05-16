@@ -250,7 +250,7 @@ Status Tensor::Read(ReadableFile *fp) {
     numel *= dimension;
     shape.push_back(dimension);
   }
-  if (numel > 4194304) {
+  if (numel > 1073741824) {
     RETURN_ABORTED() << "tensor too big";
   }
   size_ = Size(util::MakeConstSpan(shape));

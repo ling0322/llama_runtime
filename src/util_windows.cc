@@ -3,6 +3,7 @@
 #include <windows.h>
 #include "common.h"
 #include "log.h"
+#include "strings.h"
 
 namespace llama {
 namespace util {
@@ -29,6 +30,22 @@ Path Path::CurrentExecutablePath() {
   CHECK(charsWritten);
 
   return filename;
+}
+
+bool Path::isabs() const {
+  if (path_.size() <= 1) return false;
+
+  std::string path = strings::Trim(path_);
+  char disk = tolower(path.front());
+  if (disk > 'z' || disk < 'a') {
+    return false;
+  }
+
+  if (path[1] == ':') {
+    return true;
+  }
+
+  return false;
 }
 
 }  // namespace util

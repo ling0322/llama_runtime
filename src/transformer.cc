@@ -74,8 +74,8 @@ Tensor MultiheadSelfAttention::Attention(
 }
 
 Tensor MultiheadSelfAttention::Forward(TensorMap *past,
-                                       CTensorRef inputs,
-                                       CTensorRef attn_mask) {
+                                       TensorCRef inputs,
+                                       TensorCRef attn_mask) {
   Operators *F = ctx_.F();
 
   CHECK(inputs.dim() == 3);
@@ -89,8 +89,8 @@ Tensor MultiheadSelfAttention::Forward(TensorMap *past,
   // update k_proj and v_proj according to the kv_cache from past.
   int past_len = 0;
   if (past && past->exists(pastk_name_) && past->exists(pastv_name_)) {
-    CTensorRef past_k = past->Get(pastk_name_);
-    CTensorRef past_v = past->Get(pastv_name_);
+    TensorCRef past_k = past->Get(pastk_name_);
+    TensorCRef past_v = past->Get(pastv_name_);
     past_len = past_k.shape(1);
 
     k_proj = F->Cat(past_k, k_proj, 1);

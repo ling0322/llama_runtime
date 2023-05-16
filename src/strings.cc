@@ -1,6 +1,7 @@
 #include "strings.h"
 
 #include <stdlib.h>
+#include <algorithm>
 #include <iomanip>
 #include <vector>
 #include "common.h"
@@ -160,6 +161,23 @@ std::vector<std::string> Split(
   
   fields.emplace_back(str.cbegin() + start, str.cend());
   return fields;
+}
+
+std::string ToLower(const std::string &s) {
+  std::string lower(s.begin(), s.end());
+  std::transform(lower.begin(), lower.end(), lower.begin(), tolower);
+  return lower;
+}
+
+Status Atoi(const std::string &s, int *i) {
+  char *p = nullptr;
+  long v = strtol(s.c_str(), &p, 0);
+  if (*p == '\0') {
+    *i = static_cast<int>(v);
+    return OkStatus();
+  } else {
+    RETURN_ABORTED() << "invalid integer string: " << s;
+  }
 }
 
 int _Sprintf0_ReadDigit(const char **ppch, char *buf, int buf_size) {

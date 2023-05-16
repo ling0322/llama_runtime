@@ -22,7 +22,7 @@ class MultiheadSelfAttention : public Module {
   // and v for the attention module.
   // If past is not nullptr, it will concat kv_cache from past before compute
   // attention, then put the updated kv_cache back to past.
-  Tensor Forward(TensorMap *past, CTensorRef inputs, CTensorRef mask);
+  Tensor Forward(TensorMap *past, TensorCRef inputs, TensorCRef mask);
 
  private:
   int d_model_;

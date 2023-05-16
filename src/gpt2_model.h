@@ -5,25 +5,28 @@
 #include "nn.h"
 
 namespace llama {
+
+class IniParser;
+
 namespace nn {
 
 // Options for BLOOM model.
-struct BloomModelOptions {
+struct GPT2Config {
   int d_model;
   int vocab_size;
 
-  BloomModelOptions();
+  GPT2Config();
+  static StatusOr<GPT2Config> FromIni(const IniParser &ini);
 };
 
 // The BLOOM model from BigScience.
-class BloomModel : public Module {
+class GPT2Model : public Module {
  public:
   // create BloomModel.
-  static StatusOr<BloomModel> Create(const Context &ctx,
-                                     BloomModelOptions options);
+  static StatusOr<GPT2Model> Create(const Context &ctx, GPT2Config config);
 
   // initialize the module from context
-  Status InitParameters(const TensorDict &state_dict) override;
+  Status InitParameters(const TensorMap &state_dict) override;
 
   // forward with cache.
   // Args:
@@ -31,15 +34,16 @@ class BloomModel : public Module {
   //     input <long>(B, L): input tokens.
   // Returns:
   //     <float>(B, L, D): logprobs.
-  Tensor Forward(TensorDict *cache, const Tensor &input) const override;
+  Tensor Forward(TensorMap *past, TensorCRef input) const;
 
  private:
-  BloomModelOptions options_;
+  GPT2Config config_;
 
-  Tensor embedding_;
-  std::unique_ptr<LayerNorm> ln_emb_;
+  static constexpr char kWte[] = "wte";
 
-  BloomModel();
+  Tensor wte_;  // embedding table
+
+  GPT2Model();
 };
 
 }  // namespace nn

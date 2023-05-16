@@ -281,6 +281,7 @@ class Path {
 
   Path dirname() const;
   Path basename() const;
+  bool isabs() const;
 
   Path operator/(const Path &path) const;
   Path operator/(const std::string &path) const;

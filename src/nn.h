@@ -11,6 +11,11 @@
 namespace llama {
 namespace nn {
 
+// the config section name in ini file.
+constexpr char kConfigSection[] = "config";
+constexpr char kModelSection[] = "model";
+constexpr char kParamsSection[] = "params";
+
 class Operators;
 class Function;
 class Tensor;
@@ -45,7 +50,7 @@ class TensorMap {
   Tensor Get(const std::string &name);
 
   // put tensor.
-  void Put(const std::string &name, CTensorRef tensor);
+  void Put(const std::string &name, TensorCRef tensor);
 
   // try to get tensor by name. return AbortError() if not exist.
   Status TryGet(const std::string &name, Tensor *tensor) const;

@@ -28,9 +28,10 @@ Context MustGetCtxForCPU();
 
 // Create a float tensor in CPU with the specified shape and data. It will
 // copy elements from `data` to its internal storage.
+template<typename T>
 Tensor MakeTensor(Operators *F,
                   std::initializer_list<int> shape,
-                  std::initializer_list<float> data);
+                  std::initializer_list<T> data);
 
 }  // namespace nn
 }  // namespace llama

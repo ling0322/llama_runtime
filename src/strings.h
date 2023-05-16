@@ -21,11 +21,16 @@ std::string TrimLeft(const std::string &s, PCStrType chars = " \t\r\n");
 std::string TrimRight(const std::string &s, PCStrType chars = " \t\r\n");
 std::string Trim(const std::string &s, PCStrType chars = " \t\r\n");
 std::vector<std::string> Split(const std::string &str,
-                         const std::string &delim);
+                               const std::string &delim);
 
 std::string Replace(const std::string &s,
                     const std::string &old,
                     const std::string &repl);
+
+std::string ToLower(const std::string &s);
+
+// strconv
+Status Atoi(const std::string &s, int *i);
 
 // split a utf8 string into a list of strings. Each string in this list only
 // contains one character in utf-8 encoding. For invalid byte, it will keep

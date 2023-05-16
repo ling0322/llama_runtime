@@ -87,7 +87,7 @@ Status TensorMap::TryGet(const std::string &name, Tensor *tensor) const {
   return OkStatus();
 }
 
-void TensorMap::Put(const std::string &name, CTensorRef tensor) {
+void TensorMap::Put(const std::string &name, TensorCRef tensor) {
   dict_[name] = tensor;
 }
 

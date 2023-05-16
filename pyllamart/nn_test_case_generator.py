@@ -14,8 +14,6 @@ BATCH_SIZE = 2
 NUM_HEADS = 2
 
 def gen_linear():
-
-
     layer = nn.Linear(D_MODEL0, D_MODEL1)
     d = {}
     d['weight'] = layer.weight
@@ -88,5 +86,27 @@ def gen_multi_head_attention():
         print(o)
         write_lrt_tensor(o, fp)
 
+def gen_gpt2():
+    from transformers import GPT2Model, GPT2Tokenizer
+    model = GPT2Model.from_pretrained("gpt2")
+    tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
+
+    d = {}
+    d['wte'] = model.wte.weight
+    write_tensor_dict(d, 'gpt2.params.bin')
+
+    with open("gpt2.config.ini", 'w') as fp:
+        fp.write("[model]\n")
+        fp.write("params_file=gpt2.params.bin\n")
+        fp.write("[config]\n")
+        fp.write(f"d_model={model.config.n_embd}\n") 
+        fp.write(f"vocab_size={model.config.vocab_size}\n") 
+
+    with open('gpt2.test_tensors.bin', 'wb') as fp:
+        text = "The quick brown fox jumps over the lazy dog."
+        inputs = tokenizer(text)["input_ids"]
+        inputs = torch.tensor(inputs, dtype=torch.int64)
+        write_lrt_tensor(inputs, fp)
+
 if __name__ == '__main__':
-    gen_multi_head_attention()
+    gen_gpt2()

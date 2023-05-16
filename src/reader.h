@@ -18,9 +18,9 @@ namespace llama {
 
 Status ReadFile(const std::string &filename, std::vector<ByteType> *data);
 
-// ----------------------------------------------------------------------------
-// class Reader
-// ----------------------------------------------------------------------------
+// ---------------------------------------------------------------------------+
+// class Reader                                                               |
+// ---------------------------------------------------------------------------+
 
 // base class for all readers
 class Reader {
@@ -58,6 +58,8 @@ class BufferedReader : public Reader {
   Status ReadString(int n, std::string *s);
 
   // read a line from file. Keeps the line delim at the back of `s`
+  // Example:
+  //   while (IsOK(fp->ReadLine(&line))) { ... }
   Status ReadLine(std::string *s);
 
  private:

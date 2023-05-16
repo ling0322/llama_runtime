@@ -10,7 +10,9 @@ set(llama_INCDIRS src .)
 set(llama_SOURCES
     "src/common.cc"
     "src/environment.cc"
-    "src/gemm_cpu.cc" 
+    "src/gemm_cpu.cc"
+    "src/gpt2_model.cc"
+    "src/ini_parser.cc"
     "src/log.cc"
     "src/nn.cc"
     "src/operators.cc"
@@ -31,6 +33,7 @@ target_compile_features(llama PRIVATE cxx_std_14)
 set(llama_test_SOURCES
     ${llama_SOURCES}
     "src/gemm_test.cc"
+    "src/gpt2_model_test.cc"
     "src/nn_test.cc"
     "src/nn_test_helper.cc"
     "src/operators_test.cc"
