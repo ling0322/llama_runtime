@@ -12,7 +12,8 @@ namespace nn {
 
 // Options for BLOOM model.
 struct GPT2Config {
-  int d_model;
+  int n_embd;
+  int n_ctx;
   int vocab_size;
 
   GPT2Config();
@@ -40,8 +41,10 @@ class GPT2Model : public Module {
   GPT2Config config_;
 
   static constexpr char kWte[] = "wte";
+  static constexpr char kWpe[] = "wpe";
 
-  Tensor wte_;  // embedding table
+  Tensor wte_;  // word embedding table
+  Tensor wpe_;  // positional embedding table
 
   GPT2Model();
 };
