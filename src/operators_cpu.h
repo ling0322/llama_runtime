@@ -21,6 +21,7 @@ class CpuOperators : public Operators {
   Tensor MatMul(const Tensor &a, const Tensor &b) override;
   Tensor Mul(const Tensor &input, float other) override;
   Tensor Softmax(const Tensor &input) override;
+  Tensor GELU(const Tensor &input) override;
   Tensor Add(const Tensor &a, const Tensor &b) override;
   Tensor Tensor_(std::initializer_list<int> shape, DType dtype) override;
   Tensor TensorLike(const Tensor &input) override;

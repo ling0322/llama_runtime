@@ -16,6 +16,8 @@ constexpr char kConfigSection[] = "config";
 constexpr char kModelSection[] = "model";
 constexpr char kParamsSection[] = "params";
 
+constexpr double kPi = 3.14159265359;
+
 class Operators;
 class Function;
 class Tensor;

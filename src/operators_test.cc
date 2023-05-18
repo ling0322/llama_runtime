@@ -46,3 +46,16 @@ TEST_CASE("test embedding lookup", "[core][nn][operators]") {
   REQUIRE(ctx.F()->AllClose(ctx.F()->Lookup(wte, input), output));
 }
 
+TEST_CASE("test gelu", "[core][nn][operators]") {
+  Context ctx = MustGetCtxForCPU();
+
+  Tensor input = MakeTensor(ctx.F(), {2, 5}, {
+      0.1738f, -0.1127f, 0.2948f, -0.2232f, 0.3381f,
+      0.2043f, 0.4720f, 0.4098f, -0.1599f, 0.0012f      
+  });
+  Tensor output = MakeTensor(ctx.F(), {2, 5}, {
+      0.0989f, -0.0513f, 0.1816f, -0.0919f, 0.2138f,
+      0.1187f, 0.3217f, 0.2701f, -0.0698f, 0.0006f
+  });
+  REQUIRE(ctx.F()->AllClose(ctx.F()->GELU(input), output));
+}

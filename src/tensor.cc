@@ -369,5 +369,46 @@ Tensor Tensor::Transpose(int dim0, int dim1) const {
   return tensor;
 }
 
+Status Tensor::CheckShape(std::initializer_list<int> shape) {
+  if (shape.size() != dim()) {
+    RETURN_ABORTED() << "invalid shape. dim = " << shape.size() 
+                     << " expected, but " << dim() << " got.";
+  }
+
+  int i = 0;
+  bool correct = true;
+  for (int s : shape) {
+    if (this->shape(i) != s) {
+      correct = false;
+    }
+    ++i;
+  }
+
+  if (!correct) {
+    std::ostringstream actual;
+    actual << "(";
+    for (int i = 0; i < dim(); ++i) {
+      if (i) actual << ", ";
+      actual << this->shape(i);
+    }
+    actual << ")";
+
+    std::ostringstream expected;
+    bool first = true;
+    expected << "(";
+    for (int s : shape) {
+      if (!first) expected << ", ";
+      expected << s;
+      first = false;
+    }
+    expected << ")";
+
+    RETURN_ABORTED() << "invalid shape: " << expected.str()
+                     << " expected, but " << actual.str() << " found.";
+  }
+
+  return OkStatus();
+}
+
 }  // namespace nn
 }  // namespace llama

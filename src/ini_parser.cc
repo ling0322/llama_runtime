@@ -19,14 +19,14 @@ StatusOr<IniParser> IniParser::Read(const std::string &filename) {
   while (IsOK(fp->ReadLine(&line))) {
     // section line: [<section-name>]
     line = strings::Trim(line);
-    if (line.front() == '[' && line.back() == ']') {
+    if (line.empty() || line.front() == ';') {
+      // empty line and comment line, do nothing
+    } else if (line.front() == '[' && line.back() == ']') {
       section = line.substr(1, line.size() - 2);
       section = strings::Trim(section);
       if (section.empty()) {
         RETURN_ABORTED() << filename << ": section is empty: " << line;
       }
-    } else if (line.empty() || line.front() == ';') {
-      // empty line and comment line, do nothing
     } else {
       // key-value pair line: key=value
       if (section.empty()) {

@@ -173,6 +173,10 @@ class Tensor {
     return reinterpret_cast<T *>(raw_data(TypeID<T>()));
   }
 
+  // Check the shape of a tensor. If shape of `tensor` does not match `shape`,
+  // return AbortedError with message "invalid shape".
+  Status CheckShape(std::initializer_list<int> shape);
+
  protected:
   std::shared_ptr<TensorData> data_;
   Size size_;

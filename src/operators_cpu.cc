@@ -14,6 +14,8 @@ namespace nn {
 
 constexpr int kPrintEdgeItems = 3;
 
+// -- class CpuOperators::Impl -------------------------------------------------
+
 // the CPU implementation of Operators
 class CpuOperators::Impl {
  public:
@@ -86,6 +88,7 @@ class CpuOperators::Impl {
   Tensor Mul_Float32(SubtensorCf A, float k);
   Tensor Add_Float32(SubtensorCf A, SubtensorCf B);
   Tensor Softmax_Float32(SubtensorCf A);
+  Tensor GELU_Float32(SubtensorCf A);
 
   void Rand_Float32(Tensor *tensor);
   void Zeros_Float32(Subtensorf tensor);
@@ -112,9 +115,7 @@ class CpuOperators::Impl {
   Tensor CausalMask_Float32(int max_len);
 };
 
-// ---------------------------------------------------------------------------+
-// class CpuOperators::Impl::SubTensor                                        |
-// ---------------------------------------------------------------------------+
+// -- class CpuOperators::Impl::SubTensor --------------------------------------
 
 // sub-tensor. Stores the shape and data pointer to a sub region of the original
 // Tensor. It's faster than Tensor when passing as parameters.
@@ -513,13 +514,31 @@ Tensor CpuOperators::Impl::Softmax_Float32(SubtensorCf A) {
 
     double logsum = std::log(sum);
     for (int i = 0; i < A.dimension(0); ++i) {
-      float va = A.elem(i);;
+      float va = A.elem(i);
       float &vc = C.elem(i);
       vc = static_cast<float>(std::exp(va - logsum));
     }
   };
 
   ApplyUnary1DTensorOp<float>(A, Cs, softmax_op);
+  return C;
+}
+
+Tensor CpuOperators::Impl::GELU_Float32(SubtensorCf A) {
+  Tensor C = TensorLike(A);
+  Subtensorf Cs = MakeSubTensor<float>(C);
+
+  auto gelu_op = [](SubtensorCf A, Subtensorf C) {
+    for (int i = 0; i < A.dimension(0); ++i) {
+      float x = A.elem(i);
+
+      double x3 = pow(x, 3.0);
+      double c = 0.5 * x * (1 + tanh(sqrt(2.0 / kPi) * (x + 0.044715 * x3)));
+      C.elem(i) = static_cast<float>(c);
+    }
+  };
+
+  ApplyUnary1DTensorOp<float>(A, Cs, gelu_op);
   return C;
 }
 
@@ -769,6 +788,18 @@ Tensor CpuOperators::Softmax(const Tensor &input) {
   switch (input.dtype()) {
     case DType::kFloat:
       return impl_->Softmax_Float32(impl_->MakeConstSubTensor<float>(input));
+      break;
+    default:
+      NOT_IMPL();
+  }
+
+  return Tensor();
+}
+
+Tensor CpuOperators::GELU(const Tensor &input) {
+  switch (input.dtype()) {
+    case DType::kFloat:
+      return impl_->GELU_Float32(impl_->MakeConstSubTensor<float>(input));
       break;
     default:
       NOT_IMPL();

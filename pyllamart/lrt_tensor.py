@@ -1,5 +1,6 @@
 import struct
 import torch
+import numpy as np
 
 def dtype_to_lrt_dtype(dtype):
     if dtype == torch.float32:
@@ -9,17 +10,11 @@ def dtype_to_lrt_dtype(dtype):
     else:
         raise Exception("dtype not supported")
 
-def _write_tensor_elem(tensor, fp):
-    if tensor.dim() == 1:
-        for elem in tensor:
-            if elem.dtype == torch.float32:
-                packfmt = '<f'
-            elif elem.dtype == torch.int64:
-                packfmt = '<q'
-            fp.write(struct.pack(packfmt, elem.item()))
-    else:
-        for subtensor in tensor:
-            _write_tensor_elem(subtensor, fp)
+def _write_tensor_elem(tensor: torch.Tensor, fp):
+    np_tensor = tensor.detach().contiguous().numpy()
+    assert np_tensor.dtype in {np.dtype(np.float32), np.dtype(np.int64)}
+
+    fp.write(np_tensor.tobytes())
 
 def write_lrt_tensor(tensor: torch.Tensor, fp):
     ''' save the pytorch tensor to file with c8 format

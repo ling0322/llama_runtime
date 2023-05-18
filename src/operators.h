@@ -56,6 +56,15 @@ class Operators {
   // return input + other.
   virtual Tensor Add(const Tensor &input, const Tensor &other) = 0;
 
+  // Applies the Gaussian Error Linear Units function for `input`
+  // Here it use the approximate version of GELU:
+  //   GELU(x) = 0.5 * x * (1 + tanh(sqrt(2.0 / pi) * (x + 0.044715 * x^3)))
+  // Args:
+  //   input <float>(..., D): input tensor.
+  // Returns:
+  //   <float>(..., D): outpur tensor.
+  virtual Tensor GELU(const Tensor &input) = 0;
+
   // create a tensor with specified shape and dtype. Data in this tensor is
   // uninitialize.
   // Args:

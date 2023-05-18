@@ -9,9 +9,7 @@
 namespace llama {
 namespace nn {
 
-// ---------------------------------------------------------------------------+
-// class Device                                                               |
-// ---------------------------------------------------------------------------+
+// -- class Device ------------------------------------------------------------
 
 Device::Device() : type_(Type::kUnknown) {}
 Device::Device(Type type) : type_(type) {}
@@ -20,9 +18,7 @@ Device Device::CPU() {
   return Device(Type::kCpu);
 }
 
-// ---------------------------------------------------------------------------+
-// class TensorMap                                                            |
-// ---------------------------------------------------------------------------+
+// -- class TensorMap ---------------------------------------------------------
 
 // tensor_dict format
 //   byte[4]: "TDIC"
@@ -80,7 +76,7 @@ Tensor TensorMap::Get(const std::string &name) {
 Status TensorMap::TryGet(const std::string &name, Tensor *tensor) const {
   auto it = dict_.find(name);
   if (it == dict_.end()) {
-    RETURN_ABORTED() << "tensor " << name << " not found";
+    RETURN_ABORTED() << "tensor \"" << name << "\" not found.";
   }
 
   *tensor = it->second;
@@ -95,9 +91,7 @@ bool TensorMap::exists(const std::string &name) const {
   return dict_.find(name) != dict_.end();
 }
 
-// ---------------------------------------------------------------------------+
-// class Context                                                              |
-// ---------------------------------------------------------------------------+
+// -- class Context -----------------------------------------------------------
 
 Context::Context() : F_(nullptr) {}
 
@@ -124,9 +118,7 @@ std::string Context::name(const std::string &name) const {
   return ns;
 }
 
-// ---------------------------------------------------------------------------+
-// class Linear                                                               |
-// ---------------------------------------------------------------------------+
+// -- class Linear ------------------------------------------------------------
 
 Linear::Linear() : in_features_(0), out_features_(0) {}
 
@@ -147,17 +139,13 @@ StatusOr<Linear> Linear::Create(
 
 Status Linear::InitParameters(const TensorMap &state_dict) {
   std::string name_w = ctx_.name(kWeight);
-  RETURN_IF_ERROR(state_dict.TryGet(name_w, &w_));
-  if (w_.dim() != 2 || w_.shape(0) != out_features_ ||
-      w_.shape(1) != in_features_) {
-    RETURN_ABORTED() << "invalid shape of tensor " << name_w;
-  }
-
   std::string name_b = ctx_.name(kBias);
+
+  RETURN_IF_ERROR(state_dict.TryGet(name_w, &w_));
   RETURN_IF_ERROR(state_dict.TryGet(name_b, &b_));
-  if (b_.dim() != 1 || b_.shape(0) != out_features_) {
-    RETURN_ABORTED() << "invalid shape of tensor " << name_b;
-  }
+
+  RETURN_IF_ERROR(w_.CheckShape({out_features_, in_features_})) << name_w;
+  RETURN_IF_ERROR(b_.CheckShape({out_features_})) << name_b;
 
   return OkStatus();
 }
@@ -170,9 +158,7 @@ Tensor Linear::Forward(const Tensor &input) const {
   return x;
 }
 
-// ---------------------------------------------------------------------------+
-// class LayerNorm                                                            |
-// ---------------------------------------------------------------------------+
+// -- class LayerNorm ---------------------------------------------------------
 
 LayerNorm::LayerNorm() : d_model_(0), eps_(0.0f) {}
 
@@ -193,16 +179,13 @@ StatusOr<LayerNorm> LayerNorm::Create(
 
 Status LayerNorm::InitParameters(const TensorMap &state_dict) {
   std::string name_w = ctx_.name(kWeight);
-  RETURN_IF_ERROR(state_dict.TryGet(name_w, &w_));
-  if (w_.dim() != 1 || w_.shape(0) != d_model_) {
-    RETURN_ABORTED() << "invalid shape of tensor " << name_w;
-  }
-
   std::string name_b = ctx_.name(kBias);
+
+  RETURN_IF_ERROR(state_dict.TryGet(name_w, &w_));
   RETURN_IF_ERROR(state_dict.TryGet(name_b, &b_));
-  if (b_.dim() != 1 || b_.shape(0) != d_model_) {
-    RETURN_ABORTED() << "invalid shape of tensor " << name_b;
-  }
+
+  RETURN_IF_ERROR(w_.CheckShape({d_model_})) << name_w;
+  RETURN_IF_ERROR(b_.CheckShape({d_model_})) << name_b;
 
   return OkStatus();
 }

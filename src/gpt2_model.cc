@@ -14,7 +14,10 @@ namespace nn {
 GPT2Config::GPT2Config()
     : n_embd(0),
       n_ctx(0),
-      vocab_size(0) {
+      n_inner(0),
+      n_head(0),
+      vocab_size(0),
+      hidden_size(0) {
 }
 
 StatusOr<GPT2Config> GPT2Config::FromIni(const IniParser &ini) {
@@ -22,9 +25,81 @@ StatusOr<GPT2Config> GPT2Config::FromIni(const IniParser &ini) {
 
   RETURN_IF_ERROR(ini.Get(kConfigSection, "n_embd", &config->n_embd));
   RETURN_IF_ERROR(ini.Get(kConfigSection, "n_ctx", &config->n_ctx));
+  RETURN_IF_ERROR(ini.Get(kConfigSection, "n_inner", &config->n_inner));
+  RETURN_IF_ERROR(ini.Get(kConfigSection, "n_head", &config->n_head));
   RETURN_IF_ERROR(ini.Get(kConfigSection, "vocab_size", &config->vocab_size));
+  RETURN_IF_ERROR(ini.Get(kConfigSection, "hidden_size", &config->hidden_size));
 
   return config;
+}
+
+// ---------------------------------------------------------------------------+
+// class GPT2Block                                                            |
+// ---------------------------------------------------------------------------+
+
+GPT2Block::GPT2Block() {}
+
+StatusOr<GPT2Block> GPT2Block::Create(const Context &ctx, GPT2Config config) {
+  std::unique_ptr<GPT2Block> block{new GPT2Block()};
+  
+  block->ctx_ = ctx;
+  block->config_ = config;
+
+  int d_model = config.hidden_size;
+  int n_inner = config.n_inner;
+
+  auto ln1 = LayerNorm::Create(ctx.WithName(kLn1), d_model);
+  auto ln2 = LayerNorm::Create(ctx.WithName(kLn2), d_model);
+  auto fc = Linear::Create(ctx.WithName(kFc), d_model, n_inner);
+  auto proj = Linear::Create(ctx.WithName(kProj), n_inner, d_model);
+  auto attn = MultiheadSelfAttention::Create(
+      ctx.WithName(kAttn),
+      config.n_head,
+      d_model);
+
+  RETURN_IF_ERROR(ln1);
+  RETURN_IF_ERROR(ln2);
+  RETURN_IF_ERROR(fc);
+  RETURN_IF_ERROR(proj);
+  RETURN_IF_ERROR(attn);
+
+  block->ln2_ = std::move(ln2).unique_ptr();
+  block->ln1_ = std::move(ln1).unique_ptr();
+  block->attn_ = std::move(attn).unique_ptr();
+  block->fc_ = std::move(fc).unique_ptr();
+  block->proj_ = std::move(proj).unique_ptr();
+
+  return block;
+}
+
+Status GPT2Block::InitParameters(const TensorMap &state_dict) {
+  RETURN_IF_ERROR(ln2_->InitParameters(state_dict));
+  RETURN_IF_ERROR(ln1_->InitParameters(state_dict));
+  RETURN_IF_ERROR(attn_->InitParameters(state_dict));
+  RETURN_IF_ERROR(fc_->InitParameters(state_dict));
+  RETURN_IF_ERROR(proj_->InitParameters(state_dict));
+
+  return OkStatus();
+}
+
+Tensor GPT2Block::Forward(TensorMap *past,
+                          TensorCRef input,
+                          TensorCRef mask) const {
+  Operators *F = ctx().F();
+
+  Tensor residual = input;
+  Tensor x = ln1_->Forward(input);
+  x = attn_->Forward(past, x, mask);
+  x = F->Add(x, residual);
+
+  residual = x;
+  x = ln2_->Forward(x);
+  x = fc_->Forward(x);
+  x = F->GELU(x);
+  x = proj_->Forward(x);
+  x = F->Add(x, residual);
+
+  return x;
 }
 
 // ---------------------------------------------------------------------------+
@@ -35,29 +110,33 @@ GPT2Model::GPT2Model() {}
 
 StatusOr<GPT2Model> GPT2Model::Create(const Context &ctx, GPT2Config config) {
   std::unique_ptr<GPT2Model> model{new GPT2Model()};
-  
-  model->ctx_ = ctx;
+
+  model->ctx_ = ctx.WithName(kGpt2);
   model->config_ = config;
+
+  auto block = GPT2Block::Create(model->ctx_.WithName(kBlock), config);
+  RETURN_IF_ERROR(block);
+
+  model->block_ = std::move(block).unique_ptr();
 
   return model;
 }
 
 Status GPT2Model::InitParameters(const TensorMap &state_dict) {
-  Tensor wte;
-  RETURN_IF_ERROR(state_dict.TryGet(kWte, &wte));
-  if (wte.dim() != 2 || wte.shape(0) != config_.vocab_size ||
-      wte.shape(1) != config_.n_embd) {
-    RETURN_ABORTED() << "invalid tensor: wte";
-  }
-  wte_ = wte;
+  Operators *F = ctx_.F();
 
-  Tensor wpe;
-  RETURN_IF_ERROR(state_dict.TryGet(kWpe, &wpe));
-  if (wpe.dim() != 2 || wpe.shape(0) != config_.n_ctx ||
-      wte.shape(1) != config_.n_embd) {
-    RETURN_ABORTED() << "invalid tensor: wpe";
-  }
-  wpe_ = wpe;
+  int vocab_size = config_.vocab_size;
+  int n_embd = config_.n_embd;
+  int n_ctx = config_.n_ctx;
+
+  RETURN_IF_ERROR(state_dict.TryGet(ctx().name(kWte), &wte_));
+  RETURN_IF_ERROR(state_dict.TryGet(ctx().name(kWpe), &wpe_));
+
+  RETURN_IF_ERROR(wte_.CheckShape({vocab_size, n_embd})) << ctx().name(kWte);
+  RETURN_IF_ERROR(wpe_.CheckShape({n_ctx, n_embd})) << ctx().name(kWpe);
+
+  RETURN_IF_ERROR(block_->InitParameters(state_dict));
+  mask_ = F->CausalMask(config_.n_ctx);
 
   return OkStatus();
 }
@@ -70,6 +149,8 @@ Tensor GPT2Model::Forward(TensorMap *past, TensorCRef input) const {
 
   Tensor pos_emb = wpe_.Slice(0, x.shape(1));
   x = F->Add(x, pos_emb);
+
+  x = block_->Forward(past, x, mask_);
 
   return x;
 }

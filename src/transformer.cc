@@ -86,6 +86,13 @@ Tensor MultiheadSelfAttention::Forward(TensorMap *past,
   Tensor k_proj = k_proj_->Forward(inputs);
   Tensor v_proj = v_proj_->Forward(inputs);
 
+  puts("q");
+  F->Print(q_proj);
+  puts("k");
+  F->Print(k_proj);
+  puts("v");
+  F->Print(v_proj);
+
   // update k_proj and v_proj according to the kv_cache from past.
   int past_len = 0;
   if (past && past->exists(pastk_name_) && past->exists(pastv_name_)) {
@@ -118,6 +125,8 @@ Tensor MultiheadSelfAttention::Forward(TensorMap *past,
 
   Tensor concat = F->Contiguous(scores).View({bs, -1, d_model_});
   Tensor output = out_proj_->Forward(concat);
+  puts("concat");
+  F->Print(concat);
   return output;
 }
 

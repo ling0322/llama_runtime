@@ -10,10 +10,10 @@ namespace nn {
 void MustReadParameters(const std::string &model_path, Module *module) {
   TensorMap state_dict;
   Status status = state_dict.Read(model_path);
-  puts(status.what().c_str());
   REQUIRE(status.ok());
 
   status = module->InitParameters(state_dict);
+  puts(status.what().c_str());
   REQUIRE(status.ok());
 }
 

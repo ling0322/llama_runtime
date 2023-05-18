@@ -87,9 +87,9 @@ def gen_multi_head_attention():
         write_lrt_tensor(o, fp)
 
 def gen_gpt2():
-    from transformers import GPT2Tokenizer, GPT2Model
+    from transformers import GPT2Tokenizer, GPT2Model, GPT2LMHeadModel
     tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
-    model = GPT2Model.from_pretrained("gpt2")
+    model = GPT2LMHeadModel.from_pretrained("gpt2")
 
     with open('gpt2.test_tensors.bin', 'wb') as fp:
         text = "The quick brown fox jumps over the lazy dog."
@@ -97,7 +97,7 @@ def gen_gpt2():
         inputs = torch.tensor([inputs], dtype=torch.int64)
         write_lrt_tensor(inputs, fp)
 
-        model(inputs)
+        print(model.generate(inputs))
 
 if __name__ == '__main__':
     gen_gpt2()
