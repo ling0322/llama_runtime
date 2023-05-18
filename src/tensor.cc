@@ -300,7 +300,7 @@ Tensor Tensor::View(std::initializer_list<int> shape) const {
     CHECK(numel == this->numel()) << "numel mismatch after View()";
   } else {
     CHECK(this->numel() % numel == 0) << "inferred shape is not a integer";
-    *it_inferred = this->numel() / numel;
+    *it_inferred = static_cast<ShapeType>(this->numel() / numel);
   }
 
 

@@ -93,17 +93,32 @@ class Context {
   Device device_;
 };
 
-// base class for all nn modules
+// base class for all nn modules.
 class Module {
  public:
   // load the module states from `state_dict`
   virtual Status InitParameters(const TensorMap &state_dict) = 0;
+};
 
-  // get context of the module.
-  const Context &ctx() const { return ctx_; }
+// base class for language model.
+class LanguageModel {
+ public:
+  // Forward input token ids through this language model. It will update the
+  // `past` state and return the hidden state of last layer.
+  // Args:
+  //   past (TensorMap): key-value cache.
+  //   inputs <long>(N, L): prompt token ids.
+  // Returns:
+  //   <float>(N, L, D): hidden state from last layer.
+  virtual Tensor Forward(TensorMap *past, TensorCRef inputs) = 0;
 
- protected:
-  Context ctx_;
+  // Forward the hidden state from last layer and get the logits.
+  // The hidden_state is usually the return value of Forward().
+  // Args:
+  //   hidden_state <float>(N, L, D): hidden state from last layer.
+  // Returns:
+  //   <float>(N, L, V): logits. V is vocabulary size.
+  virtual Tensor Logits(TensorCRef hidden_state) = 0;
 };
 
 // linear layer.
@@ -124,6 +139,8 @@ class Linear : public Module {
   // tensor names.
   static constexpr char kWeight[] = "weight";
   static constexpr char kBias[] = "bias";
+
+  Context ctx_;
 
   Tensor w_;
   Tensor b_;
@@ -151,6 +168,8 @@ class LayerNorm : public Module {
   // tensor names.
   static constexpr char kWeight[] = "weight";
   static constexpr char kBias[] = "bias";
+
+  Context ctx_;
 
   Tensor w_;
   Tensor b_;

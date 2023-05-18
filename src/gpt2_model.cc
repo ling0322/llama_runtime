@@ -85,7 +85,7 @@ Status GPT2Block::InitParameters(const TensorMap &state_dict) {
 Tensor GPT2Block::Forward(TensorMap *past,
                           TensorCRef input,
                           TensorCRef mask) const {
-  Operators *F = ctx().F();
+  Operators *F = ctx_.F();
 
   Tensor residual = input;
   Tensor x = ln1_->Forward(input);
@@ -129,11 +129,11 @@ Status GPT2Model::InitParameters(const TensorMap &state_dict) {
   int n_embd = config_.n_embd;
   int n_ctx = config_.n_ctx;
 
-  RETURN_IF_ERROR(state_dict.TryGet(ctx().name(kWte), &wte_));
-  RETURN_IF_ERROR(state_dict.TryGet(ctx().name(kWpe), &wpe_));
+  RETURN_IF_ERROR(state_dict.TryGet(ctx_.name(kWte), &wte_));
+  RETURN_IF_ERROR(state_dict.TryGet(ctx_.name(kWpe), &wpe_));
 
-  RETURN_IF_ERROR(wte_.CheckShape({vocab_size, n_embd})) << ctx().name(kWte);
-  RETURN_IF_ERROR(wpe_.CheckShape({n_ctx, n_embd})) << ctx().name(kWpe);
+  RETURN_IF_ERROR(wte_.CheckShape({vocab_size, n_embd})) << ctx_.name(kWte);
+  RETURN_IF_ERROR(wpe_.CheckShape({n_ctx, n_embd})) << ctx_.name(kWpe);
 
   RETURN_IF_ERROR(block_->InitParameters(state_dict));
   mask_ = F->CausalMask(config_.n_ctx);

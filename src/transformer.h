@@ -25,6 +25,8 @@ class MultiheadSelfAttention : public Module {
   Tensor Forward(TensorMap *past, TensorCRef inputs, TensorCRef mask);
 
  private:
+  Context ctx_;
+
   int d_model_;
   int d_k_;
   int num_heads_;

@@ -43,6 +43,7 @@ class GPT2Block : public Module {
   Tensor Forward(TensorMap *past, TensorCRef input, TensorCRef mask) const;
 
  private:
+  Context ctx_;
   GPT2Config config_;
 
   static constexpr char kLn1[] = "ln1";
@@ -78,6 +79,7 @@ class GPT2Model : public Module {
   Tensor Forward(TensorMap *past, TensorCRef input) const;
 
  private:
+  Context ctx_;
   GPT2Config config_;
 
   static constexpr char kGpt2[] = "gpt2";
