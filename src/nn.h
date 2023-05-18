@@ -112,8 +112,8 @@ class LanguageModel {
   //   <float>(N, L, D): hidden state from last layer.
   virtual Tensor Forward(TensorMap *past, TensorCRef inputs) = 0;
 
-  // Forward the hidden state from last layer and get the logits.
-  // The hidden_state is usually the return value of Forward().
+  // Forward the hidden state from last layer and get the logits. hidden_state
+  // is usually the return value of Forward().
   // Args:
   //   hidden_state <float>(N, L, D): hidden state from last layer.
   // Returns:
