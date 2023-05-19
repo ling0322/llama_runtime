@@ -18,7 +18,6 @@ TEST_CASE("test GPT2 module", "[core][nn][gpt2]") {
   REQUIRE(ini.ok());
 
   auto config = GPT2Config::FromIni(*ini);
-  puts(config.what().c_str());
   REQUIRE(config.ok());
 
   auto model = GPT2Model::Create(ctx, *config);
@@ -30,9 +29,12 @@ TEST_CASE("test GPT2 module", "[core][nn][gpt2]") {
 
   util::Path tensor_file = model_dir / "gpt2.test_tensors.bin";
   std::vector<Tensor> tensors = MustReadAllTensors(tensor_file.string());
-  REQUIRE(tensors.size() == 1);
+  REQUIRE(tensors.size() == 2);
 
   Tensor in = tensors[0];
+  Tensor out = tensors[1];
   Tensor x = model->Forward(nullptr, in);
-  ctx.F()->Print(x);
+  x = model->Logits(x);
+
+  REQUIRE(ctx.F()->AllClose(out, x));
 }

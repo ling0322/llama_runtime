@@ -110,7 +110,7 @@ class LanguageModel {
   //   inputs <long>(N, L): prompt token ids.
   // Returns:
   //   <float>(N, L, D): hidden state from last layer.
-  virtual Tensor Forward(TensorMap *past, TensorCRef inputs) = 0;
+  virtual Tensor Forward(TensorMap *past, TensorCRef inputs) const = 0;
 
   // Forward the hidden state from last layer and get the logits. hidden_state
   // is usually the return value of Forward().
@@ -118,7 +118,7 @@ class LanguageModel {
   //   hidden_state <float>(N, L, D): hidden state from last layer.
   // Returns:
   //   <float>(N, L, V): logits. V is vocabulary size.
-  virtual Tensor Logits(TensorCRef hidden_state) = 0;
+  virtual Tensor Logits(TensorCRef hidden_state) const = 0;
 };
 
 // linear layer.

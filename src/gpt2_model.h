@@ -13,10 +13,14 @@ namespace nn {
 
 // Options for BLOOM model.
 struct GPT2Config {
+  // config section in ini
+  static constexpr char kSection[] = "gpt2";
+
   int n_embd;
   int n_ctx;
   int n_inner;
   int n_head;
+  int n_layer;
   int vocab_size;
   int hidden_size;
 
@@ -62,7 +66,8 @@ class GPT2Block : public Module {
 };
 
 // The GPT2 model.
-class GPT2Model : public Module {
+class GPT2Model : public Module,
+                  public LanguageModel {
  public:
   // create BloomModel.
   static StatusOr<GPT2Model> Create(const Context &ctx, GPT2Config config);
@@ -76,7 +81,15 @@ class GPT2Model : public Module {
   //     input <long>(B, L): input tokens.
   // Returns:
   //     <float>(B, L, D): logprobs.
-  Tensor Forward(TensorMap *past, TensorCRef input) const;
+  Tensor Forward(TensorMap *past, TensorCRef input) const override;
+
+  // Forward the hidden state from last layer and get the logits. hidden_state
+  // is usually the return value of Forward().
+  // Args:
+  //   hidden_state <float>(N, L, D): hidden state from last layer.
+  // Returns:
+  //   <float>(N, L, V): logits. V is vocabulary size.
+  Tensor Logits(TensorCRef hidden_state) const override;
 
  private:
   Context ctx_;
@@ -85,12 +98,15 @@ class GPT2Model : public Module {
   static constexpr char kGpt2[] = "gpt2";
   static constexpr char kWte[] = "wte";
   static constexpr char kWpe[] = "wpe";
-  static constexpr char kBlock[] = "block0";
+  static constexpr char kLnF[] = "ln_f";
+  static constexpr char kBlock[] = "block";
 
   Tensor wte_;  // word embedding table
   Tensor wpe_;  // positional embedding table
   Tensor mask_;
-  std::unique_ptr<GPT2Block> block_;
+
+  std::vector<std::unique_ptr<GPT2Block>> blocks_;
+  std::unique_ptr<LayerNorm> ln_f_;
 
   GPT2Model();
 };

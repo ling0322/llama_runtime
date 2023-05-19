@@ -97,7 +97,8 @@ def gen_gpt2():
         inputs = torch.tensor([inputs], dtype=torch.int64)
         write_lrt_tensor(inputs, fp)
 
-        print(model.generate(inputs))
+        logits = model(inputs)[0]
+        write_lrt_tensor(logits, fp)
 
 if __name__ == '__main__':
     gen_gpt2()

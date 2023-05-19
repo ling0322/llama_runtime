@@ -76,6 +76,7 @@ class GPT2Exporter(ModelExporter):
 
         self._put(ctx, "wte", model.wte.weight)
         self._put(ctx, "wpe", model.wpe.weight)
+        self.export_layer_norm(ctx.with_name("ln_f"), model.ln_f)
 
         for layer_idx, layer in enumerate(model.h):
             self.export_decoder_layer(ctx.with_name(f"block{layer_idx}"), layer)
@@ -93,6 +94,7 @@ class GPT2Exporter(ModelExporter):
             fp.write(f"n_ctx={model.config.n_ctx}\n") 
             fp.write(f"n_inner={n_inner}\n") 
             fp.write(f"n_head={model.config.n_head}\n") 
+            fp.write(f"n_layer={model.config.n_layer}\n") 
             fp.write(f"vocab_size={model.config.vocab_size}\n")
             fp.write(f"hidden_size={model.config.hidden_size}\n")
 

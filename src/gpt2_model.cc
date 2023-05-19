@@ -3,6 +3,7 @@
 #include <memory>
 #include "ini_parser.h"
 #include "operators.h"
+#include "strings.h"
 
 namespace llama {
 namespace nn {
@@ -16,6 +17,7 @@ GPT2Config::GPT2Config()
       n_ctx(0),
       n_inner(0),
       n_head(0),
+      n_layer(0),
       vocab_size(0),
       hidden_size(0) {
 }
@@ -23,12 +25,13 @@ GPT2Config::GPT2Config()
 StatusOr<GPT2Config> GPT2Config::FromIni(const IniParser &ini) {
   auto config = std::make_unique<GPT2Config>();
 
-  RETURN_IF_ERROR(ini.Get(kConfigSection, "n_embd", &config->n_embd));
-  RETURN_IF_ERROR(ini.Get(kConfigSection, "n_ctx", &config->n_ctx));
-  RETURN_IF_ERROR(ini.Get(kConfigSection, "n_inner", &config->n_inner));
-  RETURN_IF_ERROR(ini.Get(kConfigSection, "n_head", &config->n_head));
-  RETURN_IF_ERROR(ini.Get(kConfigSection, "vocab_size", &config->vocab_size));
-  RETURN_IF_ERROR(ini.Get(kConfigSection, "hidden_size", &config->hidden_size));
+  RETURN_IF_ERROR(ini.Get(kSection, "n_embd", &config->n_embd));
+  RETURN_IF_ERROR(ini.Get(kSection, "n_ctx", &config->n_ctx));
+  RETURN_IF_ERROR(ini.Get(kSection, "n_inner", &config->n_inner));
+  RETURN_IF_ERROR(ini.Get(kSection, "n_head", &config->n_head));
+  RETURN_IF_ERROR(ini.Get(kSection, "n_layer", &config->n_layer));
+  RETURN_IF_ERROR(ini.Get(kSection, "vocab_size", &config->vocab_size));
+  RETURN_IF_ERROR(ini.Get(kSection, "hidden_size", &config->hidden_size));
 
   return config;
 }
@@ -102,9 +105,7 @@ Tensor GPT2Block::Forward(TensorMap *past,
   return x;
 }
 
-// ---------------------------------------------------------------------------+
-// class GPT2Model                                                            |
-// ---------------------------------------------------------------------------+
+// -- class GPT2Model ----------------------------------------------------------
 
 GPT2Model::GPT2Model() {}
 
@@ -114,10 +115,17 @@ StatusOr<GPT2Model> GPT2Model::Create(const Context &ctx, GPT2Config config) {
   model->ctx_ = ctx.WithName(kGpt2);
   model->config_ = config;
 
-  auto block = GPT2Block::Create(model->ctx_.WithName(kBlock), config);
-  RETURN_IF_ERROR(block);
+  for (int i = 0; i < config.n_layer; ++i) {
+    std::string block_name = strings::Sprintf("%s%d", kBlock, i);
+    auto block = GPT2Block::Create(model->ctx_.WithName(block_name), config);
+    RETURN_IF_ERROR(block);
 
-  model->block_ = std::move(block).unique_ptr();
+    model->blocks_.emplace_back(std::move(block).unique_ptr());
+  }
+
+  auto ln = LayerNorm::Create(model->ctx_.WithName(kLnF), config.hidden_size);
+  RETURN_IF_ERROR(ln);
+  model->ln_f_ = std::move(ln).unique_ptr();
 
   return model;
 }
@@ -135,9 +143,12 @@ Status GPT2Model::InitParameters(const TensorMap &state_dict) {
   RETURN_IF_ERROR(wte_.CheckShape({vocab_size, n_embd})) << ctx_.name(kWte);
   RETURN_IF_ERROR(wpe_.CheckShape({n_ctx, n_embd})) << ctx_.name(kWpe);
 
-  RETURN_IF_ERROR(block_->InitParameters(state_dict));
-  mask_ = F->CausalMask(config_.n_ctx);
+  for (const std::unique_ptr<GPT2Block> &block : blocks_) {
+    RETURN_IF_ERROR(block->InitParameters(state_dict));
+  }
+  RETURN_IF_ERROR(ln_f_->InitParameters(state_dict));
 
+  mask_ = F->CausalMask(config_.n_ctx);
   return OkStatus();
 }
 
@@ -150,9 +161,17 @@ Tensor GPT2Model::Forward(TensorMap *past, TensorCRef input) const {
   Tensor pos_emb = wpe_.Slice(0, x.shape(1));
   x = F->Add(x, pos_emb);
 
-  x = block_->Forward(past, x, mask_);
+  for (const std::unique_ptr<GPT2Block> &block : blocks_) {
+    x = block->Forward(past, x, mask_);
+  }
 
+  x = ln_f_->Forward(x);
   return x;
+}
+
+Tensor GPT2Model::Logits(TensorCRef hidden_state) const {
+  Operators *F = ctx_.F();
+  return F->MatMul(hidden_state, wte_.Transpose(0, 1));
 }
 
 }  // namespace nn

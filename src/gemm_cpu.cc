@@ -92,7 +92,7 @@ PackedBlock Pack(Block src, Block buf, int pack_size) {
   int num_block = src.num_cols / pack_size;
   int kc = src.num_rows;
   PackedBlock tgt { buf.data, pack_size, kc, num_block };
-  ASSERT(pack_size * num_block * kc < buf.num_cols * buf.num_rows);
+  ASSERT(pack_size * num_block * kc <= buf.num_cols * buf.num_rows);
 
   for (int b = 0; b < num_block; ++b) {
     Block src_block = src.ColRange(b * pack_size, pack_size);

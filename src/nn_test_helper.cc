@@ -13,7 +13,6 @@ void MustReadParameters(const std::string &model_path, Module *module) {
   REQUIRE(status.ok());
 
   status = module->InitParameters(state_dict);
-  puts(status.what().c_str());
   REQUIRE(status.ok());
 }
 
