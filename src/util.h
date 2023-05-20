@@ -120,15 +120,23 @@ class FixedArray : public BaseArray<T> {
   }
 };
 
-// ----------------------------------------------------------------------------
-// Span
-// ----------------------------------------------------------------------------
+// -- class Span ---------------------------------------------------------------
 
 template<typename T>
 class Span : public BaseArray<T> {
  public:
   Span() noexcept : ptr_(nullptr), len_(0) {}
   Span(T *ptr, size_type size) : BaseArray(ptr, size) {}
+
+  // automatic convert initializer_list to Span<const T>.
+  // NOTE: initializer_list should outlives span when using this constructor.
+  // Examples:
+  //   Span<const int> v = {1, 2, 3};  // WRONG: lifetime of initializer_list
+  //                                   // is shorter than v;
+  template <typename U = T,
+            typename = std::enable_if<std::is_const<T>::value, U>::type>
+  Span(std::initializer_list<value_type> v LR_LIFETIME_BOUND) noexcept
+      : Span(v.begin(), v.size()) {}
 
   Span<T> subspan(size_type pos = 0, size_type len = npos) const {
     ASSERT(pos <= size());

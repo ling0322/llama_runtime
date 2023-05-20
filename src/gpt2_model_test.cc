@@ -37,4 +37,18 @@ TEST_CASE("test GPT2 module", "[core][nn][gpt2]") {
   x = model->Logits(x);
 
   REQUIRE(ctx.F()->AllClose(out, x));
+
+  // autoregressive mode
+  TensorMap kv_cache;
+  x = in.Slice(1, 0, 5);  // tensor x is in NWC format
+  x = model->Forward(&kv_cache, x);
+  Tensor o = model->Logits(x);
+  for (int i = 5; i < in.shape(1); ++i) {
+    x = in.Slice(1, i, i + 1);
+    x = model->Forward(&kv_cache, x);
+    x = model->Logits(x);
+    o = ctx.F()->Cat(o, x, 1);
+  }
+
+  REQUIRE(ctx.F()->AllClose(o, out));
 }

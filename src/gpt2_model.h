@@ -100,6 +100,7 @@ class GPT2Model : public Module,
   static constexpr char kWpe[] = "wpe";
   static constexpr char kLnF[] = "ln_f";
   static constexpr char kBlock[] = "block";
+  static constexpr char kSeqLen[] = "seq_len";
 
   Tensor wte_;  // word embedding table
   Tensor wpe_;  // positional embedding table

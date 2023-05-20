@@ -152,15 +152,31 @@ Status GPT2Model::InitParameters(const TensorMap &state_dict) {
   return OkStatus();
 }
 
-Tensor GPT2Model::Forward(TensorMap *past, TensorCRef input) const {
-  CHECK(input.dim() == 2 && input.dtype() == DType::kLong);
+Tensor GPT2Model::Forward(TensorMap *past, TensorCRef input_ids) const {
+  CHECK(input_ids.dim() == 2 && input_ids.dtype() == DType::kLong);
 
   Operators *F = ctx_.F();
-  Tensor x = F->Lookup(wte_, input);
+  Tensor x = F->Lookup(wte_, input_ids);
 
-  Tensor pos_emb = wpe_.Slice(0, x.shape(1));
+  // seq_len is the number of token ids processed so far. Which is used to
+  // get the correct index of positional embedding for current `input_ids`.
+  // Since `past` could only accept tensors, we use a scalar Tensor to store
+  // it.
+  int input_start_idx = 0;
+  if (past) {
+    std::string name = ctx_.name(kSeqLen);
+    if (past->exists(name)) {
+      Tensor x = past->Get(name);
+      input_start_idx = static_cast<int>(x.elem<LongType>({0}));
+    }
+
+    int next_idx = input_start_idx + input_ids.shape(1);
+    past->Put(name, Tensor::FromData<LongType>({1}, {next_idx}));
+  }
+  Tensor pos_emb = wpe_.Slice(input_start_idx, input_start_idx + x.shape(1));
   x = F->Add(x, pos_emb);
 
+  int i = 0;
   for (const std::unique_ptr<GPT2Block> &block : blocks_) {
     x = block->Forward(past, x, mask_);
   }

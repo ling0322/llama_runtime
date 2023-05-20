@@ -11,7 +11,6 @@ namespace nn {
 class Operators;
 }  // namespace nn
 
-
 // stores all global function and objects required in finley
 class Environment : private util::NonCopyable {
  public:

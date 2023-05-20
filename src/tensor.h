@@ -47,7 +47,7 @@ class TensorData {
 };
 
 // Stores shape and stride of a Tensor.
-class Size {
+class TensorShape {
  public:
   friend class CpuOperators;
 
@@ -58,22 +58,22 @@ class Size {
   };
 
   // an empty Tensor.
-  Size() = default;
+  TensorShape() = default;
 
   // from shape.
-  Size(util::Span<const ShapeType> shape);
+  TensorShape(util::Span<const ShapeType> shape);
 
   // Returns a Size that is a transposed version of current size. The given
   // dimensions dim0 and dim1 are swapped.
-  Size Transpose(int dim0, int dim1) const;
+  TensorShape Transpose(int dim0, int dim1) const;
 
   // Returns a sub-Size starting at specified dimension.
-  Size Subsize(int d) const;
+  TensorShape Subsize(int d) const;
 
-  Size(const Size &size);
-  Size(Size &&size) noexcept;
-  Size &operator=(const Size &size);
-  Size &operator=(Size &&size) noexcept;
+  TensorShape(const TensorShape &size);
+  TensorShape(TensorShape &&size) noexcept;
+  TensorShape &operator=(const TensorShape &size);
+  TensorShape &operator=(TensorShape &&size) noexcept;
 
   bool empty() const;
   int dim() const;
@@ -98,10 +98,22 @@ class Tensor {
   friend class CpuOperators;
 
   // integer type for shape and stride
-  typedef Size::ShapeType ShapeType;
+  typedef TensorShape::ShapeType ShapeType;
 
   // rank for empty tansor.
   static constexpr int kEmptyRank = -1;
+
+  // Make a tensor in CPU.
+  template<typename T>
+  static Tensor FromData(std::initializer_list<int> shape,
+                         util::Span<const T> data);
+
+  // create a tensor in CPU storage. Size of `data` should be the same as
+  // `shape.numel()`.
+  // Example:
+  //   Tensor x = Tensor::FromData({2, 2}, {1.0f, 0.8f, 0.6f, 0.2f});
+  template<typename T>
+  static Tensor FromData(util::Span<const int> shape, util::Span<const T> data);
 
   // constructor and destructor.
   Tensor();
@@ -117,28 +129,28 @@ class Tensor {
   Tensor &operator=(Tensor &&tensor);
 
   // get numebr of dimentsions.
-  int dim() const { return size_.dim(); }
+  int dim() const { return shape_.dim(); }
 
   // get the size in dimention `d`. `d` supports positive number
   // (index) and negative number (index from back). Crash if `d` is out of
   // boundary
   ShapeType shape(int d) const {
-    return size_.shape(d);
+    return shape_.shape(d);
   }
 
   // get stride for dimension `d`. 
   ShapeType stride(int d) const {
-    return size_.stride(d);
+    return shape_.stride(d);
   }
 
   // get number of elements in this tensor.
   int64_t numel() const {
-    return size_.numel();
+    return shape_.numel();
   }
 
   // return true if this tensor is empty.
   bool empty() const {
-    return size_.empty();
+    return shape_.empty();
   }
 
   // get data type.
@@ -164,14 +176,19 @@ class Tensor {
   bool is_contiguous() const;
 
   // pointer of data in this tensor
-  template <typename T>
+  template<typename T>
   T *data() { 
     return reinterpret_cast<T *>(raw_data(TypeID<T>())); 
   }
-  template <typename T>
+  template<typename T>
   const T *data() const {
     return reinterpret_cast<T *>(raw_data(TypeID<T>()));
   }
+
+  // return specific element at index. Size of `indices` should be the same as
+  // tensor dimension. And the data should in CPU.
+  template<typename T>
+  T elem(util::Span<const int> indices);
 
   // Check the shape of a tensor. If shape of `tensor` does not match `shape`,
   // return AbortedError with message "invalid shape".
@@ -179,7 +196,7 @@ class Tensor {
 
  protected:
   std::shared_ptr<TensorData> data_;
-  Size size_;
+  TensorShape shape_;
   ByteType *data_ptr_;
 
   // check dtype and return the point of underlying data
@@ -188,6 +205,19 @@ class Tensor {
 
 inline DType Tensor::dtype() const { 
   return data_ ? data_->dtype() : DType::kUnknown;
+}
+
+template<typename T>
+inline T Tensor::elem(util::Span<const int> indices) {
+  CHECK(indices.size() == dim());
+
+  const T *data = this->data<T>();
+  int64_t offset = 0;
+  for (int d = 0; d < dim(); ++d) {
+    offset += indices[d] * stride(d);
+  }
+
+  return data[offset];
 }
 
 typedef const Tensor &TensorCRef;

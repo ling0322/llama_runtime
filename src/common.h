@@ -33,6 +33,18 @@
 #error unknown platform
 #endif
 
+#if defined(__cplusplus) && defined(__has_cpp_attribute)
+#define LR_HAS_CPP_ATTRIBUTE(x) __has_cpp_attribute(x)
+#else
+#define LR_HAS_CPP_ATTRIBUTE(x) 0
+#endif
+
+#if LR_HAS_CPP_ATTRIBUTE(clang::lifetimebound)
+#define LR_LIFETIME_BOUND [[clang::lifetimebound]]
+#else
+#define LR_LIFETIME_BOUND
+#endif
+
 #ifdef __GNUC__
 #define FUNCTION_NAME __PRETTY_FUNCTION__
 #else

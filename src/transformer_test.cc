@@ -32,7 +32,6 @@ TEST_CASE("test self-attention module", "[core][nn][transformer]") {
   Tensor o = attn->Forward(nullptr, inputs, mask);
   REQUIRE(ctx.F()->AllClose(o, o_ref));
 
-
   // autoregressive mode
   TensorMap kv_cache;
   Tensor x = inputs.Slice(1, 0, 5);  // tensor x is in NWC format
