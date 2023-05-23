@@ -8,6 +8,8 @@ endif(WIN32)
 #find_library(LIBONNXRUNTIME onnxruntime PATHS ${onnxruntime_SOURCE_DIR}/lib)
 set(llama_INCDIRS src .)
 set(llama_SOURCES
+    "src/bpe_encoder.cc"
+    "src/bpe_model.cc"
     "src/common.cc"
     "src/environment.cc"
     "src/gemm_cpu.cc"
@@ -40,6 +42,7 @@ set(llama_test_SOURCES
     "src/test_helper.cc"
     "src/test_main.cc"
     "src/tensor_test.cc"
+    "src/tokenizer_test.cc"
     "src/transformer_test.cc"
     "third_party/catch2/catch_amalgamated.cpp")
 add_executable(llama_test ${llama_test_SOURCES})

@@ -1,4 +1,5 @@
 #include "test_helper.h"
+#include "bpe_model.h"
 #include "reader.h"
 #include "strings.h"
 #include "status.h"
@@ -7,10 +8,11 @@
 
 using namespace llama;
 
-TEST_CASE("llama tokenizer works", "[core][text]") {
-  auto tokenizer = LlamaTokenizer::FromModel("data/test/tokenizer.lrtok");
-  LOG(INFO) << tokenizer.what();
-  REQUIRE(tokenizer.ok());
+TEST_CASE("llama tokenizer works", "[core][tokenizer]") {
+  auto model = SpmBpeModel::FromFile("data/test/tokenizer.lrtok");
+  REQUIRE(model.ok());
+
+  BpeTokenizer tokenizer(std::move(model).unique_ptr());
 
   auto fp = ReadableFile::Open("data/test/tokenizer.test_case.txt");
   std::string line;
@@ -21,7 +23,7 @@ TEST_CASE("llama tokenizer works", "[core][text]") {
 
     auto sentence = std::move(row[0]);
     auto ref_pieces = strings::Split(strings::Trim(row[1]), " ");
-    auto pieces = tokenizer->EncodeAsPieces(sentence);
+    auto pieces = tokenizer.EncodeAsPieces(sentence);
 
     REQUIRE(pieces == ref_pieces);
   }

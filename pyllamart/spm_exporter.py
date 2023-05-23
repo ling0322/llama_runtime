@@ -2,6 +2,7 @@ import argparse
 import sys
 import struct
 from sentencepiece import SentencePieceProcessor
+from transformers import GPT2Tokenizer
 from typing import List, Tuple
 
 class SentencePieceTestCaseExporter:
@@ -99,6 +100,54 @@ class SentencePieceExporter:
         vocab = cls.read_sentencepiece_model(sp)
         cls.save_llamart_tokenizer(vocab, output_file)
 
+class BpeExporter:
+    """exporter for the BPE tokenizer from transformers"""
+    def __init__(self, tokenizer: GPT2Tokenizer) -> None:
+        self._byte_decoder = tokenizer.byte_decoder
+        self._tokenizer = tokenizer
+
+    def _to_byte(self, s: str) -> bytes:
+        """convert unicode string to bytes according to the char to byte mapping table"""
+        b = b''
+        for ch in s:
+            assert ch in self._byte_decoder, "invalid character"
+            byte_ord = self._byte_decoder[ch]
+            b += byte_ord.to_bytes(length=1)
+        
+        return b
+
+
+    def read_bpe_model(cls, sp: SentencePieceProcessor) -> List[Tuple[int, bytes, float]]:
+        """read sentencepiece model and return the vocab as list of tuple (flag, token_bytes, weight) and the index
+        of the list is token_id
+        """
+        vocab: List[Tuple[int, bytes, float]] = []
+        for token_id in range(sp.vocab_size()):
+            flag = 0
+            token_bytes = b''
+            if sp.IsUnknown(token_id):
+                flag = flag | cls.FLAG_UNK
+            if sp.IsControl(token_id):
+                flag = flag | cls.FLAG_CONTROL
+            if sp.IsUnused(token_id):
+                flag = flag | cls.FLAG_UNUSED
+            if sp.IsByte(token_id):
+                flag = flag | cls.FLAG_BYTE
+                b = int(sp.IdToPiece(token_id)[1: -1], 16)
+                b = struct.pack('B', b)
+                token_bytes = b
+            if flag == 0:
+                token_bytes = sp.IdToPiece(token_id).encode('utf-8')
+            
+            vocab.append((flag, token_bytes, sp.GetScore(token_id)))
+        
+        return vocab
 
 if __name__ == '__main__':
+    
+    tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
+    print(tokenizer("token\nizer 22\n "))
+
+    sys.exit(2)
+
     SentencePieceExporter.run(sys.argv[1: ])
