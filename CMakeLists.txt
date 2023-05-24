@@ -8,8 +8,6 @@ endif(WIN32)
 #find_library(LIBONNXRUNTIME onnxruntime PATHS ${onnxruntime_SOURCE_DIR}/lib)
 set(llama_INCDIRS src .)
 set(llama_SOURCES
-    "src/bpe_encoder.cc"
-    "src/bpe_model.cc"
     "src/common.cc"
     "src/environment.cc"
     "src/gemm_cpu.cc"
