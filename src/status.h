@@ -6,6 +6,7 @@
 #include <sstream>
 
 #include "common.h"
+#include "log.h"
 
 #define RETURN_IF_ERROR(expr)                 \
   if (llama::StatusWrapper sw = (expr)) { \
@@ -93,14 +94,17 @@ class StatusBuilder {
   }
 
   operator Status() {
+    std::string what;
     if (os_) {
       if (!right_.empty()) {
         (*os_) << ": " << right_;
-      } 
-      return Status(code_, os_->str());
+      }
+      what = os_->str();
     } else {
-      return Status(code_, right_);
+      what = right_;
     }
+
+    return Status(code_, what);
   }
 
  private:
@@ -111,43 +115,49 @@ class StatusBuilder {
 
 class StatusWrapper;
 
+// store either expected pointer of type T, or a Status which indicates an error
+// state.
 template<class T>
-class StatusOr {
+class expected_ptr {
  public:
-  StatusOr(Status &&status) : status_(std::move(status)) {
+  template<class U> friend class expected_ptr;
+
+  expected_ptr(Status &&status) : status_(std::move(status)) {
     ASSERT(!status_.ok());
   }
-  StatusOr(std::unique_ptr<T> &&ptr)
+  expected_ptr(std::unique_ptr<T> &&ptr)
     : ptr_(std::move(ptr)), status_(OkStatus()) {}
-  StatusOr(StatusBuilder &&s) : status_(std::move(s)) {
+  expected_ptr(StatusBuilder &&s) : status_(std::move(s)) {
     ASSERT(!status_.ok());
   }
-  StatusOr(StatusWrapper &&s) : status_(std::move(s)) {
+  expected_ptr(StatusWrapper &&s) : status_(std::move(s)) {
     ASSERT(!status_.ok());
   }
-  StatusOr(StatusOr &&s) 
+
+  template<class U>
+  expected_ptr(expected_ptr<U> &&s) 
     : status_(std::move(s.status_)),
       ptr_(std::move(s.ptr_)) {}
 
-  StatusOr &operator=(Status &&status) {
+  expected_ptr &operator=(Status &&status) {
     ASSERT(!status.ok());
     ptr_ = nullptr;
     status_ = std::move(status);
     return *this;
   }
-  StatusOr &operator=(std::unique_ptr<T> &&ptr) {
+  expected_ptr &operator=(std::unique_ptr<T> &&ptr) {
     ptr_ = std::move(ptr);
     status_ = OkStatus();
     return *this;
   }
-  StatusOr &operator=(StatusOr &&s) {
+  expected_ptr &operator=(expected_ptr &&s) {
     ptr_ = std::move(s.ptr_);
     status_ = std::move(s.status_);
     return *this;
   }
 
-  StatusOr(StatusOr &status_or_ptr) = delete;
-  StatusOr &operator=(StatusOr &s) = delete;
+  expected_ptr(expected_ptr &status_or_ptr) = delete;
+  expected_ptr &operator=(expected_ptr &s) = delete;
 
   // methods for Status
   bool ok() const { return status_.ok(); }
@@ -215,7 +225,7 @@ class StatusWrapper {
   StatusWrapper(const Status &status) : status_(status.Copy()) {}
 
   template<class T>
-  StatusWrapper(const StatusOr<T> &status) : status_(StatusCode::kOK) {
+  StatusWrapper(const expected_ptr<T> &status) : status_(StatusCode::kOK) {
     if (!status.ok()) {
       status_ = status.status().Copy();
     }

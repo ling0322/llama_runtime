@@ -31,7 +31,7 @@ Device Device::CPU() {
 Status TensorMap::Read(const std::string &filename) {
   dict_.clear();
 
-  StatusOr<ReadableFile> fp = ReadableFile::Open(filename);
+  expected_ptr<ReadableFile> fp = ReadableFile::Open(filename);
   RETURN_IF_ERROR(fp);
 
   std::string s;
@@ -122,7 +122,7 @@ std::string Context::name(const std::string &name) const {
 
 Linear::Linear() : in_features_(0), out_features_(0) {}
 
-StatusOr<Linear> Linear::Create(
+expected_ptr<Linear> Linear::Create(
     const Context &ctx,
     int in_features,
     int out_features) {
@@ -162,7 +162,7 @@ Tensor Linear::Forward(const Tensor &input) const {
 
 LayerNorm::LayerNorm() : d_model_(0), eps_(0.0f) {}
 
-StatusOr<LayerNorm> LayerNorm::Create(
+expected_ptr<LayerNorm> LayerNorm::Create(
     const Context &ctx,
     int d_model,
     float eps) {

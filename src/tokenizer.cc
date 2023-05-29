@@ -8,16 +8,72 @@
 #include <vector>
 #include <functional>
 
+#include "ini_config.h"
 #include "reader.h"
 #include "strings.h"
 
 namespace llama {
+
+// config for BPE tokenizer.
+struct BpeConfig {
+  // path of the BPE model.
+  std::string model_file;
+
+  // true if add a space into the begining of text.
+  bool add_prefix_space;
+
+  // true if split by unicode characters before merging. false if split by byte.
+  bool split_by_unicode;
+
+  // create the BPE config from ini config.
+  static expected_ptr<BpeConfig> FromConfig(const IniSection &config);
+
+  // contructor for the default config.
+  BpeConfig();
+};
+
+// model for BPE tokenizer.
+class BpeModel;
+
+// BPE tokenizer.
+class BpeTokenizer : public Tokenizer {
+ public:
+  static expected_ptr<BpeTokenizer> FromConfig(const BpeConfig &config);
+
+  // implement interface Tokenizer
+  std::vector<int> Encode(const std::string &s) const override;
+  const Vocab *vocab() const override;
+
+ private:
+  std::unique_ptr<BpeModel> model_;
+  BpeConfig config_;
+
+  BpeTokenizer();
+};
 
 // -- BpeConfig ----------------------------------------------------------------
 
 BpeConfig::BpeConfig()
     : add_prefix_space(true),
       split_by_unicode(true) {}
+
+expected_ptr<BpeConfig> BpeConfig::FromConfig(const IniSection &ini_section) {
+  std::unique_ptr<BpeConfig> config = std::make_unique<BpeConfig>();
+
+  bool add_prefix_space = false;
+  bool split_by_unicode = false;
+  util::Path model_file;
+
+  RETURN_IF_ERROR(ini_section.Get("add_prefix_space", &add_prefix_space));
+  RETURN_IF_ERROR(ini_section.Get("split_by_unicode", &split_by_unicode));
+  RETURN_IF_ERROR(ini_section.Get("model_file", &model_file));
+
+  config->add_prefix_space = add_prefix_space;
+  config->split_by_unicode = split_by_unicode;
+  config->model_file = model_file.string();
+
+  return config;
+}
 
 // -- BpeModel -----------------------------------------------------------------
 
@@ -33,7 +89,7 @@ class BpeModel : public Vocab,
 
   // Read the BpeModel from file. It could not read a SPM model directly,
   // instead, we need to convert the SPM model using tokenizer_exporter.py.
-  static StatusOr<BpeModel> FromModel(const std::string &filename);
+  static expected_ptr<BpeModel> FromModel(const std::string &filename);
 
   // implement interface Vocab
   int FindToken(const std::string &token) const override;
@@ -102,7 +158,7 @@ BpeModel::BpeModel()
   std::fill(byte_id_.begin(), byte_id_.end(), kInvalidToken);
 }
 
-StatusOr<BpeModel> BpeModel::FromModel(const std::string &filename) {
+expected_ptr<BpeModel> BpeModel::FromModel(const std::string &filename) {
   std::unique_ptr<BpeModel> model(new BpeModel());
   auto fp = ReadableFile::Open(filename);
   RETURN_IF_ERROR(fp) << "create LlamaTokenizer failed";
@@ -194,7 +250,7 @@ Status BpeModel::ReadRecord(ReadableFile *fp, TokenInfo *info) {
     RETURN_IF_ERROR(fp->ReadString(n_bytes, &piece));
   }
   info->token_piece = std::move(piece);
-  if ((info->flag & kByte) && piece.size() != 1) {
+  if ((info->flag & kByte) && info->token_piece.size() != 1) {
     RETURN_ABORTED() << "bad format (byte)";
   }
 
@@ -514,7 +570,7 @@ void BpeEncoder::InitSymbolList(const std::string &s) {
 
 BpeTokenizer::BpeTokenizer() {}
 
-StatusOr<BpeTokenizer> BpeTokenizer::FromConfig(const BpeConfig &config) {
+expected_ptr<BpeTokenizer> BpeTokenizer::FromConfig(const BpeConfig &config) {
   auto model = BpeModel::FromModel(config.model_file);
   RETURN_IF_ERROR(model);
 
@@ -532,6 +588,21 @@ std::vector<int> BpeTokenizer::Encode(const std::string &s) const {
 
 const Vocab *BpeTokenizer::vocab() const {
   return model_.get();
+}
+
+// -- class Tokenizer ----------------------------------------------------------
+
+expected_ptr<Tokenizer> Tokenizer::FromConfig(const IniSection &config) {
+  std::string type;
+  RETURN_IF_ERROR(config.Get("type", &type));
+  if (type == "bpe") {
+    auto bpe_config = BpeConfig::FromConfig(config);
+    RETURN_IF_ERROR(bpe_config);
+
+    return BpeTokenizer::FromConfig(*bpe_config);
+  } else {
+    RETURN_ABORTED() << "invalid tokenizer type: " << type;
+  }
 }
 
 }  // namespace llama

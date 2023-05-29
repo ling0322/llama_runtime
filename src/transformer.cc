@@ -10,7 +10,7 @@ MultiheadSelfAttention::MultiheadSelfAttention()
       d_k_(0),
       num_heads_(0) {}
 
-StatusOr<MultiheadSelfAttention> MultiheadSelfAttention::Create(
+expected_ptr<MultiheadSelfAttention> MultiheadSelfAttention::Create(
     const Context &ctx,
     int num_heads,
     int d_model) {

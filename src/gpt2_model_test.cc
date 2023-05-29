@@ -2,7 +2,7 @@
 #include "nn_test_helper.h"
 #include "gpt2_model.h"
 
-#include "ini_parser.h"
+#include "ini_config.h"
 #include "operators.h"
 #include "util.h"
 
@@ -14,17 +14,17 @@ TEST_CASE("test GPT2 module", "[core][nn][gpt2]") {
   Context ctx = MustGetCtxForCPU();
 
   util::Path config_file = model_dir / "gpt2.config.ini";
-  auto ini = IniParser::Read(config_file.string());
-  REQUIRE(ini.ok());
+  auto ini = IniConfig::Read(config_file.string());
+  REQUIRE_OK(ini);
 
   auto config = GPT2Config::FromIni(*ini);
-  REQUIRE(config.ok());
+  REQUIRE_OK(config);
 
   auto model = GPT2Model::Create(ctx, *config);
-  REQUIRE(model.ok());
+  REQUIRE_OK(model);
 
   util::Path model_path = "";
-  Status status = ini->Get(kModelSection, "params_file", &model_path);
+  Status status = ini->section(kModelSection).Get("params_file", &model_path);
   MustReadParameters(model_path.string(), model.get());
 
   util::Path tensor_file = model_dir / "gpt2.test_tensors.bin";

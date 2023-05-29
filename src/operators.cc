@@ -9,7 +9,7 @@
 namespace llama {
 namespace nn {
 
-StatusOr<Operators> Operators::FromDevice(Device device) {
+expected_ptr<Operators> Operators::FromDevice(Device device) {
   switch (device.type()) {
     case Device::Type::kCpu:
       return CpuOperators::Create();

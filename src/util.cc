@@ -17,8 +17,8 @@ namespace util {
 #define PATH_DELIM "/"
 #endif
 
-Path::Path(const std::string &path) : path_(path) {}
-Path::Path(std::string &&path): path_(std::move(path)) {}
+Path::Path(const std::string &path) : path_(NormPath(path)) {}
+Path::Path(std::string &&path): path_(NormPath(path)) {}
 
 Path Path::dirname() const {
   int last_delim_idx = path_.find_last_of(PATH_DELIM);

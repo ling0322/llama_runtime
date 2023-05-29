@@ -12,7 +12,7 @@ set(llama_SOURCES
     "src/environment.cc"
     "src/gemm_cpu.cc"
     "src/gpt2_model.cc"
-    "src/ini_parser.cc"
+    "src/ini_config.cc"
     "src/log.cc"
     "src/nn.cc"
     "src/operators.cc"

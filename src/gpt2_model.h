@@ -2,12 +2,12 @@
 #define LLM_RUNTIME_BLOOM_MODEL_H_
 
 #include <memory>
+#include "ini_config.h"
 #include "nn.h"
 #include "transformer.h"
 
 namespace llama {
 
-class IniParser;
 
 namespace nn {
 
@@ -25,14 +25,14 @@ struct GPT2Config {
   int hidden_size;
 
   GPT2Config();
-  static StatusOr<GPT2Config> FromIni(const IniParser &ini);
+  static expected_ptr<GPT2Config> FromIni(const IniConfig &ini);
 };
 
 // GPT2Block.
 class GPT2Block : public Module {
  public:
   // create BloomModel.
-  static StatusOr<GPT2Block> Create(const Context &ctx, GPT2Config config);
+  static expected_ptr<GPT2Block> Create(const Context &ctx, GPT2Config config);
 
   // initialize the module from context
   Status InitParameters(const TensorMap &state_dict) override;
@@ -70,7 +70,7 @@ class GPT2Model : public Module,
                   public LanguageModel {
  public:
   // create BloomModel.
-  static StatusOr<GPT2Model> Create(const Context &ctx, GPT2Config config);
+  static expected_ptr<GPT2Model> Create(const Context &ctx, GPT2Config config);
 
   // initialize the module from context
   Status InitParameters(const TensorMap &state_dict) override;

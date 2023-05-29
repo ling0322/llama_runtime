@@ -91,6 +91,30 @@ Status BufferedReader::ReadValue(T *value) {
   return OkStatus();
 }
 
+// -- class Scanner ------------------------------------------------------------
+
+// interface to read file line by line.
+// Example:
+//   Scanner scanner(fp);
+//   while (scanner.Scan()) {
+//     const std::string &s = scanner.text(); 
+//   }
+//   RETURN_IF_ERROR(scanner.status());
+class Scanner {
+ public:
+  Scanner(BufferedReader *reader);
+
+  bool Scan();
+  const std::string &text() const;
+  Status status() const;
+
+ private:
+  BufferedReader *reader_;
+  std::string text_;
+  Status status_;
+};
+
+
 // ----------------------------------------------------------------------------
 // class ReadableFile
 // ----------------------------------------------------------------------------
@@ -99,7 +123,7 @@ Status BufferedReader::ReadValue(T *value) {
 class ReadableFile : public BufferedReader,
                      private util::NonCopyable {
  public:
-  static StatusOr<ReadableFile> Open(const std::string &filename);
+  static expected_ptr<ReadableFile> Open(const std::string &filename);
 
   ~ReadableFile();
 

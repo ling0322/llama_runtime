@@ -1,4 +1,5 @@
 #include "test_helper.h"
+#include "ini_config.h"
 #include "reader.h"
 #include "strings.h"
 #include "status.h"
@@ -20,17 +21,18 @@ std::vector<std::string> EncodeAsPieces(
   return tokens;
 }
 
-TEST_CASE("llama tokenizer works", "[core][tokenizer]") {
-  BpeConfig bpe_config;
-  bpe_config.add_prefix_space = false;
-  bpe_config.split_by_unicode = false;
-  bpe_config.model_file = "data/test/gpt2_bpe.tokenizer.bin";
+void TestTokenizer(const std::string &ini_file, const std::string &test_case) {
+  auto config = IniConfig::Read(ini_file);
+  REQUIRE_OK(config);
 
-  auto tokenizer = BpeTokenizer::FromConfig(bpe_config);
-  REQUIRE(tokenizer.ok());
+  REQUIRE_OK(config->EnsureSection("tokenizer"));
+  const IniSection &section = config->section("tokenizer");
 
-  auto fp = ReadableFile::Open("data/test/gpt2_bpe.tokenizer.test_cases.txt");
-  REQUIRE(fp.ok());
+  auto tokenizer = Tokenizer::FromConfig(section);
+  REQUIRE_OK(tokenizer);
+
+  auto fp = ReadableFile::Open(test_case);
+  REQUIRE_OK(fp);
 
   std::string line;
   while (IsOK(fp->ReadLine(&line))) {
@@ -44,4 +46,12 @@ TEST_CASE("llama tokenizer works", "[core][tokenizer]") {
 
     REQUIRE(pieces == ref_pieces);
   }
+}
+
+TEST_CASE("llama tokenizer works", "[core][tokenizer]") {
+  TestTokenizer("data/test/gpt2_bpe.tokenizer.ini",
+                "data/test/gpt2_bpe.tokenizer.test_cases.txt");
+
+  TestTokenizer("data/test/llama_spm.tokenizer.ini",
+                "data/test/llama_spm.tokenizer.test_cases.txt");
 }

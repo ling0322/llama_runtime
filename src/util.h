@@ -281,6 +281,7 @@ class Path {
   static Path CurrentModulePath();
   static Path CurrentExecutablePath();
 
+  Path() = default;
   Path(const std::string &path);
   Path(std::string &&path);
 
@@ -299,6 +300,9 @@ class Path {
 
  private:
   std::string path_;
+
+  // normalize path string.
+  static std::string NormPath(const std::string &path);
 };
 
 // ---------------------------------------------------------------------------+
@@ -403,6 +407,7 @@ template<typename T, int BLOCK_SIZE>
 int Pool<T, BLOCK_SIZE>::num_allocated() const {
   return current_block_ * BLOCK_SIZE + current_offset_ - free_.size();
 }
+
 
 }  // namespace util
 }  // namespace llama

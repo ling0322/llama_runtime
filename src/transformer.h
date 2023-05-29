@@ -10,7 +10,7 @@ namespace nn {
 class MultiheadSelfAttention : public Module {
  public:
   // create multi-head attention module from context. 
-  static StatusOr<MultiheadSelfAttention> Create(
+  static expected_ptr<MultiheadSelfAttention> Create(
       const Context &ctx,
       int num_heads,
       int d_model);

@@ -145,7 +145,7 @@ ReadableFile::~ReadableFile() {
   }
 }
 
-StatusOr<ReadableFile> ReadableFile::Open(const std::string &filename) {
+expected_ptr<ReadableFile> ReadableFile::Open(const std::string &filename) {
   std::unique_ptr<ReadableFile> fp{new ReadableFile()};
   fp->fp_ = fopen(filename.c_str(), "rb");
   if (fp->fp_ == nullptr) {
@@ -169,6 +169,32 @@ Status ReadableFile::Read(util::Span<ByteType> buffer, int *pcbytes) {
   }
 
   return OkStatus();
+}
+
+// -- class Scanner ------------------------------------------------------------
+
+Scanner::Scanner(BufferedReader *reader) 
+    : reader_(reader),
+      status_(StatusCode::kOK) {}
+
+bool Scanner::Scan() {
+  Status status = reader_->ReadLine(&text_);
+  if (status.ok()) {
+    return true;
+  } else if (IsOutOfRange(status)) {
+    return false;
+  } else {
+    status_ = std::move(status);
+    return false;
+  }
+}
+
+const std::string &Scanner::text() const {
+  return text_;
+}
+
+Status Scanner::status() const {
+  return status_.Copy();
 }
 
 }  // namespace llama

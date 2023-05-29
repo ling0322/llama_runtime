@@ -34,7 +34,7 @@ TEST_CASE("test Linear module", "[core][nn][module]") {
   util::Path model_path = model_dir / "linear-model.params.bin";
   util::Path tensor_file = model_dir / "linear-model.test_tensors.bin";
 
-  StatusOr<Linear> linear = Linear::Create(ctx, kDModel0, kDModel1);
+  expected_ptr<Linear> linear = Linear::Create(ctx, kDModel0, kDModel1);
   REQUIRE(linear.ok());
 
   TestSingleInOutTensorModule<Linear>(
@@ -51,7 +51,7 @@ TEST_CASE("test LayerNorm module", "[core][nn][module]") {
   util::Path model_path = model_dir / "layer-norm-model.params.bin";
   util::Path tensor_file = model_dir / "layer-norm-model.test_tensors.bin";
 
-  StatusOr<LayerNorm> layer_norm = LayerNorm::Create(ctx, kDModel0);
+  expected_ptr<LayerNorm> layer_norm = LayerNorm::Create(ctx, kDModel0);
   REQUIRE(layer_norm.ok());
 
   TestSingleInOutTensorModule<LayerNorm>(

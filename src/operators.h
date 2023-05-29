@@ -12,7 +12,7 @@ namespace nn {
 class Operators {
  public:
   // get instance of Function for CPU device
-  static StatusOr<Operators> FromDevice(Device device);
+  static expected_ptr<Operators> FromDevice(Device device);
 
   // retrieve word embeddings using indices. Input is a long tensor with indices
   // and the output is the word embeddings for these indices.

@@ -1,7 +1,7 @@
 #include "gpt2_model.h"
 
 #include <memory>
-#include "ini_parser.h"
+#include "ini_config.h"
 #include "operators.h"
 #include "strings.h"
 
@@ -22,16 +22,19 @@ GPT2Config::GPT2Config()
       hidden_size(0) {
 }
 
-StatusOr<GPT2Config> GPT2Config::FromIni(const IniParser &ini) {
+expected_ptr<GPT2Config> GPT2Config::FromIni(const IniConfig &ini) {
   auto config = std::make_unique<GPT2Config>();
 
-  RETURN_IF_ERROR(ini.Get(kSection, "n_embd", &config->n_embd));
-  RETURN_IF_ERROR(ini.Get(kSection, "n_ctx", &config->n_ctx));
-  RETURN_IF_ERROR(ini.Get(kSection, "n_inner", &config->n_inner));
-  RETURN_IF_ERROR(ini.Get(kSection, "n_head", &config->n_head));
-  RETURN_IF_ERROR(ini.Get(kSection, "n_layer", &config->n_layer));
-  RETURN_IF_ERROR(ini.Get(kSection, "vocab_size", &config->vocab_size));
-  RETURN_IF_ERROR(ini.Get(kSection, "hidden_size", &config->hidden_size));
+  RETURN_IF_ERROR(ini.EnsureSection(kSection));
+  const IniSection &section = ini.section(kSection);
+
+  RETURN_IF_ERROR(section.Get("n_embd", &config->n_embd));
+  RETURN_IF_ERROR(section.Get("n_ctx", &config->n_ctx));
+  RETURN_IF_ERROR(section.Get("n_inner", &config->n_inner));
+  RETURN_IF_ERROR(section.Get("n_head", &config->n_head));
+  RETURN_IF_ERROR(section.Get("n_layer", &config->n_layer));
+  RETURN_IF_ERROR(section.Get("vocab_size", &config->vocab_size));
+  RETURN_IF_ERROR(section.Get("hidden_size", &config->hidden_size));
 
   return config;
 }
@@ -42,7 +45,9 @@ StatusOr<GPT2Config> GPT2Config::FromIni(const IniParser &ini) {
 
 GPT2Block::GPT2Block() {}
 
-StatusOr<GPT2Block> GPT2Block::Create(const Context &ctx, GPT2Config config) {
+expected_ptr<GPT2Block> GPT2Block::Create(
+    const Context &ctx,
+    GPT2Config config) {
   std::unique_ptr<GPT2Block> block{new GPT2Block()};
   
   block->ctx_ = ctx;
@@ -109,7 +114,9 @@ Tensor GPT2Block::Forward(TensorMap *past,
 
 GPT2Model::GPT2Model() {}
 
-StatusOr<GPT2Model> GPT2Model::Create(const Context &ctx, GPT2Config config) {
+expected_ptr<GPT2Model> GPT2Model::Create(
+    const Context &ctx,
+    GPT2Config config) {
   std::unique_ptr<GPT2Model> model{new GPT2Model()};
 
   model->ctx_ = ctx.WithName(kGpt2);

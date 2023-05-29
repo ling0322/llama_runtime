@@ -125,9 +125,10 @@ class LanguageModel {
 class Linear : public Module {
  public:
   // create Linear module from context. 
-  static StatusOr<Linear> Create(const Context &ctx,
-                                 int in_features,
-                                 int out_features);
+  static expected_ptr<Linear> Create(
+      const Context &ctx,
+      int in_features,
+      int out_features);
 
   // initialize the module from context
   Status InitParameters(const TensorMap &state_dict) override;
@@ -154,9 +155,10 @@ class Linear : public Module {
 // layer-norm layer.
 class LayerNorm : public Module {
  public:
-  static StatusOr<LayerNorm> Create(const Context &ctx,
-                                    int d_model,
-                                    float eps = 1e-5);
+  static expected_ptr<LayerNorm> Create(
+      const Context &ctx,
+      int d_model,
+      float eps = 1e-5);
   
   // initialize the module from context
   Status InitParameters(const TensorMap &state_dict) override;

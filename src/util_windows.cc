@@ -48,5 +48,9 @@ bool Path::isabs() const {
   return false;
 }
 
+std::string Path::NormPath(const std::string &path) {
+  return strings::Replace(path, "/", "\\");
+}
+
 }  // namespace util
 }  // namespace llama
