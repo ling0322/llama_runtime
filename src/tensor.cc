@@ -122,7 +122,7 @@ int TensorShape::dim() const {
   return static_cast<int>(data_.size());
 }
 
-inline bool TensorShape::empty() const {
+bool TensorShape::empty() const {
   return data_.empty();
 }
 

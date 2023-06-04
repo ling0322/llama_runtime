@@ -114,24 +114,24 @@ PackedBlock Pack(Block src, Block buf, int pack_size) {
   return tgt;
 }
 
-void GEMM::Gemm5thLoopSplitByNC() {
+void GEMM::Gemm1stLoopSplitByNC() {
   int nb = _B.num_cols / NC;
   int _nc = _B.num_cols % NC;
 
   for (int i = 0; i < nb; ++i) {
     Block Bn = _B.ColRange(i * NC, NC);
     Block Cj = _C.ColRange(i * NC, NC);
-    Gemm4thLoopSplitByKC(Bn, Cj);
+    Gemm2ndLoopSplitByKC(Bn, Cj);
   }
 
   if (_nc) {
     Block Bn = _B.ColRange(nb * NC, _nc);
     Block Cj = _C.ColRange(nb * NC, _nc);
-    Gemm4thLoopSplitByKC(Bn, Cj);
+    Gemm2ndLoopSplitByKC(Bn, Cj);
   }
 }
 
-void GEMM::Gemm4thLoopSplitByKC(Block Bn, Block Cj) {
+void GEMM::Gemm2ndLoopSplitByKC(Block Bn, Block Cj) {
   int kb = Bn.num_rows / KC;
   int _kc = Bn.num_rows % KC;
 
@@ -139,18 +139,18 @@ void GEMM::Gemm4thLoopSplitByKC(Block Bn, Block Cj) {
     Block Bkn = Bn.RowRange(i * KC, KC);
     Block Ak = _A.ColRange(i * KC, KC);
     PackedBlock Bp = nn::Pack(Bkn, _Bb, NR);
-    Gemm3thLoopSplitByMC(Ak, Bp, Cj);
+    Gemm3rdLoopSplitByMC(Ak, Bp, Cj);
   }
 
   if (_kc) {
     Block Bkn = Bn.RowRange(kb * KC, _kc);
     Block Ak = _A.ColRange(kb * KC, _kc);
     PackedBlock Bp = nn::Pack(Bkn, _Bb, NR);
-    Gemm3thLoopSplitByMC(Ak, Bp, Cj);
+    Gemm3rdLoopSplitByMC(Ak, Bp, Cj);
   }
 }
 
-void GEMM::Gemm3thLoopSplitByMC(Block Ak, PackedBlock Bp, Block Cj) {
+void GEMM::Gemm3rdLoopSplitByMC(Block Ak, PackedBlock Bp, Block Cj) {
   int mb = Ak.num_rows / MC;
   int _mc = Ak.num_rows % MC;
 
@@ -158,7 +158,7 @@ void GEMM::Gemm3thLoopSplitByMC(Block Ak, PackedBlock Bp, Block Cj) {
     Block Amk = Ak.RowRange(i * MC, MC);
     Block Cij = Cj.RowRange(i * MC, MC);
     PackedBlock Ap = nn::Pack(Amk.T(), _Ab, MR);
-    Gemm2thLoopSplitByNR(Ap, Bp, Cij);
+    Gemm4thLoopSplitByNR(Ap, Bp, Cij);
   }
 
   if (_mc) {
@@ -166,28 +166,28 @@ void GEMM::Gemm3thLoopSplitByMC(Block Ak, PackedBlock Bp, Block Cj) {
     Block Cij = Cj.RowRange(mb * MC, _mc);
 
     PackedBlock Ap = nn::Pack(Amk.T(), _Ab, MR);
-    Gemm2thLoopSplitByNR(Ap, Bp, Cij);
+    Gemm4thLoopSplitByNR(Ap, Bp, Cij);
   }
 }
 
-void GEMM::Gemm2thLoopSplitByNR(PackedBlock Ap, PackedBlock Bp, Block Cij) {
+void GEMM::Gemm4thLoopSplitByNR(PackedBlock Ap, PackedBlock Bp, Block Cij) {
   int np = Cij.num_cols / NR;
   int _nr = Cij.num_cols % NR;
 
   for (int i = 0; i < np; ++i) {
     Block Bpr = Bp.PackBlock(i);
     Block Cijn = Cij.ColRange(i * NR, NR);
-    Gemm1thLoopSplitByMR(Ap, Bpr, Cijn);
+    Gemm5thLoopSplitByMR(Ap, Bpr, Cijn);
   }
 
   if (_nr) {
     Block Bpr = Bp.PackBlock(np);
     Block Cijn = Cij.ColRange(np * NR, _nr);
-    Gemm1thLoopSplitByMR(Ap, Bpr, Cijn);
+    Gemm5thLoopSplitByMR(Ap, Bpr, Cijn);
   }
 }
 
-void GEMM::Gemm1thLoopSplitByMR(PackedBlock Ap, Block Bpr, Block Cijn) {
+void GEMM::Gemm5thLoopSplitByMR(PackedBlock Ap, Block Bpr, Block Cijn) {
   int mp = Cijn.num_rows / MR;
   int _mr = Cijn.num_rows % MR;
 
@@ -228,7 +228,7 @@ void GEMM::MatMul(
   _B = Block { (float *)B, ldb, k, n, transb };
   _C = Block { (float *)C, ldc, m, n, false };
 
-  Gemm5thLoopSplitByNC();
+  Gemm1stLoopSplitByNC();
 }
 
 void GEMM::MicroKernel(int64_t kc, float *a, float *b, float *c, int64_t rs_c) {

@@ -72,11 +72,11 @@ class GEMM {
       float *b,
       float *c, int64_t rs_c);
 
-  void Gemm5thLoopSplitByNC();
-  void Gemm4thLoopSplitByKC(Block Bn, Block Cj);
-  void Gemm3thLoopSplitByMC(Block Ak, PackedBlock Bp, Block Cj);
-  void Gemm2thLoopSplitByNR(PackedBlock Ap, PackedBlock Bp, Block Cij);
-  void Gemm1thLoopSplitByMR(PackedBlock Ap, Block Bpr, Block Cijn);
+  void Gemm1stLoopSplitByNC();
+  void Gemm2ndLoopSplitByKC(Block Bn, Block Cj);
+  void Gemm3rdLoopSplitByMC(Block Ak, PackedBlock Bp, Block Cj);
+  void Gemm4thLoopSplitByNR(PackedBlock Ap, PackedBlock Bp, Block Cij);
+  void Gemm5thLoopSplitByMR(PackedBlock Ap, Block Bpr, Block Cijn);
   void CallMicroKernel(Block Amkr, Block Bknr, Block Cijmn);
 
   Block _A;

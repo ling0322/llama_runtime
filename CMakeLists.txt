@@ -10,7 +10,7 @@ set(llama_INCDIRS src .)
 set(llama_SOURCES
     "src/common.cc"
     "src/environment.cc"
-    "src/gemm_cpu.cc"
+    "src/gemm.cc"
     "src/gpt2_model.cc"
     "src/ini_config.cc"
     "src/log.cc"
@@ -45,3 +45,12 @@ set(llama_test_SOURCES
     "third_party/catch2/catch_amalgamated.cpp")
 add_executable(llama_test ${llama_test_SOURCES})
 target_include_directories(llama_test PRIVATE ${llama_INCDIRS})
+
+set(llama_benchmark_SOURCES
+    ${llama_SOURCES}
+    "src/gemm_benchmark.cc"
+    "src/test_helper.cc"
+    "src/test_main.cc"
+    "third_party/catch2/catch_amalgamated.cpp")
+add_executable(llama_benchmark ${llama_benchmark_SOURCES})
+target_include_directories(llama_benchmark PRIVATE ${llama_INCDIRS})
