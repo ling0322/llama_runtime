@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 #include <stdlib.h>
-
+#include <exception>
 #include <sstream>
 
 #define PROJECT_NAME "llama_runtime"
@@ -59,6 +59,32 @@ typedef const char *PCStrType;
 typedef unsigned char ByteType;
 typedef const unsigned char CByteType;
 
+enum class StatusCode : int {
+  kOK = 0,
+  kAborted = 1,
+  kOutOfRange = 2,
+};
+
+class Exception : public std::exception {
+ public:
+  Exception(StatusCode code, const std::string &what);
+  ~Exception();
+ 
+  // get error code.
+  StatusCode getCode() const;
+
+  // implement std::exception.
+  const char* what() const noexcept override;
+
+ private:
+  StatusCode _code;
+  std::string _what;
+};
+
+class AbortedException : public Exception {
+ public:
+  AbortedException(const std::string &what);
+};
 
 };  // namespace llama
 

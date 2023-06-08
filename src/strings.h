@@ -29,8 +29,8 @@ std::string Replace(const std::string &s,
 
 std::string ToLower(const std::string &s);
 
-// strconv
-Status Atoi(const std::string &s, int *i);
+// string to int. throw AbortedException if parsing failed.
+int Atoi(const std::string &s);
 
 // split a utf8 string into a list of strings. Each string in this list only
 // contains one character in utf-8 encoding. For invalid byte, it will keep
@@ -133,14 +133,20 @@ inline std::string _Sprintf0(std::stringstream &ss, const char *pch,
   return _Sprintf0(ss, pch, std::forward<Args>(args)...);
 }
 
+
+}  // namespace strings
+
+namespace fmt {
+
 // String formatting, for example:
 //   util::Sprintf("%s %d", "foo", 233);
 template<typename... Args>
-inline std::string Sprintf(const std::string &fmt, Args &&...args) {
-  return _Sprintf0(std::stringstream(), fmt.c_str(), std::forward<Args>(args)...);
+inline std::string sprintf(const std::string &fmt, Args &&...args) {
+  return strings::_Sprintf0(std::stringstream(), fmt.c_str(), std::forward<Args>(args)...);
 }
 
-}  // namespace strings
+}  // namespace fmt
+
 }  // namespace llama
 
 #endif  // LLAMA_CC_STRINGS_H_

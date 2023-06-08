@@ -64,9 +64,9 @@ expected_ptr<BpeConfig> BpeConfig::FromConfig(const IniSection &ini_section) {
   bool split_by_unicode = false;
   util::Path model_file;
 
-  RETURN_IF_ERROR(ini_section.Get("add_prefix_space", &add_prefix_space));
-  RETURN_IF_ERROR(ini_section.Get("split_by_unicode", &split_by_unicode));
-  RETURN_IF_ERROR(ini_section.Get("model_file", &model_file));
+  add_prefix_space = ini_section.getBool("add_prefix_space");
+  split_by_unicode = ini_section.getBool("split_by_unicode");
+  model_file = ini_section.getPath("model_file");
 
   config->add_prefix_space = add_prefix_space;
   config->split_by_unicode = split_by_unicode;
@@ -160,8 +160,7 @@ BpeModel::BpeModel()
 
 expected_ptr<BpeModel> BpeModel::FromModel(const std::string &filename) {
   std::unique_ptr<BpeModel> model(new BpeModel());
-  auto fp = ReadableFile::Open(filename);
-  RETURN_IF_ERROR(fp) << "create LlamaTokenizer failed";
+  auto fp = ReadableFile::open(filename);
 
   RETURN_IF_ERROR(model->ReadModel(fp.get()));
   RETURN_IF_ERROR(model->CheckModel());
@@ -169,14 +168,12 @@ expected_ptr<BpeModel> BpeModel::FromModel(const std::string &filename) {
 }
 
 Status BpeModel::ReadModel(ReadableFile *fp) {
-  std::string s;
-  RETURN_IF_ERROR(fp->ReadString(4, &s));
+  std::string s = fp->readString(4);
   if (s != "LLsp") {
     RETURN_ABORTED() << "bad format (header)";
   }
 
-  int32_t num_tokens = 0;
-  RETURN_IF_ERROR(fp->ReadValue(&num_tokens));
+  int32_t num_tokens = fp->readValue<int32_t>();
   RETURN_IF_ERROR(ReadMagicNumber(fp));
 
   // read the list of token info
@@ -196,8 +193,7 @@ Status BpeModel::ReadModel(ReadableFile *fp) {
 
 Status BpeModel::ReadMagicNumber(ReadableFile *fp) {
   // ensure magic number
-  int16_t magic_number = 0;
-  RETURN_IF_ERROR(fp->ReadValue(&magic_number));
+  int16_t magic_number = fp->readValue<int16_t>();
   if (magic_number != kMagicNumber) {
     RETURN_ABORTED() << "bad format (magic number)";
   }
@@ -239,15 +235,13 @@ Status BpeModel::InitModel() {
 }
 
 Status BpeModel::ReadRecord(ReadableFile *fp, TokenInfo *info) {
-  uint8_t n_bytes;
-
-  RETURN_IF_ERROR(fp->ReadValue(&info->flag));
-  RETURN_IF_ERROR(fp->ReadValue(&n_bytes));
+  info->flag = fp->readValue<int8_t>();
 
   // raw piece.
+  int n_bytes = fp->readValue<uint8_t>();
   std::string piece;
   if (n_bytes) {
-    RETURN_IF_ERROR(fp->ReadString(n_bytes, &piece));
+    piece = fp->readString(n_bytes);
   }
   info->token_piece = std::move(piece);
   if ((info->flag & kByte) && info->token_piece.size() != 1) {
@@ -255,15 +249,15 @@ Status BpeModel::ReadRecord(ReadableFile *fp, TokenInfo *info) {
   }
 
   // piece display.
+  n_bytes = fp->readValue<uint8_t>();
   std::string piece_display;
-  RETURN_IF_ERROR(fp->ReadValue(&n_bytes));
   if (n_bytes) {
-    RETURN_IF_ERROR(fp->ReadString(n_bytes, &piece_display));
+    piece_display = fp->readString(n_bytes);
   }
   info->token_string = std::move(piece_display);
 
   // weight.
-  RETURN_IF_ERROR(fp->ReadValue(&info->weight));
+  info->weight = fp->readValue<float>();
 
   return OkStatus();
 }
@@ -593,8 +587,7 @@ const Vocab *BpeTokenizer::vocab() const {
 // -- class Tokenizer ----------------------------------------------------------
 
 expected_ptr<Tokenizer> Tokenizer::FromConfig(const IniSection &config) {
-  std::string type;
-  RETURN_IF_ERROR(config.Get("type", &type));
+  std::string type = config.getString("type");
   if (type == "bpe") {
     auto bpe_config = BpeConfig::FromConfig(config);
     RETURN_IF_ERROR(bpe_config);

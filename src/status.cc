@@ -40,7 +40,7 @@ Status Status::Copy() const {
 Status::~Status() {
   if (IsHeapAllocated()) {
     Rep *rep = GetRep();
-    delete rep;
+    // delete rep;
   }
   
   rep_ = 0;

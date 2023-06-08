@@ -22,21 +22,16 @@ std::vector<std::string> EncodeAsPieces(
 }
 
 void TestTokenizer(const std::string &ini_file, const std::string &test_case) {
-  auto config = IniConfig::Read(ini_file);
-  REQUIRE_OK(config);
-
-  REQUIRE_OK(config->EnsureSection("tokenizer"));
-  const IniSection &section = config->section("tokenizer");
+  auto config = IniConfig::read(ini_file);
+  const IniSection &section = config->getSection("tokenizer");
 
   auto tokenizer = Tokenizer::FromConfig(section);
   REQUIRE_OK(tokenizer);
 
-  auto fp = ReadableFile::Open(test_case);
-  REQUIRE_OK(fp);
-
-  std::string line;
-  while (IsOK(fp->ReadLine(&line))) {
-    line = strings::TrimRight(line, "\r\n");
+  auto fp = ReadableFile::open(test_case);
+  Scanner scanner(fp.get());
+  while (scanner.scan()) {
+    std::string line = strings::TrimRight(scanner.getText(), "\r\n");
     auto row = strings::Split(line, "\t");
     REQUIRE(row.size() == 2);
 

@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <limits>
 #include "tensor.h"
+#include "strings.h"
 
 namespace llama {
 namespace nn {
@@ -12,18 +13,18 @@ namespace nn {
 // ---------------------------------------------------------------------------+
 
 template <>
-DType TypeID<float>() {
+DType getTypeID<float>() {
   return DType::kFloat;
 }
 template <>
-DType TypeID<int64_t>() {
+DType getTypeID<int64_t>() {
   return DType::kLong;
 }
 
-template DType TypeID<float>();
-template DType TypeID<int64_t>();
+template DType getTypeID<float>();
+template DType getTypeID<int64_t>();
 
-int SizeOfDType(DType dtype) {
+int getDTypeSize(DType dtype) {
   switch (dtype) {
     case DType::kFloat:
       return 4;
@@ -44,23 +45,22 @@ bool IsValidDType(DType dtype) {
   }
 }
 
-// -- class TensorShape --------------------------------------------------------
+// -- class TensorShape ----------
 
-TensorShape::TensorShape(const TensorShape &size) : data_(size.data_.Copy()) {}
-TensorShape::TensorShape(TensorShape &&size) noexcept 
-    : data_(std::move(size.data_)) {}
+TensorShape::TensorShape(const TensorShape &size) : _data(size._data.Copy()) {}
+TensorShape::TensorShape(TensorShape &&size) noexcept : _data(std::move(size._data)) {}
 TensorShape &TensorShape::operator=(const TensorShape &size) {
-  data_ = size.data_.Copy();
+  _data = size._data.Copy();
   return *this;
 }
 TensorShape &TensorShape::operator=(TensorShape &&size) noexcept {
-  data_ = std::move(size.data_);
+  _data = std::move(size._data);
   return *this;
 }
 
 TensorShape::TensorShape(util::Span<const ShapeType> shape) {
-  data_ = util::FixedArray<Elem>(shape.size());
-  util::FixedArray<Elem>::iterator it = data_.begin();
+  _data = util::FixedArray<Elem>(shape.size());
+  util::FixedArray<Elem>::iterator it = _data.begin();
   for (int n : shape) {
     it->shape = n;
     ++it;
@@ -69,36 +69,36 @@ TensorShape::TensorShape(util::Span<const ShapeType> shape) {
   int64_t stride = 1;
   for (int d = shape.size() - 1; d >= 0; --d) {
     CHECK(stride < std::numeric_limits<ShapeType>::max());
-    data_[d].stride = static_cast<ShapeType>(stride);
-    stride *= data_[d].shape;
+    _data[d].stride = static_cast<ShapeType>(stride);
+    stride *= _data[d].shape;
   }
 }
 
-TensorShape TensorShape::Subsize(int d) const {
-  CHECK(d < dim());
+TensorShape TensorShape::subsize(int d) const {
+  CHECK(d < getDim());
 
   TensorShape subsize;
-  subsize.data_ = util::FixedArray<Elem>(dim() - d);
-  std::copy(data_.begin() + d, data_.end(), subsize.data_.begin());
+  subsize._data = util::FixedArray<Elem>(getDim() - d);
+  std::copy(_data.begin() + d, _data.end(), subsize._data.begin());
 
   return subsize;
 }
 
-TensorShape TensorShape::Transpose(int dim0, int dim1) const {
-  dim0 = real_dim(dim0);
-  dim1 = real_dim(dim1);
+TensorShape TensorShape::transpose(int dim0, int dim1) const {
+  dim0 = getRealDim(dim0);
+  dim1 = getRealDim(dim1);
 
   TensorShape size = *this;
-  Elem dim0_elem = size.data_[dim0];
-  size.data_[dim0] = size.data_[dim1];
-  size.data_[dim1] = dim0_elem;
+  Elem dim0_elem = size._data[dim0];
+  size._data[dim0] = size._data[dim1];
+  size._data[dim1] = dim0_elem;
 
   return size;
 }
 
-int TensorShape::real_dim(int d) const {
+int TensorShape::getRealDim(int d) const {
   CHECK(!empty());
-  int rank = dim();
+  int rank = getDim();
   if (d < 0) {
     d = rank + d;
   }
@@ -107,124 +107,119 @@ int TensorShape::real_dim(int d) const {
   return d;
 }
 
-int TensorShape::real_index(int dim, int index) const {
+int TensorShape::getRealIndex(int dim, int index) const {
   CHECK(!empty());
-  dim = real_dim(dim);
+  dim = getRealDim(dim);
 
-  int shape = data_[dim].shape;
+  int shape = _data[dim].shape;
   index = index >= 0 ? index : shape + index;
 
   CHECK(index >= 0 && index <= shape);
   return index;
 }
 
-int TensorShape::dim() const {
-  return static_cast<int>(data_.size());
+int TensorShape::getDim() const {
+  return static_cast<int>(_data.size());
 }
 
 bool TensorShape::empty() const {
-  return data_.empty();
+  return _data.empty();
 }
 
-int TensorShape::shape(int d) const {
-  return data_[real_dim(d)].shape;
+int TensorShape::getShape(int d) const {
+  return _data[getRealDim(d)].shape;
 }
 
-int TensorShape::stride(int d) const {
-  return data_[real_dim(d)].stride;
+int TensorShape::getStride(int d) const {
+  return _data[getRealDim(d)].stride;
 }
 
-int64_t TensorShape::numel() const {
+int64_t TensorShape::getNumEl() const {
   if (empty()) {
     return 0;
   }
   
   int64_t n = 1;
-  for (const Elem &elem : data_) {
+  for (const Elem &elem : _data) {
     n *= elem.shape;
   }
   return n;
 }
 
-void TensorShape::set_shape(int dim, ShapeType shape) {
-  dim = real_dim(dim);
-  CHECK(dim >= 0 && dim <= this->dim());
-  CHECK(shape <= data_[dim].shape);
+void TensorShape::setShape(int dim, ShapeType shape) {
+  dim = getRealDim(dim);
+  CHECK(dim >= 0 && dim <= this->getDim());
+  CHECK(shape <= _data[dim].shape);
 
-  data_[dim].shape = shape;
+  _data[dim].shape = shape;
 }
 
 // -- class TensorData ---------------------------------------------------------
 
-TensorData::TensorData(int64_t numel, DType dtype)
-    : numel_(numel),
-      dtype_(dtype) {
-  int64_t size_in_bytes = numel * SizeOfDType(dtype);
-  data_ = new ByteType[size_in_bytes];
+TensorData::TensorData(int64_t numel, DType dtype) : _numel(numel), _dtype(dtype) {
+  int64_t size_in_bytes = numel * getDTypeSize(dtype);
+  _data = new ByteType[size_in_bytes];
 }
 
 TensorData::~TensorData() {
-  delete[] data_;
-  numel_ = 0;
-  dtype_ = DType::kUnknown;
+  delete[] _data;
+  _numel = 0;
+  _dtype = DType::kUnknown;
 }
 
 // -- class Tensor -------------------------------------------------------------
 
 
 template<typename T>
-Tensor Tensor::FromData(std::initializer_list<int> shape,
-                        util::Span<const T> data) {
+Tensor Tensor::create(std::initializer_list<int> shape, util::Span<const T> data) {
   Tensor tensor;
 
-  tensor.shape_ = TensorShape(shape);
-  int64_t numel = tensor.shape_.numel();
+  tensor._shape = TensorShape(shape);
+  int64_t numel = tensor._shape.getNumEl();
 
-  DType dtype = TypeID<T>();
-  tensor.data_ = std::make_shared<TensorData>(numel, dtype);
-  tensor.data_ptr_ = tensor.data_->data();
+  DType dtype = getTypeID<T>();
+  tensor._data = std::make_shared<TensorData>(numel, dtype);
+  tensor._dataPtr = tensor._data->getData();
 
   // fill data
   CHECK(numel == data.size()) << "data size and shape mismatch";
-  std::copy(data.begin(), data.end(), tensor.data<T>());
+  std::copy(data.begin(), data.end(), tensor.getData<T>());
 
   return tensor;
 }
 
-template Tensor Tensor::FromData(std::initializer_list<int> shape,
-                                 util::Span<const float> data);
-template Tensor Tensor::FromData(std::initializer_list<int> shape,
-                                 util::Span<const LongType> data);
+template Tensor Tensor::create(std::initializer_list<int> shape, util::Span<const float> data);
+template Tensor Tensor::create(std::initializer_list<int> shape, util::Span<const LongType> data);
 
-Tensor::Tensor() : data_ptr_(nullptr) {}
+Tensor::Tensor() : _dataPtr(nullptr) {}
 Tensor::~Tensor() {
-  data_ptr_ = nullptr;
+  _dataPtr = nullptr;
 }
 
 Tensor::Tensor(const Tensor &tensor) {
-  data_ = tensor.data_;
-  shape_ = tensor.shape_;
-  data_ptr_ = tensor.data_ptr_;
+  _data = tensor._data;
+  _shape = tensor._shape;
+  _dataPtr = tensor._dataPtr;
 }
 
 Tensor &Tensor::operator=(const Tensor &tensor) {
-  data_ = tensor.data_;
-  shape_ = tensor.shape_;
-  data_ptr_ = tensor.data_ptr_;
+  _data = tensor._data;
+  _shape = tensor._shape;
+  _dataPtr = tensor._dataPtr;
 
   return *this;
 }
 
 Tensor::Tensor(Tensor &&tensor) noexcept {
-  data_ = tensor.data_;
-  shape_ = std::move(tensor.shape_);
-  data_ptr_ = tensor.data_ptr_;
+  _data = tensor._data;
+  _shape = std::move(tensor._shape);
+  _dataPtr = tensor._dataPtr;
 }
 
 Tensor &Tensor::operator=(Tensor &&tensor) {
-  data_ = tensor.data_;
-  shape_ = std::move(tensor.shape_);
-  data_ptr_ = tensor.data_ptr_;
+  _data = tensor._data;
+  _shape = std::move(tensor._shape);
+  _dataPtr = tensor._dataPtr;
 
   return *this;
 }
@@ -236,169 +231,161 @@ Tensor &Tensor::operator=(Tensor &&tensor) {
 //   int32_t * rank: shape.
 //   ByteType * SizeOfDType(dtype) * numel: data
 //   int16_t: 0x55aa magic number
-Status Tensor::Read(ReadableFile *fp) {
-  std::string s;
-  RETURN_IF_ERROR(fp->ReadString(4, &s));
+void Tensor::read(ReadableFile *fp) {
+  std::string s = fp->readString(4);
   if (s != "TNSR") {
-    RETURN_ABORTED() << "bad tensor format";
+    throw AbortedException("bad tensor format");
   }
 
   // rank
-  int16_t rank;
-  RETURN_IF_ERROR(fp->ReadValue(&rank));
+  int16_t rank = fp->readValue<int16_t>();
   if (rank > 16 || rank < 0) {
-    RETURN_ABORTED() << "invalid rank";
+    throw AbortedException("invalid rank");
   }
 
   // dtype
-  int16_t dtype_int16;
-  RETURN_IF_ERROR(fp->ReadValue(&dtype_int16));
+  int16_t dtype_int16 = fp->readValue<int16_t>();
   DType dtype = static_cast<DType>(dtype_int16);
   if (!IsValidDType(dtype)) {
-    RETURN_ABORTED() << "invalid dtype";
+    throw AbortedException("invalid dtype");
   }
 
   // shape
   int64_t numel = 1;
-  int32_t dimension;
+  
   std::vector<ShapeType> shape;
   for (int16_t d = 0; d < rank; ++d) {
-    RETURN_IF_ERROR(fp->ReadValue(&dimension));
+    int32_t dimension = fp->readValue<int32_t>();
     if (dimension > 65536) {
-      RETURN_ABORTED() << "dimension too big";
+      throw AbortedException("dimension too big");
     }
     numel *= dimension;
     shape.push_back(dimension);
   }
   if (numel > 1073741824) {
-    RETURN_ABORTED() << "tensor too big";
+    throw AbortedException("tensor too big");
   }
-  shape_ = TensorShape(util::MakeConstSpan(shape));
+  _shape = TensorShape(util::MakeConstSpan(shape));
 
   // data
-  data_ = std::make_shared<TensorData>(numel, dtype);
-  util::Span<ByteType> bs_data(data_->data(), numel);
-  RETURN_IF_ERROR(fp->ReadSpan(util::MakeSpan(
-      data_->data(),
-      data_->size_in_bytes())));
-  data_ptr_ = data_->data();
+  _data = std::make_shared<TensorData>(numel, dtype);
+  util::Span<ByteType> bs_data(_data->getData(), numel);
+  fp->readSpan(util::MakeSpan(_data->getData(), _data->getSizeInBytes()));
+  _dataPtr = _data->getData();
 
   // magic number
-  int16_t magic_number;
-  RETURN_IF_ERROR(fp->ReadValue(&magic_number));
+  int16_t magic_number = fp->readValue<int16_t>();
   if (magic_number != 0x55aa) {
-    RETURN_ABORTED() << "invalid magic number";
+    throw AbortedException("invalid magic number");
   }
-
-  return OkStatus();
 }
 
-ByteType *Tensor::raw_data(DType dtype) const {
-  CHECK(data_);
-  CHECK(data_->dtype() == dtype);
-  return data_ptr_;
+ByteType *Tensor::getRawData(DType dtype) const {
+  CHECK(_data);
+  CHECK(_data->getDType() == dtype);
+  return _dataPtr;
 }
 
-Tensor Tensor::View(std::initializer_list<int> shape) const {
-  CHECK(is_contiguous()) << "only contiguous tensor supports View()";
+Tensor Tensor::view(std::initializer_list<int> shape) const {
+  CHECK(isContiguous()) << "only contiguous tensor supports View()";
 
-  std::vector<ShapeType> real_shape{shape.begin(), shape.end()};
-  std::vector<ShapeType>::iterator it_inferred = real_shape.end();
-  std::vector<ShapeType>::iterator it = real_shape.begin();
+  std::vector<ShapeType> realShape{shape.begin(), shape.end()};
+  std::vector<ShapeType>::iterator itInferred = realShape.end();
+  std::vector<ShapeType>::iterator it = realShape.begin();
   int64_t numel = 1;
-  for (; it != real_shape.end(); ++it) {
+  for (; it != realShape.end(); ++it) {
     if (*it < 0) {
-      CHECK(it_inferred == real_shape.end()) << "more than 1 inferred dim";
-      it_inferred = it;
+      CHECK(itInferred == realShape.end()) << "more than 1 inferred dim";
+      itInferred = it;
     } else {
       numel *= *it;
     }
   }
 
   // handle -1 shape
-  if (it_inferred == real_shape.end()) {
-    CHECK(numel == this->numel()) << "numel mismatch after View()";
+  if (itInferred == realShape.end()) {
+    CHECK(numel == this->getNumEl()) << "numel mismatch after View()";
   } else {
-    CHECK(this->numel() % numel == 0) << "inferred shape is not a integer";
-    *it_inferred = static_cast<ShapeType>(this->numel() / numel);
+    CHECK(this->getNumEl() % numel == 0) << "inferred shape is not a integer";
+    *itInferred = static_cast<ShapeType>(this->getNumEl() / numel);
   }
 
 
   Tensor view;
-  view.data_ = data_;
-  view.data_ptr_ = data_ptr_;
-  view.shape_ = TensorShape(util::MakeConstSpan(real_shape));
+  view._data = _data;
+  view._dataPtr = _dataPtr;
+  view._shape = TensorShape(util::MakeConstSpan(realShape));
 
-  CHECK(view.numel() == this->numel());
+  CHECK(view.getNumEl() == this->getNumEl());
   return view;
 }
 
-bool Tensor::is_contiguous() const {
+bool Tensor::isContiguous() const {
   int numel = 1;
-  for (int i = dim() - 1; i >= 0; --i) {
-    if (numel != stride(i)) return false;
-    numel *= shape(i);
+  for (int i = getDim() - 1; i >= 0; --i) {
+    if (numel != getStride(i)) return false;
+    numel *= getShape(i);
   }
 
   return true;
 }
 
-Tensor Tensor::Slice(int dim, int begin, int end) const {
-  dim = shape_.real_dim(dim);
-  CHECK(dim >= 0 && dim < this->dim());
+Tensor Tensor::slice(int dim, int begin, int end) const {
+  dim = _shape.getRealDim(dim);
+  CHECK(dim >= 0 && dim < this->getDim());
 
-  begin = shape_.real_index(dim, begin);
-  end = shape_.real_index(dim, end);
-  CHECK(begin >= 0 && begin < end && end <= shape(dim));
+  begin = _shape.getRealIndex(dim, begin);
+  end = _shape.getRealIndex(dim, end);
+  CHECK(begin >= 0 && begin < end && end <= getShape(dim));
 
   Tensor tensor;
-  tensor.data_ = data_;
-  tensor.shape_ = shape_;
-  tensor.shape_.set_shape(dim, end - begin);
+  tensor._data = _data;
+  tensor._shape = _shape;
+  tensor._shape.setShape(dim, end - begin);
 
-  int dtype_size = SizeOfDType(tensor.dtype());
-  tensor.data_ptr_ = data_ptr_ + shape_.stride(dim) * dtype_size * begin;
+  int dtypeSize = getDTypeSize(tensor.getDType());
+  tensor._dataPtr = _dataPtr + _shape.getStride(dim) * dtypeSize * begin;
 
   return tensor;
 }
 
-Tensor Tensor::Slice(int begin, int end) const {
-  return Slice(0, begin, end);
+Tensor Tensor::slice(int begin, int end) const {
+  return slice(0, begin, end);
 }
 
-Tensor Tensor::Subtensor(int index) const {
-  index = shape_.real_index(0, index);
-  CHECK(index >= 0 && index < shape(0));
+Tensor Tensor::subtensor(int index) const {
+  index = _shape.getRealIndex(0, index);
+  CHECK(index >= 0 && index < getShape(0));
 
   Tensor tensor;
-  tensor.data_ = data_;
-  tensor.shape_ = shape_.Subsize(1);
+  tensor._data = _data;
+  tensor._shape = _shape.subsize(1);
 
-  int dtype_size = SizeOfDType(tensor.dtype());
-  tensor.data_ptr_ = data_ptr_ + shape_.stride(0) * dtype_size * index;
+  int dtype_size = getDTypeSize(tensor.getDType());
+  tensor._dataPtr = _dataPtr + _shape.getStride(0) * dtype_size * index;
 
   return tensor;
 }
 
-Tensor Tensor::Transpose(int dim0, int dim1) const {
+Tensor Tensor::transpose(int dim0, int dim1) const {
   Tensor tensor;
-  tensor.data_ = data_;
-  tensor.data_ptr_ = data_ptr_;
-  tensor.shape_ = shape_.Transpose(dim0, dim1);
+  tensor._data = _data;
+  tensor._dataPtr = _dataPtr;
+  tensor._shape = _shape.transpose(dim0, dim1);
 
   return tensor;
 }
 
-Status Tensor::CheckShape(std::initializer_list<int> shape) {
-  if (shape.size() != dim()) {
-    RETURN_ABORTED() << "invalid shape. dim = " << shape.size() 
-                     << " expected, but " << dim() << " got.";
+void Tensor::throwIfInvalidShape(std::initializer_list<int> shape) {
+  if (shape.size() != getDim()) {
+    throw AbortedError(fmt::sprintf(
+        "invalid shape. dim=%d expected, but %d got.", shape.size(), getDim()));
   }
 
   int i = 0;
   bool correct = true;
   for (int s : shape) {
-    if (this->shape(i) != s) {
+    if (this->getShape(i) != s) {
       correct = false;
     }
     ++i;
@@ -407,9 +394,9 @@ Status Tensor::CheckShape(std::initializer_list<int> shape) {
   if (!correct) {
     std::ostringstream actual;
     actual << "(";
-    for (int i = 0; i < dim(); ++i) {
+    for (int i = 0; i < getDim(); ++i) {
       if (i) actual << ", ";
-      actual << this->shape(i);
+      actual << this->getShape(i);
     }
     actual << ")";
 
@@ -423,11 +410,9 @@ Status Tensor::CheckShape(std::initializer_list<int> shape) {
     }
     expected << ")";
 
-    RETURN_ABORTED() << "invalid shape: " << expected.str()
-                     << " expected, but " << actual.str() << " found.";
+    throw AbortedError(fmt::sprintf(
+        "invalid shape: %s expected, but %s found.", expected.str(), actual.str()));
   }
-
-  return OkStatus();
 }
 
 }  // namespace nn

@@ -21,12 +21,6 @@
 
 namespace llama {
 
-enum class StatusCode : int {
-  kOK = 0,
-  kAborted = 1,
-  kOutOfRange = 2,
-};
-
 // Error code with message
 class Status {
  public:

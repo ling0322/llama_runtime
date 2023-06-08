@@ -27,31 +27,24 @@ expected_ptr<MultiheadSelfAttention> MultiheadSelfAttention::Create(
   layer->pastk_name_ = ctx.name("k");
   layer->pastv_name_ = ctx.name("v");
 
-  auto q_proj = Linear::Create(ctx.WithName(kQProj), d_model, d_model);
-  auto k_proj = Linear::Create(ctx.WithName(kKProj), d_model, d_model);
-  auto v_proj = Linear::Create(ctx.WithName(kVProj), d_model, d_model);
-  auto out_proj = Linear::Create(ctx.WithName(kOutProj), d_model, d_model);
+  auto q_proj = Linear::create(ctx.withName(kQProj), d_model, d_model);
+  auto k_proj = Linear::create(ctx.withName(kKProj), d_model, d_model);
+  auto v_proj = Linear::create(ctx.withName(kVProj), d_model, d_model);
+  auto out_proj = Linear::create(ctx.withName(kOutProj), d_model, d_model);
 
-  RETURN_IF_ERROR(q_proj);
-  RETURN_IF_ERROR(k_proj);
-  RETURN_IF_ERROR(v_proj);
-  RETURN_IF_ERROR(out_proj);
-
-  layer->q_proj_ = std::move(q_proj).unique_ptr();
-  layer->k_proj_ = std::move(k_proj).unique_ptr();
-  layer->v_proj_ = std::move(v_proj).unique_ptr();
-  layer->out_proj_ = std::move(out_proj).unique_ptr();
+  layer->q_proj_ = std::move(q_proj);
+  layer->k_proj_ = std::move(k_proj);
+  layer->v_proj_ = std::move(v_proj);
+  layer->out_proj_ = std::move(out_proj);
 
   return layer;
 }
 
-Status MultiheadSelfAttention::InitParameters(const TensorMap &state_dict) {
-  RETURN_IF_ERROR(q_proj_->InitParameters(state_dict));
-  RETURN_IF_ERROR(k_proj_->InitParameters(state_dict));
-  RETURN_IF_ERROR(v_proj_->InitParameters(state_dict));
-  RETURN_IF_ERROR(out_proj_->InitParameters(state_dict));
-
-  return OkStatus();
+void MultiheadSelfAttention::initParameters(const TensorMap &state_dict) {
+  q_proj_->initParameters(state_dict);
+  k_proj_->initParameters(state_dict);
+  v_proj_->initParameters(state_dict);
+  out_proj_->initParameters(state_dict);
 }
 
 Tensor MultiheadSelfAttention::Attention(
@@ -61,15 +54,15 @@ Tensor MultiheadSelfAttention::Attention(
     const Tensor &mask) {
   Operators *F = ctx_.F();
 
-  Tensor scores = F->MatMul(q, k.Transpose(-2, -1));
-  scores = F->Mul(scores,  1.0f / sqrtf(1.0f * d_k_));
+  Tensor scores = F->matmul(q, k.transpose(-2, -1));
+  scores = F->mul(scores,  1.0f / sqrtf(1.0f * d_k_));
 
   if (!mask.empty()) {
-    scores = F->Add(scores, mask);
+    scores = F->add(scores, mask);
   }
 
-  scores = F->Softmax(scores);
-  Tensor outputs = F->MatMul(scores, v);
+  scores = F->softmax(scores);
+  Tensor outputs = F->matmul(scores, v);
   return outputs;
 }
 
@@ -78,46 +71,46 @@ Tensor MultiheadSelfAttention::Forward(TensorMap *past,
                                        TensorCRef attn_mask) {
   Operators *F = ctx_.F();
 
-  CHECK(inputs.dim() == 3);
-  CHECK(attn_mask.empty() || attn_mask.dim() == 2);
+  CHECK(inputs.getDim() == 3);
+  CHECK(attn_mask.empty() || attn_mask.getDim() == 2);
 
-  int bs = inputs.shape(0);
-  Tensor q_proj = q_proj_->Forward(inputs);
-  Tensor k_proj = k_proj_->Forward(inputs);
-  Tensor v_proj = v_proj_->Forward(inputs);
+  int bs = inputs.getShape(0);
+  Tensor q_proj = q_proj_->forward(inputs);
+  Tensor k_proj = k_proj_->forward(inputs);
+  Tensor v_proj = v_proj_->forward(inputs);
 
   // update k_proj and v_proj according to the kv_cache from past.
   int past_len = 0;
-  if (past && past->exists(pastk_name_) && past->exists(pastv_name_)) {
-    TensorCRef past_k = past->Get(pastk_name_);
-    TensorCRef past_v = past->Get(pastv_name_);
-    past_len = past_k.shape(1);
+  if (past && past->hasTensor(pastk_name_) && past->hasTensor(pastv_name_)) {
+    TensorCRef past_k = past->getTensor(pastk_name_);
+    TensorCRef past_v = past->getTensor(pastv_name_);
+    past_len = past_k.getShape(1);
 
-    k_proj = F->Cat(past_k, k_proj, 1);
-    v_proj = F->Cat(past_v, v_proj, 1);
+    k_proj = F->cat(past_k, k_proj, 1);
+    v_proj = F->cat(past_v, v_proj, 1);
     
-    CHECK(k_proj.shape(1) == v_proj.shape(1));
+    CHECK(k_proj.getShape(1) == v_proj.getShape(1));
   }
 
   // update kv_cache in past.
   if (past) {
-    past->Put(pastk_name_, k_proj);
-    past->Put(pastv_name_, v_proj);
+    past->putTensor(pastk_name_, k_proj);
+    past->putTensor(pastv_name_, v_proj);
   }
 
-  q_proj = q_proj.View({bs, -1, num_heads_, d_k_}).Transpose(1, 2);
-  k_proj = k_proj.View({bs, -1, num_heads_, d_k_}).Transpose(1, 2);
-  v_proj = v_proj.View({bs, -1, num_heads_, d_k_}).Transpose(1, 2);
+  q_proj = q_proj.view({bs, -1, num_heads_, d_k_}).transpose(1, 2);
+  k_proj = k_proj.view({bs, -1, num_heads_, d_k_}).transpose(1, 2);
+  v_proj = v_proj.view({bs, -1, num_heads_, d_k_}).transpose(1, 2);
 
   Tensor mask = attn_mask.empty() 
       ? attn_mask 
-      : attn_mask.Slice(0, past_len, past_len + q_proj.shape(2))
-                 .Slice(1, 0, k_proj.shape(2));
+      : attn_mask.slice(0, past_len, past_len + q_proj.getShape(2))
+                 .slice(1, 0, k_proj.getShape(2));
   Tensor scores = Attention(q_proj, k_proj, v_proj, mask);
-  scores = scores.Transpose(1, 2);
+  scores = scores.transpose(1, 2);
 
-  Tensor concat = F->Contiguous(scores).View({bs, -1, d_model_});
-  Tensor output = out_proj_->Forward(concat);
+  Tensor concat = F->contiguous(scores).view({bs, -1, d_model_});
+  Tensor output = out_proj_->forward(concat);
   return output;
 }
 

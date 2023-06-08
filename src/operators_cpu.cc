@@ -17,7 +17,7 @@ constexpr int kPrintEdgeItems = 3;
 // -- class CpuOperators::Impl -------------------------------------------------
 
 // the CPU implementation of Operators
-class CpuOperators::Impl {
+class CPUOperators::Impl {
  public:
   typedef TensorShape::Elem Shape;
 
@@ -31,18 +31,11 @@ class CpuOperators::Impl {
 
   // type for lambda expression with 1D tensor as input. NR means no return.
   template<typename T>
-  using UnaryOp = std::function<void(
-      SubTensor<const T> A,
-      SubTensor<T> C)>;
+  using UnaryOp = std::function<void(SubTensor<const T> A, SubTensor<T> C)>;
   template<typename T>
-  using BinaryOp = std::function<void(
-      SubTensor<const T> A,
-      SubTensor<const T> B,
-      SubTensor<T> C)>;
+  using BinaryOp = std::function<void(SubTensor<const T> A, SubTensor<const T> B, SubTensor<T> C)>;
   template<typename T>
-  using BinaryOpNR = std::function<void(
-      SubTensor<const T> A,
-      SubTensor<const T> B)>;
+  using BinaryOpNR = std::function<void(SubTensor<const T> A, SubTensor<const T> B)>;
 
 
   // apply elementwise binary operator to tensor `A` and tensor `B`, then store
@@ -51,76 +44,67 @@ class CpuOperators::Impl {
   // broadcast tensor `B` if necessary
   template<typename T>
   void ApplyBinaryOperator(
-      SubTensor<const T> A,
-      SubTensor<const T> B,
-      SubTensor<T> C,
-      BinaryOp<T> binary_op);
+      SubTensor<const T> A, SubTensor<const T> B, SubTensor<T> C, BinaryOp<T> binary_op);
 
   // apply unary 1D tensor operator on the last dimension of `A` and save
   // result to `C`. `C` should have the same shape as A.
   //   C_i = tensor1d_op(A_i) , here A_i is 1D tensor
   template<typename T>
-  void ApplyUnary1DTensorOp(
-      SubTensor<const T> A,
-      SubTensor<T> C,
-      UnaryOp<T> unary_op);
+  void ApplyUnary1DTensorOp(SubTensor<const T> A, SubTensor<T> C, UnaryOp<T> unary_op);
 
   // call closure on all elements in tensor A and tensor B. Shape of A should
   // equal to B.
   //   closure(A_i, B_i) , here A_i and B_i are 1D tensor.
   template<typename T>
-  void ForEach(
-      SubTensor<const T> A,
-      SubTensor<const T> B,
-      BinaryOpNR<T> binary_op);
+  void ForEach(SubTensor<const T> A, SubTensor<const T> B, BinaryOpNR<T> binary_op);
 
   // Get sub-tensor from Tensor.
   template<typename T>
-  SubTensor<T> MakeSubTensor(Tensor &tensor); 
+  SubTensor<T> makeSubtensor(Tensor &tensor); 
   template<typename T>
-  SubTensor<const T> MakeConstSubTensor(const Tensor &tensor); 
+  SubTensor<const T> makeConstSubtensor(const Tensor &tensor); 
 
-  Tensor Tensor_(util::Span<const int> shape, DType dtype);
-  Tensor TensorLike(SubtensorCf A);
+  Tensor createTensor(util::Span<const int> shape, DType dtype);
+  Tensor createTensorLike(SubtensorCf A);
 
-  Tensor MatMul_Float32(SubtensorCf A, SubtensorCf B);
+  Tensor matmulFp32(SubtensorCf A, SubtensorCf B);
 
-  Tensor Mul_Float32(SubtensorCf A, float k);
-  Tensor Add_Float32(SubtensorCf A, SubtensorCf B);
-  Tensor Softmax_Float32(SubtensorCf A);
-  Tensor GELU_Float32(SubtensorCf A);
+  Tensor mulFp32(SubtensorCf A, float k);
+  Tensor addFp32(SubtensorCf A, SubtensorCf B);
+  Tensor softmaxFp32(SubtensorCf A);
+  Tensor geluFp32(SubtensorCf A);
 
-  void Rand_Float32(Tensor *tensor);
-  void Zeros_Float32(Subtensorf tensor);
-  void Print1D_Float32(SubtensorCf A);
-  void PrintND_Float32(SubtensorCf A, int pad_space);
-  void Print_Float32(SubtensorCf tensor);
+  void randFp32(Tensor *tensor);
+  void zerosFp32(Subtensorf tensor);
+  void print1DFp32(SubtensorCf A);
+  void printNDFp32(SubtensorCf A, int pad_space);
+  void printFp32(SubtensorCf tensor);
   
-  bool AllClose_Float32(SubtensorCf A, SubtensorCf B, float rtol, float atol);
-  void GEMM_Float32(SubtensorCf A, SubtensorCf B, Subtensorf C);
-  void BMM_Float32(SubtensorCf A, SubtensorCf B, Subtensorf C);
+  bool allCloseFp32(SubtensorCf A, SubtensorCf B, float rtol, float atol);
+  void gemmFp32(SubtensorCf A, SubtensorCf B, Subtensorf C);
+  void bmmFp32(SubtensorCf A, SubtensorCf B, Subtensorf C);
 
-  void Cat_Float32(SubtensorCf A, SubtensorCf B, int dim, Subtensorf C);
+  void catFp32(SubtensorCf A, SubtensorCf B, int dim, Subtensorf C);
 
   // Copy data from src to tgt. tgt and src should have the same dtype and
   // shape
-  void Copy_Float32(SubtensorCf src, Subtensorf tgt);
+  void copyFp32(SubtensorCf src, Subtensorf tgt);
 
-  Tensor Lookup_Float32(SubtensorCf table, SubtensorCl indices);
-  Tensor LayerNorm_Float32(
+  Tensor lookupFp32(SubtensorCf table, SubtensorCl indices);
+  Tensor layerNormFp32(
       SubtensorCf input,
       SubtensorCf weight,
       SubtensorCf bias,
       float eps);
-  Tensor CausalMask_Float32(int max_len);
+  Tensor causalMaskFp32(int max_len);
 };
 
-// -- class CpuOperators::Impl::SubTensor --------------------------------------
+// -- class CPUOperators::Impl::SubTensor ----------
 
 // sub-tensor. Stores the shape and data pointer to a sub region of the original
 // Tensor. It's faster than Tensor when passing as parameters.
 template<typename T>
-struct CpuOperators::Impl::SubTensor {
+struct CPUOperators::Impl::SubTensor {
   util::Span<const Shape> shape;
   T *data;
 
@@ -155,20 +139,13 @@ struct CpuOperators::Impl::SubTensor {
 };
 
 template<typename T>
-inline auto CpuOperators::Impl::MakeSubTensor(Tensor &tensor) -> SubTensor<T> {
-  return SubTensor<T>{
-    util::MakeConstSpan(tensor.shape_.data_),
-    tensor.data<T>(),
-  };
+inline auto CPUOperators::Impl::makeSubtensor(Tensor &tensor) -> SubTensor<T> {
+  return SubTensor<T>{util::MakeConstSpan(tensor._shape._data), tensor.getData<T>()};
 } 
 
 template<typename T>
-inline auto CpuOperators::Impl::MakeConstSubTensor(
-    const Tensor &tensor) -> SubTensor<const T> {
-  return SubTensor<const T>{
-    util::MakeConstSpan(tensor.shape_.data_),
-    tensor.data<T>(),
-  };
+inline auto CPUOperators::Impl::makeConstSubtensor(const Tensor &tensor) -> SubTensor<const T> {
+  return SubTensor<const T>{util::MakeConstSpan(tensor._shape._data), tensor.getData<T>()};
 } 
 
 // ---------------------------------------------------------------------------+
@@ -176,11 +153,8 @@ inline auto CpuOperators::Impl::MakeConstSubTensor(
 // ---------------------------------------------------------------------------+
 
 template<typename T>
-void CpuOperators::Impl::ApplyBinaryOperator(
-    SubTensor<const T> A,
-    SubTensor<const T> B,
-    SubTensor<T> C,
-    BinaryOp<T> binary_op) {
+void CPUOperators::Impl::ApplyBinaryOperator(
+    SubTensor<const T> A, SubTensor<const T> B, SubTensor<T> C, BinaryOp<T> binary_op) {
   CHECK(A.rank() >= B.rank() && B.rank() >= 1);
   CHECK(A.rank() == C.rank());
 
@@ -212,7 +186,7 @@ void CpuOperators::Impl::ApplyBinaryOperator(
 }
 
 template<typename T>
-void CpuOperators::Impl::ApplyUnary1DTensorOp(
+void CPUOperators::Impl::ApplyUnary1DTensorOp(
     SubTensor<const T> A,
     SubTensor<T> C,
     UnaryOp<T> unary_op) {
@@ -232,7 +206,7 @@ void CpuOperators::Impl::ApplyUnary1DTensorOp(
 }
 
 template<typename T>
-void CpuOperators::Impl::ForEach(
+void CPUOperators::Impl::ForEach(
     SubTensor<const T> A,
     SubTensor<const T> B,
     BinaryOpNR<T> closure) {
@@ -251,29 +225,29 @@ void CpuOperators::Impl::ForEach(
   }
 }
 
-Tensor CpuOperators::Impl::Tensor_(util::Span<const int> shape, DType dtype) {
+Tensor CPUOperators::Impl::createTensor(util::Span<const int> shape, DType dtype) {
   Tensor tensor;
 
-  tensor.shape_ = TensorShape(util::MakeConstSpan(shape));
-  int64_t numel = tensor.shape_.numel();
+  tensor._shape = TensorShape(util::MakeConstSpan(shape));
+  int64_t numel = tensor._shape.getNumEl();
 
-  tensor.data_ = std::make_shared<TensorData>(numel, dtype);
-  tensor.data_ptr_ = tensor.data_->data();
+  tensor._data = std::make_shared<TensorData>(numel, dtype);
+  tensor._dataPtr = tensor._data->getData();
 
   return tensor;
 }
 
-void CpuOperators::Impl::Rand_Float32(Tensor *tensor) {
-  float *data = tensor->data<float>();
-  int64_t numel = tensor->numel();
+void CPUOperators::Impl::randFp32(Tensor *tensor) {
+  float *data = tensor->getData<float>();
+  int64_t numel = tensor->getNumEl();
 
   float randmax = RAND_MAX;
   for (int64_t i = 0; i < numel; ++i) {
-    data[i] = rand() / randmax;
+    data[i] = ::rand() / randmax;
   }
 }
 
-void CpuOperators::Impl::Zeros_Float32(Subtensorf tensor) {
+void CPUOperators::Impl::zerosFp32(Subtensorf tensor) {
   // make sure tensor is contiguous.
   CHECK(tensor.numel() == tensor.stride(0) * tensor.dimension(0));
 
@@ -285,16 +259,15 @@ void CpuOperators::Impl::Zeros_Float32(Subtensorf tensor) {
   }
 }
 
-Tensor CpuOperators::Impl::MatMul_Float32(SubtensorCf A, SubtensorCf B) {
+Tensor CPUOperators::Impl::matmulFp32(SubtensorCf A, SubtensorCf B) {
   CHECK(A.rank() >= B.rank() && B.rank() >= 2);
 
   if (A.rank() == B.rank() && A.rank() == 2) {
     // Both A and B is 2D tensor, call GEMM
-    Tensor C = Tensor_(util::MakeConstSpan({A.dimension(0), B.dimension(1)}),
-                       DType::kFloat);
-    Subtensorf Cs = MakeSubTensor<float>(C);
-    Zeros_Float32(Cs);
-    GEMM_Float32(A, B, Cs);
+    Tensor C = createTensor(util::MakeConstSpan({A.dimension(0), B.dimension(1)}), DType::kFloat);
+    Subtensorf Cs = makeSubtensor<float>(C);
+    zerosFp32(Cs);
+    gemmFp32(A, B, Cs);
 
     return C;
   } else {
@@ -318,19 +291,16 @@ Tensor CpuOperators::Impl::MatMul_Float32(SubtensorCf A, SubtensorCf B) {
     shape.push_back(A.dimension(broadcast_dims + batch_dims));
     shape.push_back(B.dimension(batch_dims + 1));
 
-    Tensor C = Tensor_(util::MakeConstSpan(shape), DType::kFloat);
-    Subtensorf Cs = MakeSubTensor<float>(C);
-    Zeros_Float32(Cs);
+    Tensor C = createTensor(util::MakeConstSpan(shape), DType::kFloat);
+    Subtensorf Cs = makeSubtensor<float>(C);
+    zerosFp32(Cs);
 
-    BMM_Float32(A, B, Cs);
+    bmmFp32(A, B, Cs);
     return C;
   }
 }
 
-void CpuOperators::Impl::GEMM_Float32(
-    SubtensorCf A,
-    SubtensorCf B,
-    Subtensorf C) {
+void CPUOperators::Impl::gemmFp32(SubtensorCf A, SubtensorCf B, Subtensorf C) {
   CHECK(A.rank() == B.rank() && A.rank() == C.rank());
   CHECK(A.rank() == 2);
   CHECK(A.dimension(0) == C.dimension(0));
@@ -373,22 +343,19 @@ void CpuOperators::Impl::GEMM_Float32(
       C.data, ldc);
 }
 
-void CpuOperators::Impl::BMM_Float32(
-    SubtensorCf A,
-    SubtensorCf B,
-    Subtensorf C) {
+void CPUOperators::Impl::bmmFp32(SubtensorCf A, SubtensorCf B, Subtensorf C) {
   CHECK(A.rank() == C.rank());
   CHECK(A.rank() >= B.rank());
 
   CHECK(A.dimension(0) == C.dimension(0));
   if (A.rank() == B.rank() && B.rank() == 2) {
-    GEMM_Float32(A, B, C);
+    gemmFp32(A, B, C);
   } else if (A.rank() > B.rank()) {
     // broadcast B
     for (int i = 0; i < A.dimension(0); ++i) {
       SubtensorCf As = A.subtensor(i);
       Subtensorf Cs = C.subtensor(i);
-      BMM_Float32(As, B, Cs);
+      bmmFp32(As, B, Cs);
     }
   } else if (A.rank() == B.rank()) {
     // batch dim
@@ -397,31 +364,31 @@ void CpuOperators::Impl::BMM_Float32(
       SubtensorCf As = A.subtensor(i);
       SubtensorCf Bs = B.subtensor(i);
       Subtensorf Cs = C.subtensor(i);
-      BMM_Float32(As, Bs, Cs);
+      bmmFp32(As, Bs, Cs);
     }
   } else {
     NOT_IMPL();
   }
 }
 
-Tensor CpuOperators::Impl::TensorLike(SubtensorCf input) {
+Tensor CPUOperators::Impl::createTensorLike(SubtensorCf input) {
   std::vector<int> shape;
   for (const Shape &s : input.shape) {
     shape.push_back(s.shape);
   }
 
   Tensor tensor;
-  tensor.shape_ = TensorShape(util::MakeConstSpan(shape));
+  tensor._shape = TensorShape(util::MakeConstSpan(shape));
 
   // data
   int64_t numel = input.numel();
-  tensor.data_ = std::make_shared<TensorData>(numel, TypeID<float>());
-  tensor.data_ptr_ = tensor.data_->data();
+  tensor._data = std::make_shared<TensorData>(numel, getTypeID<float>());
+  tensor._dataPtr = tensor._data->getData();
 
   return tensor;
 }
 
-void CpuOperators::Impl::Print1D_Float32(SubtensorCf A) {
+void CPUOperators::Impl::print1DFp32(SubtensorCf A) {
   CHECK(A.rank() == 1);
 
   printf("[");
@@ -443,7 +410,7 @@ void CpuOperators::Impl::Print1D_Float32(SubtensorCf A) {
   printf("]");
 }
 
-void CpuOperators::Impl::PrintND_Float32(SubtensorCf A, int pad_space) {
+void CPUOperators::Impl::printNDFp32(SubtensorCf A, int pad_space) {
   CHECK(A.rank() >= 2);
 
   printf("[");
@@ -452,9 +419,9 @@ void CpuOperators::Impl::PrintND_Float32(SubtensorCf A, int pad_space) {
       for (int j = 0; j < pad_space + 1; ++j) printf(" ");
     }
     if (A.rank() == 2) {
-      Print1D_Float32(A.subtensor(i));
+      print1DFp32(A.subtensor(i));
     } else {
-      PrintND_Float32(A.subtensor(i), pad_space + 1);
+      printNDFp32(A.subtensor(i), pad_space + 1);
     }
     
     
@@ -468,16 +435,16 @@ void CpuOperators::Impl::PrintND_Float32(SubtensorCf A, int pad_space) {
   printf("]");
 }
 
-void CpuOperators::Impl::Print_Float32(SubtensorCf tensor) {
+void CPUOperators::Impl::printFp32(SubtensorCf tensor) {
   int rank = tensor.rank();
 
   printf("tensor(");
   switch (rank) {
     case 1:
-      Print1D_Float32(tensor);
+      print1DFp32(tensor);
       break;
     default:
-      PrintND_Float32(tensor, 7);
+      printNDFp32(tensor, 7);
       break;
   }
   printf(", shape=(");
@@ -488,9 +455,9 @@ void CpuOperators::Impl::Print_Float32(SubtensorCf tensor) {
   puts("))");
 }
 
-Tensor CpuOperators::Impl::Add_Float32(SubtensorCf A, SubtensorCf B) {
-  Tensor C = TensorLike(A);
-  Subtensorf Cs = MakeSubTensor<float>(C);
+Tensor CPUOperators::Impl::addFp32(SubtensorCf A, SubtensorCf B) {
+  Tensor C = createTensorLike(A);
+  Subtensorf Cs = makeSubtensor<float>(C);
 
   BinaryOp<float> add_op = [](SubtensorCf A, SubtensorCf B, Subtensorf C) {
     for (int i = 0; i < A.dimension(0); ++i) {
@@ -501,9 +468,9 @@ Tensor CpuOperators::Impl::Add_Float32(SubtensorCf A, SubtensorCf B) {
   return C;
 }
 
-Tensor CpuOperators::Impl::Softmax_Float32(SubtensorCf A) {
-  Tensor C = TensorLike(A);
-  Subtensorf Cs = MakeSubTensor<float>(C);
+Tensor CPUOperators::Impl::softmaxFp32(SubtensorCf A) {
+  Tensor C = createTensorLike(A);
+  Subtensorf Cs = makeSubtensor<float>(C);
 
   auto softmax_op = [](SubtensorCf A, Subtensorf C) {
     double sum = 0;
@@ -524,9 +491,9 @@ Tensor CpuOperators::Impl::Softmax_Float32(SubtensorCf A) {
   return C;
 }
 
-Tensor CpuOperators::Impl::GELU_Float32(SubtensorCf A) {
-  Tensor C = TensorLike(A);
-  Subtensorf Cs = MakeSubTensor<float>(C);
+Tensor CPUOperators::Impl::geluFp32(SubtensorCf A) {
+  Tensor C = createTensorLike(A);
+  Subtensorf Cs = makeSubtensor<float>(C);
 
   auto gelu_op = [](SubtensorCf A, Subtensorf C) {
     for (int i = 0; i < A.dimension(0); ++i) {
@@ -542,15 +509,9 @@ Tensor CpuOperators::Impl::GELU_Float32(SubtensorCf A) {
   return C;
 }
 
-bool CpuOperators::Impl::AllClose_Float32(
-    SubtensorCf A,
-    SubtensorCf B,
-    float rtol,
-    float atol) {
+bool CPUOperators::Impl::allCloseFp32(SubtensorCf A, SubtensorCf B, float rtol, float atol) {
   bool all_close = true;
-  BinaryOpNR<float> closure = [&all_close, rtol, atol](
-      SubtensorCf A,
-      SubtensorCf B) {
+  BinaryOpNR<float> closure = [&all_close, rtol, atol](SubtensorCf A, SubtensorCf B) {
     for (int i = 0; i < A.dimension(0); ++i) {
       float va = A.elem(i);
       float vb = B.elem(i);
@@ -568,9 +529,9 @@ bool CpuOperators::Impl::AllClose_Float32(
   return all_close;
 }
 
-Tensor CpuOperators::Impl::Mul_Float32(SubtensorCf A, float k) {
-  Tensor C = TensorLike(A);
-  Subtensorf Cs = MakeSubTensor<float>(C);
+Tensor CPUOperators::Impl::mulFp32(SubtensorCf A, float k) {
+  Tensor C = createTensorLike(A);
+  Subtensorf Cs = makeSubtensor<float>(C);
 
   UnaryOp<float> unary_op = [k](SubtensorCf A, Subtensorf C) {
     for (int i = 0; i < A.dimension(0); ++i) {
@@ -582,7 +543,7 @@ Tensor CpuOperators::Impl::Mul_Float32(SubtensorCf A, float k) {
   return C;
 }
 
-void CpuOperators::Impl::Copy_Float32(SubtensorCf src, Subtensorf tgt) {
+void CPUOperators::Impl::copyFp32(SubtensorCf src, Subtensorf tgt) {
   UnaryOp<float> copy_op = [](SubtensorCf src, Subtensorf tgt) {
     for (int i = 0; i < src.dimension(0); ++i) {
       tgt.elem(i) = src.elem(i);
@@ -591,18 +552,14 @@ void CpuOperators::Impl::Copy_Float32(SubtensorCf src, Subtensorf tgt) {
   ApplyUnary1DTensorOp<float>(src, tgt, copy_op);
 }
 
-Tensor CpuOperators::Impl::Lookup_Float32(
-    SubtensorCf table,
-    SubtensorCl indices) {
+Tensor CPUOperators::Impl::lookupFp32(SubtensorCf table, SubtensorCl indices) {
   CHECK(table.rank() == 2 && indices.rank() == 2);
 
   int batch_size = indices.dimension(0);
   int seq_len = indices.dimension(1);
   int d_model = table.dimension(1);
-  Tensor output = Tensor_(
-      util::MakeConstSpan({batch_size, seq_len, d_model}),
-      DType::kFloat);
-  Subtensorf emb = MakeSubTensor<float>(output);
+  Tensor output = createTensor(util::MakeConstSpan({batch_size, seq_len, d_model}), DType::kFloat);
+  Subtensorf emb = makeSubtensor<float>(output);
 
   for (int batch = 0; batch < batch_size; ++batch) {
     SubtensorCl indices_b = indices.subtensor(batch);
@@ -613,14 +570,14 @@ Tensor CpuOperators::Impl::Lookup_Float32(
 
       SubtensorCf emb_src = table.subtensor(static_cast<int>(index));
       Subtensorf emb_tgt = emb_b.subtensor(l);
-      Copy_Float32(emb_src, emb_tgt);
+      copyFp32(emb_src, emb_tgt);
     }
   }
 
   return output;
 }
 
-Tensor CpuOperators::Impl::LayerNorm_Float32(
+Tensor CPUOperators::Impl::layerNormFp32(
     SubtensorCf input,
     SubtensorCf weight,
     SubtensorCf bias,
@@ -653,18 +610,18 @@ Tensor CpuOperators::Impl::LayerNorm_Float32(
     }
   };
 
-  Tensor C = TensorLike(input);
-  Subtensorf Cs = MakeSubTensor<float>(C);
+  Tensor C = createTensorLike(input);
+  Subtensorf Cs = makeSubtensor<float>(C);
   ApplyUnary1DTensorOp(input, Cs, closure);
 
   return C;
 }
 
-Tensor CpuOperators::Impl::CausalMask_Float32(int seq_len) {
-  Tensor mask = Tensor_(util::MakeConstSpan({seq_len, seq_len}), DType::kFloat);
-  CHECK(mask.is_contiguous());
+Tensor CPUOperators::Impl::causalMaskFp32(int seq_len) {
+  Tensor mask = createTensor(util::MakeConstSpan({seq_len, seq_len}), DType::kFloat);
+  CHECK(mask.isContiguous());
 
-  float *data = mask.data<float>();
+  float *data = mask.getData<float>();
   for (int i = 0; i < seq_len; ++i) {
     float *row = data + i * seq_len;
     for (int j = 0; j <= i; ++j) {
@@ -678,54 +635,50 @@ Tensor CpuOperators::Impl::CausalMask_Float32(int seq_len) {
   return mask;
 }
 
-void CpuOperators::Impl::Cat_Float32(
-    SubtensorCf A,
-    SubtensorCf B,
-    int dim,
-    Subtensorf C) {
+void CPUOperators::Impl::catFp32(SubtensorCf A, SubtensorCf B, int dim, Subtensorf C) {
   CHECK(A.rank() == B.rank() && A.rank() == C.rank());
   if (dim == 0) {
     CHECK(A.dimension(0) + B.dimension(0) == C.dimension(0));
     for (int i = 0; i < A.dimension(0); ++i) {
-      Copy_Float32(A.subtensor(i), C.subtensor(i));
+      copyFp32(A.subtensor(i), C.subtensor(i));
     }
     for (int i = 0; i < B.dimension(0); ++i) {
-      Copy_Float32(B.subtensor(i), C.subtensor(i + A.dimension(0)));
+      copyFp32(B.subtensor(i), C.subtensor(i + A.dimension(0)));
     }
   } else {
     CHECK(A.dimension(0) == B.dimension(0));
     for (int i = 0; i < A.dimension(0); ++i) {
-      Cat_Float32(A.subtensor(i), B.subtensor(i), dim - 1, C.subtensor(i));
+      catFp32(A.subtensor(i), B.subtensor(i), dim - 1, C.subtensor(i));
     }
   }
 }
 
 // ---------------------------------------------------------------------------+
-// class CpuOperators                                                         |
+// class CPUOperators                                                         |
 // ---------------------------------------------------------------------------+
 
-std::unique_ptr<Operators> CpuOperators::Create() {
-  return std::unique_ptr<Operators>{new CpuOperators()};
+std::unique_ptr<Operators> CPUOperators::create() {
+  return std::unique_ptr<Operators>{new CPUOperators()};
 }
 
-Tensor CpuOperators::Tensor_(std::initializer_list<int> shape, DType dtype) {
-  return impl_->Tensor_(util::MakeConstSpan(shape), dtype);
+Tensor CPUOperators::createTensor(std::initializer_list<int> shape, DType dtype) {
+  return _impl->createTensor(util::MakeConstSpan(shape), dtype);
 }
 
-Tensor CpuOperators::TensorLike(const Tensor &input) {
+Tensor CPUOperators::createTensorLike(const Tensor &input) {
   std::vector<Tensor::ShapeType> shape_vec;
-  for (const TensorShape::Elem &elem : input.shape_.data_) {
+  for (const TensorShape::Elem &elem : input._shape._data) {
     shape_vec.push_back(elem.shape);
   }
 
-  return impl_->Tensor_(util::MakeConstSpan(shape_vec), input.dtype());
+  return _impl->createTensor(util::MakeConstSpan(shape_vec), input.getDType());
 }
 
-Tensor CpuOperators::Rand(std::initializer_list<int> shape, DType dtype) {
-  Tensor tensor = Tensor_(shape, dtype);
+Tensor CPUOperators::rand(std::initializer_list<int> shape, DType dtype) {
+  Tensor tensor = createTensor(shape, dtype);
   switch (dtype) {
     case DType::kFloat:
-      impl_->Rand_Float32(&tensor);
+      _impl->randFp32(&tensor);
       break;
     default:
       CHECK(false) << "unsupported dtype for Rand";
@@ -734,11 +687,11 @@ Tensor CpuOperators::Rand(std::initializer_list<int> shape, DType dtype) {
   return tensor;
 }
 
-Tensor CpuOperators::Zeros(std::initializer_list<int> shape, DType dtype) {
-  Tensor tensor = Tensor_(shape, dtype);
+Tensor CPUOperators::zeros(std::initializer_list<int> shape, DType dtype) {
+  Tensor tensor = createTensor(shape, dtype);
   switch (dtype) {
     case DType::kFloat:
-      impl_->Zeros_Float32(impl_->MakeSubTensor<float>(tensor));
+      _impl->zerosFp32(_impl->makeSubtensor<float>(tensor));
       break;
     default:
       CHECK(false) << "unsupported dtype for Zeros";
@@ -747,12 +700,11 @@ Tensor CpuOperators::Zeros(std::initializer_list<int> shape, DType dtype) {
   return tensor;
 }
 
-Tensor CpuOperators::MatMul(const Tensor &A, const Tensor &B) {
-  switch (A.dtype()) {
+Tensor CPUOperators::matmul(const Tensor &A, const Tensor &B) {
+  switch (A.getDType()) {
     case DType::kFloat:
-      return impl_->MatMul_Float32(
-          impl_->MakeConstSubTensor<float>(A),
-          impl_->MakeConstSubTensor<float>(B));
+      return _impl->matmulFp32(
+          _impl->makeConstSubtensor<float>(A), _impl->makeConstSubtensor<float>(B));
       break;
     default:
       CHECK(false) << "unsupported dtype for MatMul";
@@ -760,22 +712,21 @@ Tensor CpuOperators::MatMul(const Tensor &A, const Tensor &B) {
   }
 }
 
-void CpuOperators::Print(const Tensor &tensor) {
-  switch (tensor.dtype()) {
+void CPUOperators::print(const Tensor &tensor) {
+  switch (tensor.getDType()) {
     case DType::kFloat:
-      impl_->Print_Float32(impl_->MakeConstSubTensor<float>(tensor));
+      _impl->printFp32(_impl->makeConstSubtensor<float>(tensor));
       break;
     default:
       CHECK(false) << "unsupported dtype for Print";
   }
 }
 
-Tensor CpuOperators::Add(const Tensor &input, const Tensor &other) {
-  switch (input.dtype()) {
+Tensor CPUOperators::add(const Tensor &input, const Tensor &other) {
+  switch (input.getDType()) {
     case DType::kFloat:
-      return impl_->Add_Float32(
-          impl_->MakeConstSubTensor<float>(input),
-          impl_->MakeConstSubTensor<float>(other));
+      return _impl->addFp32(
+          _impl->makeConstSubtensor<float>(input), _impl->makeConstSubtensor<float>(other));
       break;
     default:
       NOT_IMPL();
@@ -784,10 +735,10 @@ Tensor CpuOperators::Add(const Tensor &input, const Tensor &other) {
   return Tensor();
 }
 
-Tensor CpuOperators::Softmax(const Tensor &input) {
-  switch (input.dtype()) {
+Tensor CPUOperators::softmax(const Tensor &input) {
+  switch (input.getDType()) {
     case DType::kFloat:
-      return impl_->Softmax_Float32(impl_->MakeConstSubTensor<float>(input));
+      return _impl->softmaxFp32(_impl->makeConstSubtensor<float>(input));
       break;
     default:
       NOT_IMPL();
@@ -796,10 +747,10 @@ Tensor CpuOperators::Softmax(const Tensor &input) {
   return Tensor();
 }
 
-Tensor CpuOperators::GELU(const Tensor &input) {
-  switch (input.dtype()) {
+Tensor CPUOperators::gelu(const Tensor &input) {
+  switch (input.getDType()) {
     case DType::kFloat:
-      return impl_->GELU_Float32(impl_->MakeConstSubTensor<float>(input));
+      return _impl->geluFp32(_impl->makeConstSubtensor<float>(input));
       break;
     default:
       NOT_IMPL();
@@ -808,18 +759,15 @@ Tensor CpuOperators::GELU(const Tensor &input) {
   return Tensor();
 }
 
-bool CpuOperators::AllClose(const Tensor &A, const Tensor &B) {
-  if (A.dtype() != B.dtype()) {
+bool CPUOperators::allClose(const Tensor &A, const Tensor &B) {
+  if (A.getDType() != B.getDType()) {
     return false;
   }
 
-  switch (A.dtype()) {
+  switch (A.getDType()) {
     case DType::kFloat:
-      return impl_->AllClose_Float32(
-          impl_->MakeConstSubTensor<float>(A),
-          impl_->MakeConstSubTensor<float>(B),
-          1e-6f,
-          1e-3f);
+      return _impl->allCloseFp32(
+          _impl->makeConstSubtensor<float>(A), _impl->makeConstSubtensor<float>(B), 1e-6f, 1e-3f);
       break;
     default:
       NOT_IMPL();
@@ -828,10 +776,10 @@ bool CpuOperators::AllClose(const Tensor &A, const Tensor &B) {
   return false;
 }
 
-Tensor CpuOperators::Mul(const Tensor &A, float k) {
-  switch (A.dtype()) {
+Tensor CPUOperators::mul(const Tensor &A, float k) {
+  switch (A.getDType()) {
     case DType::kFloat:
-      return impl_->Mul_Float32(impl_->MakeConstSubTensor<float>(A), k);
+      return _impl->mulFp32(_impl->makeConstSubtensor<float>(A), k);
       break;
     default:
       NOT_IMPL();
@@ -840,16 +788,14 @@ Tensor CpuOperators::Mul(const Tensor &A, float k) {
   return Tensor();
 }
 
-Tensor CpuOperators::Contiguous(const Tensor &input) {
-  if (input.is_contiguous()) {
+Tensor CPUOperators::contiguous(const Tensor &input) {
+  if (input.isContiguous()) {
     return input;
   } else {
-    Tensor C = TensorLike(input);
-    switch (input.dtype()) {
+    Tensor C = createTensorLike(input);
+    switch (input.getDType()) {
       case DType::kFloat:
-        impl_->Copy_Float32(
-            impl_->MakeConstSubTensor<float>(input),
-            impl_->MakeSubTensor<float>(C));
+        _impl->copyFp32(_impl->makeConstSubtensor<float>(input), _impl->makeSubtensor<float>(C));
         break;
       default:
         NOT_IMPL();
@@ -859,12 +805,12 @@ Tensor CpuOperators::Contiguous(const Tensor &input) {
   }
 }
 
-Tensor CpuOperators::Lookup(const Tensor &table, const Tensor &indices) {
-  switch (table.dtype()) {
+Tensor CPUOperators::lookup(const Tensor &table, const Tensor &indices) {
+  switch (table.getDType()) {
     case DType::kFloat:
-      return impl_->Lookup_Float32(
-          impl_->MakeConstSubTensor<float>(table),
-          impl_->MakeConstSubTensor<LongType>(indices));
+      return _impl->lookupFp32(
+          _impl->makeConstSubtensor<float>(table),
+          _impl->makeConstSubtensor<LongType>(indices));
     default:
       NOT_IMPL();
   }
@@ -872,19 +818,19 @@ Tensor CpuOperators::Lookup(const Tensor &table, const Tensor &indices) {
   return Tensor();
 }
 
-Tensor CpuOperators::LayerNorm(
+Tensor CPUOperators::layerNorm(
     const Tensor &input,
     const Tensor &weight,
     const Tensor &bias,
     float eps) {
-  CHECK(input.dtype() == weight.dtype() && input.dtype() == bias.dtype());
+  CHECK(input.getDType() == weight.getDType() && input.getDType() == bias.getDType());
 
-  switch (input.dtype()) {
+  switch (input.getDType()) {
     case DType::kFloat:
-      return impl_->LayerNorm_Float32(
-          impl_->MakeConstSubTensor<float>(input),
-          impl_->MakeConstSubTensor<float>(weight),
-          impl_->MakeConstSubTensor<float>(bias),
+      return _impl->layerNormFp32(
+          _impl->makeConstSubtensor<float>(input),
+          _impl->makeConstSubtensor<float>(weight),
+          _impl->makeConstSubtensor<float>(bias),
           eps);
     default:
       NOT_IMPL();
@@ -893,32 +839,32 @@ Tensor CpuOperators::LayerNorm(
   return Tensor();
 }
 
-Tensor CpuOperators::CausalMask(int max_len) {
-  return impl_->CausalMask_Float32(max_len);
+Tensor CPUOperators::causalMask(int max_len) {
+  return _impl->causalMaskFp32(max_len);
 }
 
 
-Tensor CpuOperators::Cat(const Tensor &A, const Tensor &B, int dim) {
-  CHECK(A.dim() == B.dim());
+Tensor CPUOperators::cat(const Tensor &A, const Tensor &B, int dim) {
+  CHECK(A.getDim() == B.getDim());
 
   std::vector<int> shape;
-  for (int d = 0; d < A.dim(); ++d) {
+  for (int d = 0; d < A.getDim(); ++d) {
     if (d == dim) {
-      shape.push_back(A.shape(d) + B.shape(d));
+      shape.push_back(A.getShape(d) + B.getShape(d));
     } else {
-      CHECK(A.shape(d) == B.shape(d));
-      shape.push_back(A.shape(d));
+      CHECK(A.getShape(d) == B.getShape(d));
+      shape.push_back(A.getShape(d));
     }
   }
 
-  Tensor C = impl_->Tensor_(util::MakeConstSpan(shape), A.dtype());
-  switch (A.dtype()) {
+  Tensor C = _impl->createTensor(util::MakeConstSpan(shape), A.getDType());
+  switch (A.getDType()) {
     case DType::kFloat:
-      impl_->Cat_Float32(
-          impl_->MakeConstSubTensor<float>(A),
-          impl_->MakeConstSubTensor<float>(B),
+      _impl->catFp32(
+          _impl->makeConstSubtensor<float>(A),
+          _impl->makeConstSubtensor<float>(B),
           dim,
-          impl_->MakeSubTensor<float>(C));
+          _impl->makeSubtensor<float>(C));
       break;
     default:
       NOT_IMPL();

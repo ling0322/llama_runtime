@@ -20,13 +20,13 @@ enum class DType : int16_t {
 
 // get type-id
 template <typename T>
-DType TypeID();
+DType getTypeID();
 
 // get the size of specific dtype
-int SizeOfDType(DType dtype);
+int getDTypeSize(DType dtype);
 
 // return true of DType is valid
-bool IsValidDType(DType dtype);
+bool isValidDType(DType dtype);
 
 // contains dimension and stride information for an axis in tensor
 class TensorData {
@@ -34,22 +34,22 @@ class TensorData {
   TensorData(int64_t numel, DType dtype);
   ~TensorData();
 
-  ByteType *data() const { return data_; }
-  DType dtype() const { return dtype_; }
-  int64_t size_in_bytes() const { 
-    return numel_ * SizeOfDType(dtype_);
+  ByteType *getData() const { return _data; }
+  DType getDType() const { return _dtype; }
+  int64_t getSizeInBytes() const { 
+    return _numel * getDTypeSize(_dtype);
   }
 
  private:
-  ByteType *data_;
-  int64_t numel_;
-  DType dtype_;
+  ByteType *_data;
+  int64_t _numel;
+  DType _dtype;
 };
 
 // Stores shape and stride of a Tensor.
 class TensorShape {
  public:
-  friend class CpuOperators;
+  friend class CPUOperators;
 
   typedef int32_t ShapeType;
   struct Elem {
@@ -65,10 +65,10 @@ class TensorShape {
 
   // Returns a Size that is a transposed version of current size. The given
   // dimensions dim0 and dim1 are swapped.
-  TensorShape Transpose(int dim0, int dim1) const;
+  TensorShape transpose(int dim0, int dim1) const;
 
   // Returns a sub-Size starting at specified dimension.
-  TensorShape Subsize(int d) const;
+  TensorShape subsize(int d) const;
 
   TensorShape(const TensorShape &size);
   TensorShape(TensorShape &&size) noexcept;
@@ -76,26 +76,26 @@ class TensorShape {
   TensorShape &operator=(TensorShape &&size) noexcept;
 
   bool empty() const;
-  int dim() const;
-  ShapeType shape(int index) const;
-  ShapeType stride(int index) const;
-  int64_t numel() const;
+  int getDim() const;
+  ShapeType getShape(int index) const;
+  ShapeType getStride(int index) const;
+  int64_t getNumEl() const;
 
-  // set the value of shape(dim). Negative dim is allowed. By design, new
-  // `shape` should not greater than shape(dim).
-  void set_shape(int dim, ShapeType shape);
+  // set the value of shape(dim). Negative dim is allowed. By design, new `shape` should not
+  // greater than shape(dim).
+  void setShape(int dim, ShapeType shape);
 
   // convert negative dimension or index (in specific `dim`) to positive.
-  int real_dim(int dim) const;
-  int real_index(int dim, int index) const;
+  int getRealDim(int dim) const;
+  int getRealIndex(int dim, int index) const;
 
  private:
-  util::FixedArray<Elem> data_;
+  util::FixedArray<Elem> _data;
 };
 
 class Tensor {
  public:
-  friend class CpuOperators;
+  friend class CPUOperators;
 
   // integer type for shape and stride
   typedef TensorShape::ShapeType ShapeType;
@@ -105,22 +105,20 @@ class Tensor {
 
   // Make a tensor in CPU.
   template<typename T>
-  static Tensor FromData(std::initializer_list<int> shape,
-                         util::Span<const T> data);
+  static Tensor create(std::initializer_list<int> shape, util::Span<const T> data);
 
-  // create a tensor in CPU storage. Size of `data` should be the same as
-  // `shape.numel()`.
+  // create a tensor in CPU storage. Size of `data` should be the same as `shape.numel()`.
   // Example:
   //   Tensor x = Tensor::FromData({2, 2}, {1.0f, 0.8f, 0.6f, 0.2f});
   template<typename T>
-  static Tensor FromData(util::Span<const int> shape, util::Span<const T> data);
+  static Tensor create(util::Span<const int> shape, util::Span<const T> data);
 
   // constructor and destructor.
   Tensor();
   ~Tensor();
 
   // Read the tensor from fp.
-  Status Read(ReadableFile *fp);
+  void read(ReadableFile *fp);
 
   // copy and move constructors.
   Tensor(const Tensor &tensor);
@@ -129,92 +127,82 @@ class Tensor {
   Tensor &operator=(Tensor &&tensor);
 
   // get numebr of dimentsions.
-  int dim() const { return shape_.dim(); }
+  int getDim() const { return _shape.getDim(); }
 
-  // get the size in dimention `d`. `d` supports positive number
-  // (index) and negative number (index from back). Crash if `d` is out of
-  // boundary
-  ShapeType shape(int d) const {
-    return shape_.shape(d);
-  }
+  // get the size in dimention `d`. `d` supports positive number (index) and negative number (index
+  // from back). Crash if `d` is out of boundary
+  ShapeType getShape(int d) const { return _shape.getShape(d); }
 
   // get stride for dimension `d`. 
-  ShapeType stride(int d) const {
-    return shape_.stride(d);
-  }
+  ShapeType getStride(int d) const { return _shape.getStride(d); }
 
   // get number of elements in this tensor.
-  int64_t numel() const {
-    return shape_.numel();
-  }
+  int64_t getNumEl() const { return _shape.getNumEl(); }
 
   // return true if this tensor is empty.
-  bool empty() const {
-    return shape_.empty();
-  }
+  bool empty() const { return _shape.empty(); }
 
   // get data type.
-  DType dtype() const;
+  DType getDType() const;
 
-  // return a new tensor with the same data as the self tensor but of a
-  // different shape.
-  Tensor View(std::initializer_list<int> shape) const;
+  // return a new tensor with the same data as the self tensor but of a different shape.
+  Tensor view(std::initializer_list<int> shape) const;
 
-  // Get slice of this tensor. `dim` is the dimension to slice. [begin, end) is
-  // the range. For [begin, end) only version, dimension 0 is used. Negative
-  // `begin` and `end` is accepted. Crash if dim or range out of boundary.
-  Tensor Slice(int dim, int begin, int end) const;
-  Tensor Slice(int begin, int end) const;
+  // Get slice of this tensor. `dim` is the dimension to slice. [begin, end) is the range. For
+  // [begin, end) only version, dimension 0 is used. Negative `begin` and `end` is accepted. Crash
+  // if dim or range out of boundary.
+  Tensor slice(int dim, int begin, int end) const;
+  Tensor slice(int begin, int end) const;
 
-  // Get subtensor at specified index of first dimension. Negative `index` is
-  // accepted. Crash if `index` out of boundary.
-  Tensor Subtensor(int index) const;
+  // Get subtensor at specified index of first dimension. Negative `index` is accepted. Crash if
+  // `index` out of boundary.
+  Tensor subtensor(int index) const;
 
-  Tensor Transpose(int dim0, int dim1) const;
+  Tensor transpose(int dim0, int dim1) const;
 
   // return true if the tensor is contigous.
-  bool is_contiguous() const;
+  bool isContiguous() const;
 
   // pointer of data in this tensor
   template<typename T>
-  T *data() { 
-    return reinterpret_cast<T *>(raw_data(TypeID<T>())); 
+  T *getData() { 
+    return reinterpret_cast<T *>(getRawData(getTypeID<T>())); 
   }
   template<typename T>
-  const T *data() const {
-    return reinterpret_cast<T *>(raw_data(TypeID<T>()));
+  const T *getData() const {
+    return reinterpret_cast<T *>(getRawData(getTypeID<T>()));
   }
 
-  // return specific element at index. Size of `indices` should be the same as
-  // tensor dimension. And the data should in CPU.
+  // return specific element at index. Size of `indices` should be the same as tensor dimension.
+  // And the data should in CPU.
   template<typename T>
-  T elem(util::Span<const int> indices);
+  T getElem(util::Span<const int> indices);
 
-  // Check the shape of a tensor. If shape of `tensor` does not match `shape`,
-  // return AbortedError with message "invalid shape".
-  Status CheckShape(std::initializer_list<int> shape);
+  // Check the shape of a tensor. If shape of `tensor` does not match `shape`, return AbortedError
+  // with message "invalid shape".
+  void throwIfInvalidShape(std::initializer_list<int> shape);
 
  protected:
-  std::shared_ptr<TensorData> data_;
-  TensorShape shape_;
-  ByteType *data_ptr_;
+  std::shared_ptr<TensorData> _data;
+  TensorShape _shape;
+  ByteType *_dataPtr;
 
   // check dtype and return the point of underlying data
-  ByteType *raw_data(DType dtype) const;
+  ByteType *getRawData(DType dtype) const;
 };
 
-inline DType Tensor::dtype() const { 
-  return data_ ? data_->dtype() : DType::kUnknown;
+inline DType Tensor::getDType() const { 
+  return _data ? _data->getDType() : DType::kUnknown;
 }
 
 template<typename T>
-inline T Tensor::elem(util::Span<const int> indices) {
-  CHECK(indices.size() == dim());
+inline T Tensor::getElem(util::Span<const int> indices) {
+  CHECK(indices.size() == getDim());
 
-  const T *data = this->data<T>();
+  const T *data = this->getData<T>();
   int64_t offset = 0;
-  for (int d = 0; d < dim(); ++d) {
-    offset += indices[d] * stride(d);
+  for (int d = 0; d < getDim(); ++d) {
+    offset += indices[d] * getStride(d);
   }
 
   return data[offset];

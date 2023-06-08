@@ -11,12 +11,10 @@ namespace llama {
 
 IniConfig::IniConfig() {}
 
-expected_ptr<IniConfig> IniConfig::Read(const std::string &filename) {
+std::unique_ptr<IniConfig> IniConfig::read(const std::string &filename) {
   std::unique_ptr<IniConfig> config{new IniConfig()};
 
-  auto fp = ReadableFile::Open(filename);
-  RETURN_IF_ERROR(fp);
-
+  auto fp = ReadableFile::open(filename);
   Scanner scanner{fp.get()};
 
   enum State {
@@ -27,68 +25,57 @@ expected_ptr<IniConfig> IniConfig::Read(const std::string &filename) {
   util::Path ini_dir = util::Path(filename).dirname();
   IniSection section{ini_dir};
   State state = kBegin;
-  std::string name, key, value;
-  while (scanner.Scan()) {
-    std::string line = strings::Trim(scanner.text());
+  while (scanner.scan()) {
+    std::string line = strings::Trim(scanner.getText());
     if (state == kBegin) {
-      if (IsEmptyLine(line)) {
+      if (isEmptyLine(line)) {
         // self-loop
-      } else if (IsHeader(line)) {
-        RETURN_IF_ERROR(ParseHeader(line, &name));
-        section.name_ = name;
+      } else if (isHeader(line)) {
+        section._name = parseHeader(line);
         state = kSelfLoop;
       } else {
-        RETURN_ABORTED() << "invalid line: " << line;
+        throw AbortedException(fmt::sprintf("invalid line: %s", line));
       }
     } else if (state == kSelfLoop) {
-      if (IsEmptyLine(line)) {
-        // self-loop
-      } else if (IsHeader(line)) {
-        config->table_.emplace(section.name(), std::move(section));
+      if (isEmptyLine(line)) {
+        // do nothing.
+      } else if (isHeader(line)) {
+        config->_table.emplace(section.getName(), std::move(section));
         section = IniSection{ini_dir};
-        RETURN_IF_ERROR(ParseHeader(line, &name));
-        section.name_ = name;
+        section._name = parseHeader(line);
       } else {
-        RETURN_IF_ERROR(ParseKeyValue(line, &key, &value));
-        section.kv_table_[key] = value;
+        std::string key, value;
+        std::tie(key, value) = parseKeyValue(line);
+        section._kvTable[key] = value;
       }
     } else {
       NOT_IMPL();
     }
   }
-  
-  RETURN_IF_ERROR(scanner.status());
+
   if (state == kBegin) {
-    RETURN_ABORTED() << "ini file is empty.";
+    throw AbortedException("ini file is empty.");
   }
 
-  config->table_.emplace(section.name(), std::move(section));
+  config->_table.emplace(section.getName(), std::move(section));
 
   return config;
 }
 
-bool IniConfig::has_section(const std::string &section) const {
-  auto it = table_.find(section);
-  return it != table_.end();
+bool IniConfig::hasSection(const std::string &section) const {
+  auto it = _table.find(section);
+  return it != _table.end();
 }
 
-Status IniConfig::EnsureSection(const std::string &name) const {
-  auto it = table_.find(name);
-  if (it == table_.end()) {
-    RETURN_OUT_OF_RANGE() << "section not found: " << name;
-  }
 
-  return OkStatus();
-}
-
-const IniSection &IniConfig::section(const std::string &name) const {
-  auto it = table_.find(name);
-  CHECK(it != table_.end()) << "section not found: " << name;
+const IniSection &IniConfig::getSection(const std::string &name) const {
+  auto it = _table.find(name);
+  CHECK(it != _table.end()) << "section not found: " << name;
 
   return it->second;
 }
 
-bool IniConfig::IsEmptyLine(const std::string &s) {
+bool IniConfig::isEmptyLine(const std::string &s) {
   if (s.empty() || s.front() == ';') {
     return true;
   } else {
@@ -96,7 +83,7 @@ bool IniConfig::IsEmptyLine(const std::string &s) {
   }
 }
 
-bool IniConfig::IsHeader(const std::string &s) {
+bool IniConfig::isHeader(const std::string &s) {
   if (s.front() == '[' && s.back() == ']') {
     return true;
   } else {
@@ -104,95 +91,79 @@ bool IniConfig::IsHeader(const std::string &s) {
   }
 }
 
-Status IniConfig::ParseHeader(const std::string &s, std::string *name) {
-  if (!IsHeader(s)) {
-    RETURN_ABORTED() << "invalid line: "<< s;
+std::string IniConfig::parseHeader(const std::string &s) {
+  if (!isHeader(s)) {
+    throw AbortedException(fmt::sprintf("invalid line: %s", s));
   }
   
-  *name = s.substr(1, s.size() - 2);
-  *name = strings::Trim(*name);
-  if (name->empty()) {
-    RETURN_ABORTED() << "invalid ini section: "<< s;
+  std::string name = s.substr(1, s.size() - 2);
+  name = strings::Trim(name);
+  if (name.empty()) {
+    throw AbortedException(fmt::sprintf("invalid ini section: %s", s));
   }
 
-  return OkStatus();
+  return name;
 }
 
-Status IniConfig::ParseKeyValue(
-    const std::string &s,
-    std::string *key,
-    std::string *value) {
+std::pair<std::string, std::string> IniConfig::parseKeyValue(const std::string &s) {
   auto row = strings::Split(s, "=");
   if (row.size() != 2) {
-    RETURN_ABORTED() << "invalid line: " << s;
+    throw AbortedException(fmt::sprintf("invalid line: %s", s));
   }
-  *key = strings::ToLower(strings::Trim(row[0]));
-  *value = strings::Trim(row[1]);
-  if (key->empty() || value->empty()) {
-    RETURN_ABORTED() << "invalid line: " << s;
+  std::string key = strings::ToLower(strings::Trim(row[0]));
+  std::string value = strings::Trim(row[1]);
+  if (key.empty() || value.empty()) {
+    throw AbortedException(fmt::sprintf("invalid line: %s", s));
   }
 
-  return OkStatus();
+  return std::make_pair(key, value);
 }
 
 
 // -- class IniSection ---------------------------------------------------------
 
-IniSection::IniSection(const util::Path &ini_dir)
-    : ini_dir_(ini_dir) {}
+IniSection::IniSection(const util::Path &iniDir) : _iniDir(iniDir) {}
 
-template<>
-Status IniSection::Get(const std::string &key, std::string *val) const {
-  auto it = kv_table_.find(key);
-  if (it == kv_table_.end()) {
-    RETURN_ABORTED() << "key not found (ini_session=" << name_ << "): " << key;
+std::string IniSection::getString(const std::string &key) const {
+  auto it = _kvTable.find(key);
+  if (it == _kvTable.end()) {
+    throw AbortedException(fmt::sprintf("key not found (ini_session=%s): %s", _name, key));
   }
 
-  *val = it->second;
-  return OkStatus();
+  return it->second;
 }
 
-template<>
-Status IniSection::Get(const std::string &key, int *val) const {
-  std::string s;
-  RETURN_IF_ERROR(Get(key, &s));
-
-  int v;
-  RETURN_IF_ERROR(strings::Atoi(s, &v));
-  *val = v;
-
-  return OkStatus();
+int IniSection::getInt(const std::string &key) const {
+  std::string s = getString(key);
+  return strings::Atoi(s);
 }
 
-template<>
-Status IniSection::Get(const std::string &key, bool *val) const {
-  std::string s;
-  RETURN_IF_ERROR(Get(key, &s));
+bool IniSection::getBool(const std::string &key) const {
+  std::string s = getString(key);
 
   s = strings::ToLower(s);
   if (s == "true" || s == "1") {
-    *val = true;
+    return true;
   } else if (s == "false" || s == "0") {
-    *val = false;
+    return false;
   } else {
-    RETURN_ABORTED() << "invalid bool value: " << s;
+    throw AbortedException(fmt::sprintf("invalid bool value: %s", s));
   }
 
-  return OkStatus();
+  // never reach here.
+  NOT_IMPL();
+  return false;
 }
 
-template<>
-Status IniSection::Get(const std::string &key, util::Path *val) const {
-  std::string s;
-  RETURN_IF_ERROR(Get(key, &s));
+util::Path IniSection::getPath(const std::string &key) const {
+  std::string s = getString(key);
 
   util::Path path(s);
   if (!path.isabs()) {
-    path = ini_dir_ / path;
+    return _iniDir / path;
+  } else {
+    return path;
   }
-  *val = path;
-
-  return OkStatus();
 }
 
 }  // namespace llama

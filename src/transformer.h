@@ -16,7 +16,7 @@ class MultiheadSelfAttention : public Module {
       int d_model);
 
   // initialize the module from context
-  Status InitParameters(const TensorMap &state_dict) override;
+  void initParameters(const TensorMap &state_dict) override;
 
   // forward the inputs into multi-head self-attention. inputs was both q, k
   // and v for the attention module.

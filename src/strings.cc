@@ -169,14 +169,13 @@ std::string ToLower(const std::string &s) {
   return lower;
 }
 
-Status Atoi(const std::string &s, int *i) {
+int Atoi(const std::string &s) {
   char *p = nullptr;
   long v = strtol(s.c_str(), &p, 0);
   if (*p == '\0') {
-    *i = static_cast<int>(v);
-    return OkStatus();
+    return static_cast<int>(v);
   } else {
-    RETURN_ABORTED() << "invalid integer string: " << s;
+    throw AbortedException(fmt::sprintf("invalid integer string: %s", s));
   }
 }
 

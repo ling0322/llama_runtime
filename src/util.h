@@ -125,7 +125,7 @@ class FixedArray : public BaseArray<T> {
 template<typename T>
 class Span : public BaseArray<T> {
  public:
-  Span() noexcept : ptr_(nullptr), len_(0) {}
+  Span() noexcept : BaseArray() {}
   Span(T *ptr, size_type size) : BaseArray(ptr, size) {}
 
   // automatic convert initializer_list to Span<const T>.
