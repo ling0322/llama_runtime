@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 #include <stdlib.h>
-
+#include <exception>
 #include <sstream>
 
 #define PROJECT_NAME "llama_runtime"
@@ -58,7 +58,6 @@ namespace llama {
 typedef const char *PCStrType;
 typedef unsigned char ByteType;
 typedef const unsigned char CByteType;
-
 
 };  // namespace llama
 

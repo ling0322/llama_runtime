@@ -11,6 +11,7 @@ set(llama_SOURCES
     "src/common.cc"
     "src/environment.cc"
     "src/gemm.cc"
+    "src/gemm_kernel_avx512.cc"
     "src/gpt2_model.cc"
     "src/ini_config.cc"
     "src/log.cc"
@@ -46,6 +47,11 @@ set(llama_test_SOURCES
 add_executable(llama_test ${llama_test_SOURCES})
 target_include_directories(llama_test PRIVATE ${llama_INCDIRS})
 
+set(OPENBLAS_INCLUDE_DIR ${OPENBLAS_DIR}/include)
+set(OPENBLAS_LIB ${OPENBLAS_DIR}/lib/libopenblas.lib)
+set(OPENBLAS_DYNLIB ${OPENBLAS_DIR}/bin/libopenblas.dll)
+
+
 set(llama_benchmark_SOURCES
     ${llama_SOURCES}
     "src/gemm_benchmark.cc"
@@ -53,4 +59,7 @@ set(llama_benchmark_SOURCES
     "src/test_main.cc"
     "third_party/catch2/catch_amalgamated.cpp")
 add_executable(llama_benchmark ${llama_benchmark_SOURCES})
-target_include_directories(llama_benchmark PRIVATE ${llama_INCDIRS})
+target_link_libraries(llama_benchmark ${OPENBLAS_LIB})
+target_include_directories(llama_benchmark PRIVATE ${llama_INCDIRS} ${OPENBLAS_INCLUDE_DIR})
+add_custom_command(TARGET llama_benchmark POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy ${OPENBLAS_DYNLIB} $<TARGET_FILE_DIR:llama_benchmark>)
