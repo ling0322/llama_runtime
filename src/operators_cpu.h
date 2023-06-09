@@ -11,40 +11,36 @@ namespace llama {
 namespace nn {
 
 // the CPU implementation of Operators
-class CpuOperators : public Operators {
+class CPUOperators : public Operators {
  public:
-  // create a instance of CpuOperators
-  static std::unique_ptr<Operators> Create();
+  // create a instance of CPUOperators
+  static std::unique_ptr<Operators> create();
 
   // implement interface Operators
-  Tensor Lookup(const Tensor &table, const Tensor &indices) override;
-  Tensor MatMul(const Tensor &a, const Tensor &b) override;
-  Tensor Mul(const Tensor &input, float other) override;
-  Tensor Softmax(const Tensor &input) override;
-  Tensor GELU(const Tensor &input) override;
-  Tensor Add(const Tensor &a, const Tensor &b) override;
-  Tensor Tensor_(std::initializer_list<int> shape, DType dtype) override;
-  Tensor TensorLike(const Tensor &input) override;
-  Tensor Rand(std::initializer_list<int> shape, DType dtype) override;
-  Tensor Zeros(std::initializer_list<int> shape, DType dtype) override;
-  Tensor Contiguous(const Tensor &input) override;
-  bool AllClose(const Tensor &A, const Tensor &B) override;
-  void Print(const Tensor &tensor) override;
-  Tensor LayerNorm(
-      const Tensor &input,
-      const Tensor &weight,
-      const Tensor &bias,
-      float eps) override;
-  Tensor CausalMask(int max_len) override;
-  Tensor Cat(const Tensor &A, const Tensor &B, int dim) override;
+  Tensor lookup(TensorCRef table, TensorCRef indices) override;
+  Tensor matmul(TensorCRef a, TensorCRef b) override;
+  Tensor mul(TensorCRef input, float other) override;
+  Tensor softmax(TensorCRef input) override;
+  Tensor gelu(TensorCRef input) override;
+  Tensor add(TensorCRef a, TensorCRef b) override;
+  Tensor createTensor(std::initializer_list<int> shape, DType dtype) override;
+  Tensor createTensorLike(TensorCRef input) override;
+  Tensor rand(std::initializer_list<int> shape, DType dtype) override;
+  Tensor zeros(std::initializer_list<int> shape, DType dtype) override;
+  Tensor contiguous(TensorCRef input) override;
+  bool allClose(TensorCRef A, TensorCRef B) override;
+  void print(TensorCRef tensor) override;
+  Tensor layerNorm(TensorCRef input, TensorCRef weight, TensorCRef bias, float eps) override;
+  Tensor causalMask(int max_len) override;
+  Tensor cat(TensorCRef A, TensorCRef B, int dim) override;
 
  private:
   // internal implementation of the operators.
   class Impl;
-  std::unique_ptr<Impl> impl_;
+  std::unique_ptr<Impl> _impl;
 
   // make the constructor private
-  CpuOperators() = default;
+  CPUOperators() = default;
 };
 
 }  // namespace nn

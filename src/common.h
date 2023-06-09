@@ -23,12 +23,12 @@
 #define NAMEOF(x) #x
 
 #ifdef __APPLE__
-#define LL_PLATFORM_APPLE
+#define AL_PLATFORM_APPLE
 #elif defined(linux) || defined(__linux) || defined(__linux__)
-#define LL_PLATFORM_LINUX
+#define AL_PLATFORM_LINUX
 #elif defined(WIN32) || defined(__WIN32__) || defined(_MSC_VER) || \
       defined(_WIN32) || defined(__MINGW32__)
-#define LL_PLATFORM_WINDOWS
+#define AL_PLATFORM_WINDOWS
 #else
 #error unknown platform
 #endif
@@ -58,6 +58,33 @@ namespace llama {
 typedef const char *PCStrType;
 typedef unsigned char ByteType;
 typedef const unsigned char CByteType;
+
+enum class StatusCode : int {
+  kOK = 0,
+  kAborted = 1,
+  kOutOfRange = 2,
+};
+
+class Exception : public std::exception {
+ public:
+  Exception(StatusCode code, const std::string &what);
+  ~Exception();
+ 
+  // get error code.
+  StatusCode getCode() const;
+
+  // implement std::exception.
+  const char* what() const noexcept override;
+
+ private:
+  StatusCode _code;
+  std::string _what;
+};
+
+class AbortedException : public Exception {
+ public:
+  AbortedException(const std::string &what);
+};
 
 };  // namespace llama
 

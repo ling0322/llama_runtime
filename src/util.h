@@ -1,5 +1,4 @@
-#ifndef LLAMA_RUNTIME_UTIL_H_
-#define LLAMA_RUNTIME_UTIL_H_
+#pragma once
 
 #include <functional>
 #include <string>
@@ -7,7 +6,6 @@
 
 #include "common.h"
 #include "log.h"
-#include "status.h"
 
 namespace llama {
 namespace util {
@@ -41,26 +39,26 @@ class BaseArray {
 
   BaseArray() : BaseArray(nullptr, 0) {}
   BaseArray(T *ptr, size_type size) noexcept : 
-      ptr_(ptr),
-      size_(size) {}
+      _ptr(ptr),
+      _size(size) {}
 
-  pointer data() const noexcept { return ptr_; }
-  size_type size() const noexcept { return size_; }
-  bool empty() const noexcept { return size_ == 0; }
+  pointer data() const noexcept { return _ptr; }
+  size_type size() const noexcept { return _size; }
+  bool empty() const noexcept { return _size == 0; }
   reference operator[](size_type i) const noexcept {
-    return *(ptr_ + i);
+    return *(_ptr + i);
   }
   reference at(size_type i) const {
-    ASSERT(i < size_ && i >= 0);
-    return *(ptr_ + i);
+    ASSERT(i < _size && i >= 0);
+    return *(_ptr + i);
   }
-  reference front() const noexcept { ASSERT(!empty()); return *ptr_; }
+  reference front() const noexcept { ASSERT(!empty()); return *_ptr; }
   reference back() const noexcept { 
     ASSERT(!empty());
-    return *(ptr_ + size_ - 1);
+    return *(_ptr + _size - 1);
   }
-  iterator begin() const noexcept { return ptr_; }
-  iterator end() const noexcept { return ptr_ + size_; }
+  iterator begin() const noexcept { return _ptr; }
+  iterator end() const noexcept { return _ptr + _size; }
   const_iterator cbegin() const noexcept { return begin(); }
   const_iterator cend() const noexcept { return end(); }
   reverse_iterator rbegin() const noexcept {
@@ -73,13 +71,11 @@ class BaseArray {
   const_reverse_iterator crend() const noexcept { return rend(); }
 
  protected:
-  pointer ptr_;
-  size_type size_;
+  pointer _ptr;
+  size_type _size;
 };
 
-// ----------------------------------------------------------------------------
-// FixedArray
-// ----------------------------------------------------------------------------
+// -- FixedArray ----------
 
 template<typename T>
 class FixedArray : public BaseArray<T> {
@@ -88,9 +84,9 @@ class FixedArray : public BaseArray<T> {
   FixedArray(int size) noexcept : 
       BaseArray(size ? new T[size] : nullptr, size) {}
   ~FixedArray() noexcept {
-    delete[] ptr_;
-    ptr_ = nullptr;
-    size_ = 0;
+    delete[] _ptr;
+    _ptr = nullptr;
+    _size = 0;
   }
 
   // copy
@@ -99,45 +95,44 @@ class FixedArray : public BaseArray<T> {
 
   // move
   FixedArray(FixedArray<T> &&array) noexcept {
-    ptr_ = array.ptr_;
-    size_ = array.size_;
-    array.ptr_ = nullptr;
-    array.size_ = 0;
+    _ptr = array._ptr;
+    _size = array._size;
+    array._ptr = nullptr;
+    array._size = 0;
   }
   FixedArray<T> &operator=(FixedArray<T> &&array) noexcept {
-    if (ptr_) {
-      delete[] ptr_;
+    if (_ptr) {
+      delete[] _ptr;
     }
 
-    ptr_ = array.ptr_;
-    size_ = array.size_;
-    array.ptr_ = nullptr;
-    array.size_ = 0;
+    _ptr = array._ptr;
+    _size = array._size;
+    array._ptr = nullptr;
+    array._size = 0;
 
     return *this;
   }
 
-  FixedArray<T> Copy() const {
-    FixedArray<T> l(size_);
+  FixedArray<T> copy() const {
+    FixedArray<T> l(_size);
     std::copy(begin(), end(), l.begin());
 
     return l;
   }
 };
 
-// -- class Span ---------------------------------------------------------------
+// -- class Span ----------
 
 template<typename T>
 class Span : public BaseArray<T> {
  public:
-  Span() noexcept : ptr_(nullptr), len_(0) {}
+  Span() noexcept : BaseArray() {}
   Span(T *ptr, size_type size) : BaseArray(ptr, size) {}
 
   // automatic convert initializer_list to Span<const T>.
   // NOTE: initializer_list should outlives span when using this constructor.
   // Examples:
-  //   Span<const int> v = {1, 2, 3};  // WRONG: lifetime of initializer_list
-  //                                   // is shorter than v;
+  //   Span<const int> v = {1, 2, 3};  // WRONG: lifetime of initializer_list is shorter than v;
   template <typename U = T,
             typename = std::enable_if<std::is_const<T>::value, U>::type>
   Span(std::initializer_list<value_type> v LR_LIFETIME_BOUND) noexcept
@@ -151,47 +146,44 @@ class Span : public BaseArray<T> {
 };
 
 template<typename T>
-constexpr Span<T> MakeSpan(
+constexpr Span<T> makeSpan(
     T *ptr,
     typename Span<T>::size_type size) {
   return Span<T>(ptr, size);
 }
 template<typename T>
-constexpr Span<const T> MakeConstSpan(
+constexpr Span<const T> makeConstSpan(
     const T *ptr,
     typename Span<T>::size_type size) {
   return Span<const T>(ptr, size);
 }
 template<typename T>
-constexpr Span<T> MakeSpan(std::vector<T> &v) {
+constexpr Span<T> makeSpan(std::vector<T> &v) {
   return Span<T>(v.data(), v.size());
 }
 template<typename T>
-constexpr Span<const T> MakeConstSpan(const std::vector<T> &v) {
+constexpr Span<const T> makeConstSpan(const std::vector<T> &v) {
   return Span<const T>(v.data(), v.size());
 }
 
 template<typename T>
-constexpr Span<T> MakeSpan(const FixedArray<T> &v) {
+constexpr Span<T> makeSpan(const FixedArray<T> &v) {
   return Span<T>(v.data(), v.size());
 }
 template<typename T>
-constexpr Span<const T> MakeConstSpan(const FixedArray<T> &v) {
+constexpr Span<const T> makeConstSpan(const FixedArray<T> &v) {
   return Span<const T>(v.data(), v.size());
 }
 template<typename T>
-constexpr Span<const T> MakeConstSpan(std::initializer_list<T> v) {
+constexpr Span<const T> makeConstSpan(std::initializer_list<T> v) {
   return Span<const T>(v.begin(), v.size());
 }
 template<typename T>
-constexpr Span<const T> MakeConstSpan(util::Span<T> v) {
+constexpr Span<const T> makeConstSpan(util::Span<T> v) {
   return Span<const T>(v.data(), v.size());
 }
 
-
-// ---------------------------------------------------------------------------+
-// NonCopyable                                                                |
-// ---------------------------------------------------------------------------+
+// -- NonCopyable ----------
 
 class NonCopyable {
  public: 
@@ -203,9 +195,7 @@ class NonCopyable {
   ~NonCopyable() = default;
 };
 
-//
-// class AutoCPtr
-//
+// -- class AutoCPtr ----------
 
 // Stores the C pointer and it's destroy function
 template<typename T>
@@ -222,55 +212,55 @@ class AutoCPtr {
   T *Release();
 
   // get the pointer
-  T *get() { return ptr_; }
-  const T *get() const { return ptr_; }
+  T *get() { return _ptr; }
+  const T *get() const { return _ptr; }
 
   // get the pointer to this pointer.
-  T **get_pp() { CHECK(deleter_); return &ptr_; }
+  T **get_pp() { CHECK(deleter_); return &_ptr; }
 
  private:
-  T *ptr_;
-  std::function<void(T *)> deleter_;
+  T *_ptr;
+  std::function<void(T *)> _deleter;
 
   DISALLOW_COPY_AND_ASSIGN(AutoCPtr)
 };
 
 template<typename T>
-inline AutoCPtr<T>::AutoCPtr(): ptr_(nullptr), deleter_(nullptr) {}
+inline AutoCPtr<T>::AutoCPtr(): _ptr(nullptr), _deleter(nullptr) {}
 template<typename T>
 inline AutoCPtr<T>::AutoCPtr(T *ptr, std::function<void(T *)> deleter): 
-    ptr_(ptr),
-    deleter_(deleter) {}
+    _ptr(ptr),
+    _deleter(deleter) {}
 template<typename T>
 inline AutoCPtr<T>::AutoCPtr(AutoCPtr<T> &&auto_cptr) noexcept :
-    ptr_(auto_cptr.ptr_),
-    deleter_(auto_cptr.deleter_) {
-  auto_cptr.ptr_ = nullptr;
+    _ptr(auto_cptr._ptr),
+    _deleter(auto_cptr._deleter) {
+  auto_cptr._ptr = nullptr;
 }
 template<typename T>
 inline AutoCPtr<T>::~AutoCPtr() {
-  if (ptr_) {
-    deleter_(ptr_);
-    ptr_ = nullptr;
+  if (_ptr) {
+    _deleter(_ptr);
+    _ptr = nullptr;
   }
 }
 template<typename T>
 AutoCPtr<T> &AutoCPtr<T>::operator=(AutoCPtr<T> &&auto_cptr) {
-  if (ptr_) {
-    deleter_(ptr_);
-    ptr_ = nullptr;
+  if (_ptr) {
+    _deleter(_ptr);
+    _ptr = nullptr;
   }
 
-  ptr_ = auto_cptr.ptr_;
-  deleter_ = auto_cptr.deleter_;
+  _ptr = auto_cptr._ptr;
+  _deleter = auto_cptr._deleter;
 
-  auto_cptr.ptr_ = nullptr;
+  auto_cptr._ptr = nullptr;
   return *this;
 }
 template<typename T>
 inline T *AutoCPtr<T>::Release() {
-  T *ptr = ptr_;
-  ptr_ = nullptr;
+  T *ptr = _ptr;
+  _ptr = nullptr;
 
   return ptr;
 }
@@ -283,8 +273,8 @@ inline T *AutoCPtr<T>::Release() {
 // and convert to wstring, ...
 class Path {
  public:
-  static Path CurrentModulePath();
-  static Path CurrentExecutablePath();
+  static Path currentModulePath();
+  static Path currentExecutablePath();
 
   Path() = default;
   Path(const std::string &path);
@@ -301,18 +291,16 @@ class Path {
   Path operator/(const std::string &path) const;
 
   std::string string() const;
-  Status AsWString(std::wstring *ws) const;
+  std::wstring wstring() const;
 
  private:
-  std::string path_;
+  std::string _path;
 
   // normalize path string.
-  static std::string NormPath(const std::string &path);
+  static std::string normPath(const std::string &path);
 };
 
-// ---------------------------------------------------------------------------+
-// class Pool                                                                 |
-// ---------------------------------------------------------------------------+
+// -- class Pool ----------
 
 // Pool is a class to optimize allocating large number of a class T.
 template<typename T, int BLOCK_SIZE = 4096>
@@ -325,96 +313,91 @@ class Pool {
   ~Pool();
 
   // Allocate a class T with constructor parameter args 
-  T *Alloc();
+  T *alloc();
 
   // Allocate a class T with constructor parameter args 
-  void Free(T *pointer);
-  void Free(const T *pointer);
+  void free(T *pointer);
+  void free(const T *pointer);
 
   // Clear all allocated class T
-  void Clear();
+  void clear();
 
   // Start gabbage collection. Root set for GC is in root_nodes
-  void GC(const std::vector<T *> root);
+  void gc(const std::vector<T *> root);
 
   // Free and allocated nodes in this pool
-  int num_free() const;
-  int num_allocated() const;
+  int getNumFree() const;
+  int getNumAllocated() const;
 
  protected:
-  std::vector<T *> blocks_;
-  std::vector<T *> free_;
-  int current_block_;
-  int current_offset_;
+  std::vector<T *> _blocks;
+  std::vector<T *> _free;
+  int _currentBlock;
+  int _currentOffset;
 };
 
 
 template<typename T, int BLOCK_SIZE>
-Pool<T, BLOCK_SIZE>::Pool() : current_block_(0), current_offset_(0) {
+Pool<T, BLOCK_SIZE>::Pool() : _currentBlock(0), _currentOffset(0) {
   T *block = reinterpret_cast<T *>(::operator new(sizeof(T) * BLOCK_SIZE));
-  blocks_.push_back(block);
+  _blocks.push_back(block);
 }
 
 template<typename T, int BLOCK_SIZE>
 Pool<T, BLOCK_SIZE>::~Pool() {
-  Clear();
-  for (T *block : blocks_) {
+  clear();
+  for (T *block : _blocks) {
     ::operator delete(block);
   }
-  current_block_ = 0;
-  current_offset_ = 0;
+  _currentBlock = 0;
+  _currentOffset = 0;
 }
 
 template<typename T, int BLOCK_SIZE>
-T *Pool<T, BLOCK_SIZE>::Alloc() {
+T *Pool<T, BLOCK_SIZE>::alloc() {
   T *memory;
-  if (free_.empty()) {
-    ASSERT(current_offset_ <= BLOCK_SIZE);
-    if (current_offset_ == BLOCK_SIZE) {
-      if (current_block_ == blocks_.size() - 1) {
-        T *block = reinterpret_cast<T *>(
-            ::operator new(sizeof(T) * BLOCK_SIZE));
-        blocks_.push_back(block);
+  if (_free.empty()) {
+    ASSERT(_currentOffset <= BLOCK_SIZE);
+    if (_currentOffset == BLOCK_SIZE) {
+      if (_currentBlock == _blocks.size() - 1) {
+        T *block = reinterpret_cast<T *>(::operator new(sizeof(T) * BLOCK_SIZE));
+        _blocks.push_back(block);
       }
-      ++current_block_;
-      current_offset_ = 0;
+      ++_currentBlock;
+      _currentOffset = 0;
     }
-    memory = blocks_[current_block_] + current_offset_;
-    ++current_offset_;
+    memory = _blocks[_currentBlock] + _currentOffset;
+    ++_currentOffset;
   } else {
-    memory = free_.back();
-    free_.pop_back();
+    memory = _free.back();
+    _free.pop_back();
   }
 
   return memory;
 }
 
 template<typename T, int BLOCK_SIZE>
-void Pool<T, BLOCK_SIZE>::Free(T *pointer) {
-  free_.push_back(pointer);
+void Pool<T, BLOCK_SIZE>::free(T *pointer) {
+  _free.push_back(pointer);
 }
 
 template<typename T, int BLOCK_SIZE>
-void Pool<T, BLOCK_SIZE>::Clear() {
-  current_block_ = 0;
-  current_offset_ = 0;
-  free_.clear();
+void Pool<T, BLOCK_SIZE>::clear() {
+  _currentBlock = 0;
+  _currentOffset = 0;
+  _free.clear();
 }
 
 template<typename T, int BLOCK_SIZE>
-int Pool<T, BLOCK_SIZE>::num_free() const {
-  return free_.size() +
-          (blocks_.size() - current_block_) * BLOCK_SIZE -
-          current_offset_;
+int Pool<T, BLOCK_SIZE>::getNumFree() const {
+  return _free.size() + (blocks_.size() - _currentBlock) * BLOCK_SIZE - _currentOffset;
 }
 
 template<typename T, int BLOCK_SIZE>
-int Pool<T, BLOCK_SIZE>::num_allocated() const {
-  return current_block_ * BLOCK_SIZE + current_offset_ - free_.size();
+int Pool<T, BLOCK_SIZE>::getNumAllocated() const {
+  return _currentBlock * BLOCK_SIZE + _currentOffset - _free.size();
 }
 
 
 }  // namespace util
 }  // namespace llama
-
-#endif  // LLAMA_RUNTIME_UTIL_H_

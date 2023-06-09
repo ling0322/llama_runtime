@@ -4,7 +4,6 @@
 #include <stdint.h>
 #include <unordered_map>
 #include "common.h"
-#include "status.h"
 #include "tensor.h"
 #include "util.h"
 
@@ -29,39 +28,38 @@ class Device {
     kUnknown
   };
 
-  static Device CPU();
+  static Device createForCPU();
 
   // construct device by device type
   Device();
   Device(Type type);
 
   // get type of the device
-  Type type() const { return type_; }
+  Type getType() const { return _type; }
 
  private:
-  Type type_;
+  Type _type;
 };
 
-// string -> Tensor dictioary. Usually used to store state-dict or kv-cache
-// for a neural network
+// string -> Tensor dictioary. Usually used to store state-dict or kv-cache for a neural network.
 class TensorMap {
  public:
-  Status Read(const std::string &filename);
+  void read(const std::string &filename);
 
   // get tensor by name. abort if not exist.
-  Tensor Get(const std::string &name);
+  Tensor getTensor(const std::string &name) const;
 
   // put tensor.
-  void Put(const std::string &name, TensorCRef tensor);
+  void putTensor(const std::string &name, TensorCRef tensor);
 
   // try to get tensor by name. return AbortError() if not exist.
-  Status TryGet(const std::string &name, Tensor *tensor) const;
+  bool getTensorNoThrow(const std::string &name, Tensor *tensor) const;
 
   // return true if the tensor exists. 
-  bool exists(const std::string &name) const;
+  bool hasTensor(const std::string &name) const;
 
  private:
-  std::unordered_map<std::string, Tensor> dict_;
+  std::unordered_map<std::string, Tensor> _dict;
 }; 
 
 // context for a module including operator set, device info and the namespace
@@ -70,84 +68,80 @@ class Context {
   // default constructor (root context).
   Context();
 
-  // return a copy of this context with a new name under current context
-  // namespace
-  Context WithName(const std::string &name) const;
+  // return a copy of this context with a new name under current context namespace.
+  Context withName(const std::string &name) const;
 
-  // get a tensor or module name under this context. If no parameter given,
-  // return the name of the context itself
+  // get a tensor or module name under this context. If no parameter given, return the name of the
+  // context itself
   std::string name(const std::string &name) const;
-  std::string name() const { return ns_; }
+  std::string name() const { return _ns; }
 
   // operator set
-  Operators *F() const { return F_.get(); }
-  void set_F(std::shared_ptr<Operators> F) { F_ = F; }
+  Operators *F() const { return _F.get(); }
+  void setF(std::shared_ptr<Operators> F) { _F = F; }
 
   // device.
-  const Device &device() const; 
-  void set_device(const Device &device) { device_ = device; }
+  const Device &getDevice() const; 
+  void setDevice(const Device &device) { _device = device; }
 
  private:
-  std::string ns_;
-  std::shared_ptr<Operators> F_;
-  Device device_;
+  std::string _ns;
+  std::shared_ptr<Operators> _F;
+  Device _device;
 };
 
 // base class for all nn modules.
 class Module {
  public:
   // load the module states from `state_dict`
-  virtual Status InitParameters(const TensorMap &state_dict) = 0;
+  virtual void initParameters(const TensorMap &stateDict) = 0;
 };
 
 // base class for language model.
 class LanguageModel {
  public:
-  // Forward input token ids through this language model. It will update the
-  // `past` state and return the hidden state of last layer.
+  // Forward input token ids through this language model. It will update the `past` state and
+  // return the hidden state of last layer.
   // Args:
   //   past (TensorMap): key-value cache.
   //   inputs <long>(N, L): prompt token ids.
   // Returns:
   //   <float>(N, L, D): hidden state from last layer.
-  virtual Tensor Forward(TensorMap *past, TensorCRef inputs) const = 0;
+  virtual Tensor forward(TensorMap *past, TensorCRef inputs) const = 0;
 
-  // Forward the hidden state from last layer and get the logits. hidden_state
-  // is usually the return value of Forward().
+  // Forward the hidden state from last layer and get the logits. hidden_state is usually the
+  // return value of Forward().
   // Args:
   //   hidden_state <float>(N, L, D): hidden state from last layer.
   // Returns:
   //   <float>(N, L, V): logits. V is vocabulary size.
-  virtual Tensor Logits(TensorCRef hidden_state) const = 0;
+  virtual Tensor logits(TensorCRef hiddenState) const = 0;
 };
 
 // linear layer.
 class Linear : public Module {
  public:
   // create Linear module from context. 
-  static expected_ptr<Linear> Create(
-      const Context &ctx,
-      int in_features,
-      int out_features);
+  static std::unique_ptr<Linear> create(const Context &ctx, int in_features, int out_features);
 
   // initialize the module from context
-  Status InitParameters(const TensorMap &state_dict) override;
+  void initParameters(const TensorMap &state_dict) override;
 
   // forward input and return the output.
-  Tensor Forward(const Tensor &input) const;
+  Tensor forward(const Tensor &input) const;
 
  private:
   // tensor names.
   static constexpr char kWeight[] = "weight";
   static constexpr char kBias[] = "bias";
 
-  Context ctx_;
+  Context _ctx;
 
-  Tensor w_;
-  Tensor b_;
+  Tensor _w;
+  Tensor _b;
 
-  int in_features_;
-  int out_features_;
+  int _inFeatures;
+  int _outFeatures;
 
   Linear();
 };
@@ -155,29 +149,26 @@ class Linear : public Module {
 // layer-norm layer.
 class LayerNorm : public Module {
  public:
-  static expected_ptr<LayerNorm> Create(
-      const Context &ctx,
-      int d_model,
-      float eps = 1e-5);
+  static std::unique_ptr<LayerNorm> create(const Context &ctx, int d_model, float eps = 1e-5);
   
   // initialize the module from context
-  Status InitParameters(const TensorMap &state_dict) override;
+  void initParameters(const TensorMap &state_dict) override;
 
   // forward input and return the output.
-  Tensor Forward(const Tensor &input) const;
+  Tensor forward(const Tensor &input) const;
  
  private:
   // tensor names.
   static constexpr char kWeight[] = "weight";
   static constexpr char kBias[] = "bias";
 
-  Context ctx_;
+  Context _ctx;
 
-  Tensor w_;
-  Tensor b_;
+  Tensor _w;
+  Tensor _b;
 
-  int d_model_;
-  float eps_;
+  int _dModel;
+  float _eps;
 
   LayerNorm();
 };

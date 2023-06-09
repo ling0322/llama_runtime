@@ -20,7 +20,6 @@ set(llama_SOURCES
     "src/operators_cpu.cc"
     "src/reader.cc"
     "src/shared_library_windows.cc"
-    "src/status.cc"
     "src/strings.cc"
     "src/tensor.cc"
     "src/tokenizer.cc"

@@ -1,200 +1,156 @@
 #include "reader.h"
 
 #include "common.h"
-#include "status.h"
+#include "strings.h"
 #include "log.h"
 #include "util.h"
 
 namespace llama {
 
-// ----------------------------------------------------------------------------
-// class BufferedReader
-// ----------------------------------------------------------------------------
-
-Status ReadFile(const std::string &filename, std::vector<ByteType> *data) {
+std::vector<ByteType> readFile(const std::string &filename) {
+  std::vector<ByteType> data;
   std::vector<ByteType> chunk(4096);
-  auto fp = ReadableFile::Open(filename);
-  RETURN_IF_ERROR(fp);
 
-  data->clear();
+  auto fp = ReadableFile::open(filename);
+
   for (; ; ) {
-    int cbytes = 0;
-    Status status = fp->Read(util::MakeSpan(chunk), &cbytes);
-    if (status.ok()) {
-      data->insert(data->end(), chunk.begin(), chunk.end());
+    int cbytes = fp->read(util::makeSpan(chunk));
+    if (cbytes) {
+      data.insert(data.end(), chunk.begin(), chunk.begin() + cbytes);
     } else {
-      if (IsOutOfRange(status)) {
-        // reading finished, put remaining bytes to `data`
-        data->insert(data->end(), chunk.begin(), chunk.begin() + cbytes);
-        break;
-      } else {
-        // error occured
-        RETURN_IF_ERROR(status);
-      }
+      break;
     }
   }
 
-  return OkStatus();
+  return data;
 }
 
-// ----------------------------------------------------------------------------
-// class BufferedReader
-// ----------------------------------------------------------------------------
+// -- class BufferedReader -------------------------------------------------------------------------
 
 BufferedReader::BufferedReader(int buffer_size)
-    : buffer_(buffer_size), 
-      w_(0),
-      r_(0) {}
+    : _buffer(buffer_size), 
+      _w(0),
+      _r(0) {}
 
-int BufferedReader::ReadFromBuffer(util::Span<ByteType> dest) {
-  int n = std::min(static_cast<int>(dest.size()), w_ - r_);
+int BufferedReader::readFromBuffer(util::Span<ByteType> dest) {
+  int n = std::min(static_cast<int>(dest.size()), _w - _r);
 
-  ByteType *begin = buffer_.begin() + r_;
+  ByteType *begin = _buffer.begin() + _r;
   std::copy(begin, begin + n, dest.begin());
 
-  r_ += n;
+  _r += n;
   return n;
 }
 
-Status BufferedReader::ReadNextBuffer() {
-  CHECK(w_ - r_ == 0);
-  r_ = 0;
-  w_ = 0;
-  RETURN_IF_ERROR(Read(util::MakeSpan(buffer_), &w_));
+int BufferedReader::readNextBuffer() {
+  CHECK(_w - _r == 0);
+  _r = 0;
+  _w = 0;
+  _w = read(util::makeSpan(_buffer));
 
-  return OkStatus();
+  return _w;
 }
 
-Status BufferedReader::ReadSpan(util::Span<ByteType> buffer) {
-  util::Span<ByteType>::iterator it = buffer.begin();
+void BufferedReader::readSpan(util::Span<ByteType> span) {
+  util::Span<ByteType>::iterator it = span.begin();
 
-  int n = ReadFromBuffer(buffer);
+  int bytesRead = readFromBuffer(span);
   
-  while (n < buffer.size()) {
-    RETURN_IF_ERROR(ReadNextBuffer());
-    n += ReadFromBuffer(buffer.subspan(n));
-  }
+  while (bytesRead < span.size()) {
+    int n = readNextBuffer();
+    if (!n) {
+      throw AbortedException("unexcpected end-of-file");
+    }
 
-  return OkStatus();
+    bytesRead += readFromBuffer(span.subspan(bytesRead));
+  }
 }
 
-Status BufferedReader::ReadString(int n, std::string *s) {
+std::string BufferedReader::readString(int n) {
   CHECK(n > 0);
 
   std::vector<ByteType> buffer(n);
-  RETURN_IF_ERROR(ReadSpan(util::MakeSpan(buffer)));
+  readSpan(util::makeSpan(buffer));
 
-  *s = std::string(buffer.begin(), buffer.end());
-  return OkStatus();
+  return std::string(buffer.begin(), buffer.end());
 }
 
-Status BufferedReader::ReadLineFromBuffer(std::string *s) {
-  while (r_ < w_) {
-    ByteType b = buffer_[r_];
-    s->push_back(b);
-    ++r_;
+// -- class ReadableFile ---------------------------------------------------------------------------
 
-    if (b == '\n') {
-      return OkStatus();
-    }
-  }
-
-  return OutOfRangeError();
-}
-
-Status BufferedReader::ReadLine(std::string *s) {
-  s->clear();
-
-  Status status = ReadLineFromBuffer(s);
-  if (status.ok()) {
-    return OkStatus();
-  }
-
-  for (; ; ) {
-    // read next buffer
-    status = ReadNextBuffer();
-    if (IsOutOfRange(status)) {
-      break;
-    } else if (!status.ok()) {
-      return status;
-    }
-
-    status = ReadLineFromBuffer(s);
-    if (status.ok()) {
-      return OkStatus();
-    }
-  }
-
-  // EOF reached
-  if (!s->empty()) {
-    return OkStatus();
-  } else {
-    return OutOfRangeError();
-  }
-}
-
-// ----------------------------------------------------------------------------
-// class ReadableFile
-// ----------------------------------------------------------------------------
-
-ReadableFile::ReadableFile() : fp_(nullptr) {}
+ReadableFile::ReadableFile() : _fp(nullptr) {}
 ReadableFile::~ReadableFile() {
-  if (fp_) {
-    fclose(fp_);
-    fp_ = nullptr;
+  if (_fp) {
+    fclose(_fp);
+    _fp = nullptr;
   }
 }
 
-expected_ptr<ReadableFile> ReadableFile::Open(const std::string &filename) {
+std::unique_ptr<ReadableFile> ReadableFile::open(const std::string &filename) {
   std::unique_ptr<ReadableFile> fp{new ReadableFile()};
-  fp->fp_ = fopen(filename.c_str(), "rb");
-  if (fp->fp_ == nullptr) {
-    RETURN_ABORTED() << "failed to open file " << filename;
+  fp->_fp = fopen(filename.c_str(), "rb");
+  if (fp->_fp == nullptr) {
+    throw AbortedException(str::sprintf("failed to open file %s.", filename));
   }
 
   return fp;
 }
 
-Status ReadableFile::Read(util::Span<ByteType> buffer, int *pcbytes) {
+int ReadableFile::read(util::Span<ByteType> buffer) {
   CHECK(buffer.size() != 0);
-  int n = fread(buffer.data(), sizeof(ByteType), buffer.size(), fp_);
-  *pcbytes = n;
+  int n = fread(buffer.data(), sizeof(ByteType), buffer.size(), _fp);
 
-  if (!n) {
-    if (feof(fp_)) {
-      return OutOfRangeError();
+  if ((!n) && !feof(_fp)) {
+    throw AbortedException("failed to read file.");
+  }
+
+  return n;
+}
+
+// -- class Scanner --------------------------------------------------------------------------------
+
+Scanner::Scanner(Reader *reader) : _reader(reader), _buffer(BufferSize) {}
+
+bool Scanner::scan() {
+  _text.clear();
+
+  for (; ; ) {
+    if (_bufferSpan.empty()) {
+      bool ok = readBuffer();
+      if (!ok) {
+        return !_text.empty();
+      }
+    }
+
+    auto it = _bufferSpan.begin();
+    for (; it < _bufferSpan.end() && *it != '\n'; ++it) {
+    }
+    if (it != _bufferSpan.end()) {
+      _text.insert(_text.end(), _bufferSpan.begin(), it);
+      _bufferSpan = _bufferSpan.subspan(it - _bufferSpan.begin() + 1);
+      return true;
     } else {
-      return AbortedError("failed to read");
+      _text.insert(_text.end(), _bufferSpan.begin(), _bufferSpan.end());
+      _bufferSpan = util::Span<ByteType>();
     }
   }
 
-  return OkStatus();
+  // will not reach here.
+  NOT_IMPL();
+  return false;
 }
 
-// -- class Scanner ------------------------------------------------------------
+const std::string &Scanner::getText() const {
+  return _text;
+}
 
-Scanner::Scanner(BufferedReader *reader) 
-    : reader_(reader),
-      status_(StatusCode::kOK) {}
-
-bool Scanner::Scan() {
-  Status status = reader_->ReadLine(&text_);
-  if (status.ok()) {
-    return true;
-  } else if (IsOutOfRange(status)) {
-    return false;
-  } else {
-    status_ = std::move(status);
+bool Scanner::readBuffer() {
+  int n = _reader->read(util::makeSpan(_buffer));
+  if (!n) {
     return false;
   }
-}
 
-const std::string &Scanner::text() const {
-  return text_;
-}
-
-Status Scanner::status() const {
-  return status_.Copy();
+  _bufferSpan = util::makeSpan(_buffer.data(), n);
+  return true;
 }
 
 }  // namespace llama

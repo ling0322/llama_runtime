@@ -16,26 +16,26 @@ struct GPT2Config {
   // config section in ini
   static constexpr char kSection[] = "gpt2";
 
-  int n_embd;
-  int n_ctx;
-  int n_inner;
-  int n_head;
-  int n_layer;
-  int vocab_size;
-  int hidden_size;
+  int nEmbd;
+  int nCtx;
+  int nInner;
+  int nHead;
+  int nLayer;
+  int vocabSize;
+  int hiddenSize;
 
   GPT2Config();
-  static expected_ptr<GPT2Config> FromIni(const IniConfig &ini);
+  static std::unique_ptr<GPT2Config> fromIni(const IniConfig &ini);
 };
 
 // GPT2Block.
 class GPT2Block : public Module {
  public:
   // create BloomModel.
-  static expected_ptr<GPT2Block> Create(const Context &ctx, GPT2Config config);
+  static std::unique_ptr<GPT2Block> create(const Context &ctx, GPT2Config config);
 
   // initialize the module from context
-  Status InitParameters(const TensorMap &state_dict) override;
+  void initParameters(const TensorMap &stateDict) override;
 
   // forward with cache.
   // Args:
@@ -44,11 +44,11 @@ class GPT2Block : public Module {
   //     mask <float>(L, L): attention mask.
   // Returns:
   //     <float>(N, L, C): hidden states.
-  Tensor Forward(TensorMap *past, TensorCRef input, TensorCRef mask) const;
+  Tensor forward(TensorMap *past, TensorCRef input, TensorCRef mask) const;
 
  private:
-  Context ctx_;
-  GPT2Config config_;
+  Context _ctx;
+  GPT2Config _config;
 
   static constexpr char kLn1[] = "ln1";
   static constexpr char kLn2[] = "ln2";
@@ -56,11 +56,11 @@ class GPT2Block : public Module {
   static constexpr char kProj[] = "proj";
   static constexpr char kAttn[] = "attn";
 
-  std::unique_ptr<LayerNorm> ln1_;
-  std::unique_ptr<LayerNorm> ln2_;
-  std::unique_ptr<Linear> fc_;
-  std::unique_ptr<Linear> proj_;
-  std::unique_ptr<MultiheadSelfAttention> attn_;
+  std::unique_ptr<LayerNorm> _ln1;
+  std::unique_ptr<LayerNorm> _ln2;
+  std::unique_ptr<Linear> _fc;
+  std::unique_ptr<Linear> _proj;
+  std::unique_ptr<MultiheadSelfAttention> _attn;
 
   GPT2Block();
 };
@@ -70,10 +70,10 @@ class GPT2Model : public Module,
                   public LanguageModel {
  public:
   // create BloomModel.
-  static expected_ptr<GPT2Model> Create(const Context &ctx, GPT2Config config);
+  static std::unique_ptr<GPT2Model> create(const Context &ctx, GPT2Config config);
 
   // initialize the module from context
-  Status InitParameters(const TensorMap &state_dict) override;
+  void initParameters(const TensorMap &stateDict) override;
 
   // forward with cache.
   // Args:
@@ -81,7 +81,7 @@ class GPT2Model : public Module,
   //     input <long>(B, L): input tokens.
   // Returns:
   //     <float>(B, L, D): logprobs.
-  Tensor Forward(TensorMap *past, TensorCRef input) const override;
+  Tensor forward(TensorMap *past, TensorCRef input) const override;
 
   // Forward the hidden state from last layer and get the logits. hidden_state
   // is usually the return value of Forward().
@@ -89,11 +89,11 @@ class GPT2Model : public Module,
   //   hidden_state <float>(N, L, D): hidden state from last layer.
   // Returns:
   //   <float>(N, L, V): logits. V is vocabulary size.
-  Tensor Logits(TensorCRef hidden_state) const override;
+  Tensor logits(TensorCRef hiddenState) const override;
 
  private:
-  Context ctx_;
-  GPT2Config config_;
+  Context _ctx;
+  GPT2Config _config;
 
   static constexpr char kGpt2[] = "gpt2";
   static constexpr char kWte[] = "wte";
@@ -102,12 +102,12 @@ class GPT2Model : public Module,
   static constexpr char kBlock[] = "block";
   static constexpr char kSeqLen[] = "seq_len";
 
-  Tensor wte_;  // word embedding table
-  Tensor wpe_;  // positional embedding table
-  Tensor mask_;
+  Tensor _wte;  // word embedding table
+  Tensor _wpe;  // positional embedding table
+  Tensor _mask;
 
-  std::vector<std::unique_ptr<GPT2Block>> blocks_;
-  std::unique_ptr<LayerNorm> ln_f_;
+  std::vector<std::unique_ptr<GPT2Block>> _blocks;
+  std::unique_ptr<LayerNorm> _ln;
 
   GPT2Model();
 };

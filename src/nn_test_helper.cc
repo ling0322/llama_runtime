@@ -9,27 +9,23 @@ namespace nn {
 
 void MustReadParameters(const std::string &model_path, Module *module) {
   TensorMap state_dict;
-  Status status = state_dict.Read(model_path);
-  REQUIRE_OK(status);
+  state_dict.read(model_path);
 
-  status = module->InitParameters(state_dict);
-  REQUIRE_OK(status);
+  module->initParameters(state_dict);
 }
 
 std::vector<Tensor> MustReadAllTensors(const std::string &filename) {
   std::vector<Tensor> tensors;
 
-  expected_ptr<ReadableFile> fp = ReadableFile::Open(filename);
-  REQUIRE(fp.ok());
-
+  std::unique_ptr<ReadableFile> fp = ReadableFile::open(filename);
   for (; ; ) {
     Tensor A;
-    Status status = A.Read(fp.get());
-    if (IsOutOfRange(status)) {
-      // EOF reached
+    try {
+      A.read(fp.get());
+    } catch (const Exception &) {
       break;
     }
-    REQUIRE(status.ok());
+    
     tensors.emplace_back(A);
   }
 
@@ -37,12 +33,11 @@ std::vector<Tensor> MustReadAllTensors(const std::string &filename) {
 }
 
 Context MustGetCtxForCPU() {
-  expected_ptr<Operators> F = Operators::FromDevice(Device::CPU());
-  REQUIRE(F.ok());
+  auto F = Operators::create(Device::createForCPU());
 
   Context ctx;
-  ctx.set_device(Device::CPU());
-  ctx.set_F(std::move(F).shared_ptr());
+  ctx.setDevice(Device::createForCPU());
+  ctx.setF(std::move(F));
 
   return ctx;
 }

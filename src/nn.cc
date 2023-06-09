@@ -4,21 +4,20 @@
 #include <limits>
 #include "gemm.h"
 #include "operators.h"
-#include "status.h"
 
 namespace llama {
 namespace nn {
 
-// -- class Device ------------------------------------------------------------
+// -- class Device ----------
 
-Device::Device() : type_(Type::kUnknown) {}
-Device::Device(Type type) : type_(type) {}
+Device::Device() : _type(Type::kUnknown) {}
+Device::Device(Type type) : _type(type) {}
 
-Device Device::CPU() {
+Device Device::createForCPU() {
   return Device(Type::kCpu);
 }
 
-// -- class TensorMap ---------------------------------------------------------
+// -- class TensorMap ----------
 
 // tensor_dict format
 //   byte[4]: "TDIC"
@@ -28,85 +27,77 @@ Device Device::CPU() {
 //     byte[name_len]: name
 //     Tensor
 //   int16_t: magic number 0x55aa
-Status TensorMap::Read(const std::string &filename) {
-  dict_.clear();
+void TensorMap::read(const std::string &filename) {
+  _dict.clear();
 
-  expected_ptr<ReadableFile> fp = ReadableFile::Open(filename);
-  RETURN_IF_ERROR(fp);
+  auto fp = ReadableFile::open(filename);
 
-  std::string s;
-  RETURN_IF_ERROR(fp->ReadString(4, &s));
+  std::string s = fp->readString(4);
   if (s != "TDIC") {
-    RETURN_ABORTED() << "invalid tensor_dict file";
+    throw AbortedException("invalid tensor_dict file");
   }
 
-  int32_t num_record;
-  RETURN_IF_ERROR(fp->ReadValue(&num_record));
-  for (int i = 0; i < num_record; ++i) {
-    int16_t name_len;
-    RETURN_IF_ERROR(fp->ReadValue(&name_len));
-    if (name_len <= 0) {
-      RETURN_ABORTED() << "invalid tensor_dict file (name_len)";
+  int32_t numRecord = fp->readValue<int32_t>();
+  for (int i = 0; i < numRecord; ++i) {
+    int16_t nameLen = fp->readValue<int16_t>();
+    if (nameLen <= 0) {
+      throw AbortedException("invalid tensor_dict file (name_len)");
     }
 
-    std::string name;
     Tensor tensor;
-    RETURN_IF_ERROR(fp->ReadString(name_len, &name));
-    RETURN_IF_ERROR(tensor.Read(fp.get()));
-    dict_[name] = std::move(tensor);
+    std::string name = fp->readString(nameLen);
+    tensor.read(fp.get());
+    _dict[name] = std::move(tensor);
   }
 
   // magic number
-  int16_t magic_number;
-  RETURN_IF_ERROR(fp->ReadValue(&magic_number));
-  if (magic_number != 0x55aa) {
-    RETURN_ABORTED() << "invalid tensor_dict file (magic number)";
+  int16_t magicNumber = fp->readValue<int16_t>();
+  if (magicNumber != 0x55aa) {
+    throw AbortedException("invalid tensor_dict file (magic number)");
   }
-
-  return OkStatus();
 }
 
-Tensor TensorMap::Get(const std::string &name) {
-  auto it = dict_.find(name);
-  CHECK(it != dict_.end());
+Tensor TensorMap::getTensor(const std::string &name) const {
+  auto it = _dict.find(name);
+  CHECK(it != _dict.end());
 
   return it->second;
 }
 
-Status TensorMap::TryGet(const std::string &name, Tensor *tensor) const {
-  auto it = dict_.find(name);
-  if (it == dict_.end()) {
-    RETURN_ABORTED() << "tensor \"" << name << "\" not found.";
+bool TensorMap::getTensorNoThrow(const std::string &name, Tensor *tensor) const {
+  auto it = _dict.find(name);
+  if (it == _dict.end()) {
+    return false;
   }
 
   *tensor = it->second;
-  return OkStatus();
+  return true;
 }
 
-void TensorMap::Put(const std::string &name, TensorCRef tensor) {
-  dict_[name] = tensor;
+void TensorMap::putTensor(const std::string &name, TensorCRef tensor) {
+  _dict[name] = tensor;
 }
 
-bool TensorMap::exists(const std::string &name) const {
-  return dict_.find(name) != dict_.end();
+bool TensorMap::hasTensor(const std::string &name) const {
+  return _dict.find(name) != _dict.end();
 }
 
-// -- class Context -----------------------------------------------------------
+// -- class Context ----------
 
-Context::Context() : F_(nullptr) {}
+Context::Context() : _F(nullptr) {}
 
-Context Context::WithName(const std::string &name) const {
+Context Context::withName(const std::string &name) const {
   CHECK(!name.empty());
   Context ctx;
-  ctx.F_ = F_;
-  ctx.device_ = device_;
-  ctx.ns_ = this->name(name);
+  ctx._F = _F;
+  ctx._device = _device;
+  ctx._ns = this->name(name);
 
   return ctx;
 }
 
 std::string Context::name(const std::string &name) const {
-  std::string ns = ns_;
+  std::string ns = _ns;
 
   if (ns.empty()) {
     ns = name;
@@ -120,79 +111,69 @@ std::string Context::name(const std::string &name) const {
 
 // -- class Linear ------------------------------------------------------------
 
-Linear::Linear() : in_features_(0), out_features_(0) {}
+Linear::Linear() : _inFeatures(0), _outFeatures(0) {}
 
-expected_ptr<Linear> Linear::Create(
-    const Context &ctx,
-    int in_features,
-    int out_features) {
+std::unique_ptr<Linear> Linear::create(const Context &ctx, int inFeatures, int outFeatures) {
   std::unique_ptr<Linear> linear{new Linear()};
-  if (in_features <= 0 || out_features <= 0) {
-    RETURN_ABORTED() << "invalid d_model";
+  if (inFeatures <= 0 || outFeatures <= 0) {
+    throw AbortedException("invalid d_model");
   }
 
-  linear->in_features_ = in_features;
-  linear->out_features_ = out_features;
-  linear->ctx_ = ctx;
+  linear->_inFeatures = inFeatures;
+  linear->_outFeatures = outFeatures;
+  linear->_ctx = ctx;
   return linear;
 }
 
-Status Linear::InitParameters(const TensorMap &state_dict) {
-  std::string name_w = ctx_.name(kWeight);
-  std::string name_b = ctx_.name(kBias);
+void Linear::initParameters(const TensorMap &stateDict) {
+  std::string nameW = _ctx.name(kWeight);
+  std::string nameB = _ctx.name(kBias);
 
-  RETURN_IF_ERROR(state_dict.TryGet(name_w, &w_));
-  RETURN_IF_ERROR(state_dict.TryGet(name_b, &b_));
+  _w = stateDict.getTensor(nameW);
+  _b = stateDict.getTensor(nameB);
 
-  RETURN_IF_ERROR(w_.CheckShape({out_features_, in_features_})) << name_w;
-  RETURN_IF_ERROR(b_.CheckShape({out_features_})) << name_b;
-
-  return OkStatus();
+  _w.throwIfInvalidShape({_outFeatures, _inFeatures});
+  _b.throwIfInvalidShape({_outFeatures});
 }
 
-Tensor Linear::Forward(const Tensor &input) const {
-  Operators *F = ctx_.F();
-  Tensor x = F->MatMul(input, w_.Transpose(0, 1));
-  x = F->Add(x, b_);
+Tensor Linear::forward(const Tensor &input) const {
+  Operators *F = _ctx.F();
+  Tensor x = F->matmul(input, _w.transpose(0, 1));
+  x = F->add(x, _b);
 
   return x;
 }
 
 // -- class LayerNorm ---------------------------------------------------------
 
-LayerNorm::LayerNorm() : d_model_(0), eps_(0.0f) {}
+LayerNorm::LayerNorm() : _dModel(0), _eps(0.0f) {}
 
-expected_ptr<LayerNorm> LayerNorm::Create(
-    const Context &ctx,
-    int d_model,
-    float eps) {
+std::unique_ptr<LayerNorm> LayerNorm::create(const Context &ctx, int dModel, float eps) {
   std::unique_ptr<LayerNorm> layer{new LayerNorm()};
-  if (d_model <= 0 || eps <= 0.0f) {
-    RETURN_ABORTED() << "invalid d_model or eps";
+  if (dModel <= 0 || eps <= 0.0f) {
+    throw AbortedException("invalid dModel or eps");
   }
 
-  layer->d_model_ = d_model;
-  layer->eps_ = eps;
-  layer->ctx_ = ctx;
+  layer->_dModel = dModel;
+  layer->_eps = eps;
+  layer->_ctx = ctx;
   return layer;
 }
 
-Status LayerNorm::InitParameters(const TensorMap &state_dict) {
-  std::string name_w = ctx_.name(kWeight);
-  std::string name_b = ctx_.name(kBias);
+void LayerNorm::initParameters(const TensorMap &stateDict) {
+  std::string nameW = _ctx.name(kWeight);
+  std::string nameB = _ctx.name(kBias);
 
-  RETURN_IF_ERROR(state_dict.TryGet(name_w, &w_));
-  RETURN_IF_ERROR(state_dict.TryGet(name_b, &b_));
+  _w = stateDict.getTensor(nameW);
+  _b = stateDict.getTensor(nameB);
 
-  RETURN_IF_ERROR(w_.CheckShape({d_model_})) << name_w;
-  RETURN_IF_ERROR(b_.CheckShape({d_model_})) << name_b;
-
-  return OkStatus();
+  _w.throwIfInvalidShape({_dModel});
+  _b.throwIfInvalidShape({_dModel});
 }
 
-Tensor LayerNorm::Forward(const Tensor &input) const {
-  Operators *F = ctx_.F();
-  return F->LayerNorm(input, w_, b_, eps_);
+Tensor LayerNorm::forward(const Tensor &input) const {
+  Operators *F = _ctx.F();
+  return F->layerNorm(input, _w, _b, _eps);
 }
 
 }  // namespace nn

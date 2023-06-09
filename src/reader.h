@@ -7,36 +7,27 @@
 #include <string>
 #include <vector>
 #include "common.h"
-#include "status.h"
 #include "util.h"
 
 namespace llama {
 
-// ---------------------------------------------------------------------------+
-// function ReadFile                                                          |
-// ---------------------------------------------------------------------------+
+// read all bytes from `filename`.
+std::vector<ByteType> readFile(const std::string &filename);
 
-Status ReadFile(const std::string &filename, std::vector<ByteType> *data);
-
-// ---------------------------------------------------------------------------+
-// class Reader                                                               |
-// ---------------------------------------------------------------------------+
+// -- class Reader ---------------------------------------------------------------------------------
 
 // base class for all readers
 class Reader {
  public:
   virtual ~Reader() = default;
-
-  // This is a low level file read function, please use other high level
-  // functions instead.
-  // Read a buffer from file and store the number of bytes read into `pcbytes`.
-  // pcbytes may less than `buffer.size()`
-  virtual Status Read(util::Span<ByteType> buffer, int *pcbytes) = 0;
+  
+  // Read a buffer from file and return number of bytes read. On EOF reached, returns 0. Throw
+  // exceptio if other errors occured.
+  // This is a low level file read function, please use other high level functions instead.
+  virtual int read(util::Span<ByteType> buffer) = 0;
 };
 
-// ----------------------------------------------------------------------------
-// class BufferedReader
-// ----------------------------------------------------------------------------
+// -- class BufferedReader -------------------------------------------------------------------------
 
 // implements buffered read.
 class BufferedReader : public Reader {
@@ -46,92 +37,83 @@ class BufferedReader : public Reader {
   // create the BufferedReader instance by Reader and the buffer size.
   BufferedReader(int buffer_size = kDefaultBufferSize);
   
-  // read `buffer.size()` bytes and fill the `buffer`. Return a failed state if
-  // EOF reached or other errors occured.
-  Status ReadSpan(util::Span<ByteType> buffer);
+  // read `buffer.size()` bytes and fill the `buffer`. Throw if EOF reached or other errors occured.
+  void readSpan(util::Span<ByteType> buffer);
 
   // read a variable from reader
   template<typename T>
-  Status ReadValue(T *value);
+  T readValue();
 
   // read a string of `n` bytes from file
-  Status ReadString(int n, std::string *s);
-
-  // read a line from file. Keeps the line delim at the back of `s`
-  // Example:
-  //   while (IsOK(fp->ReadLine(&line))) { ... }
-  Status ReadLine(std::string *s);
+  std::string readString(int n);
 
  private:
-  util::FixedArray<ByteType> buffer_;
+  util::FixedArray<ByteType> _buffer;
 
   // write and read position in buffer
-  int w_;
-  int r_;
+  int _w;
+  int _r;
 
-  // read at most `dest.size()` bytes from buffer and return the number of
-  // bytes read. The number will less than `dest.size()` once no enough bytes
-  // in buffer.
-  int ReadFromBuffer(util::Span<ByteType> dest);
+  // read at most `dest.size()` bytes from buffer and return the number of bytes read. The number
+  // will less than `dest.size()` once no enough bytes in buffer.
+  int readFromBuffer(util::Span<ByteType> dest);
 
-  // read a line from buffer. Return OutOfRangeError() if no enough bytes in
-  // buffer.
-  Status ReadLineFromBuffer(std::string *s);
-
-  // read next buffer from Reader.
-  Status ReadNextBuffer();
+  // read next buffer from Reader. Return the number of bytes read.
+  int readNextBuffer();
 };
 
 template<typename T>
-Status BufferedReader::ReadValue(T *value) {
-  RETURN_IF_ERROR(ReadSpan(util::MakeSpan(
-      reinterpret_cast<ByteType *>(value),
-      sizeof(T))));
+T BufferedReader::readValue() {
+  T value;
+  readSpan(util::makeSpan(reinterpret_cast<ByteType *>(&value), sizeof(T)));
   
-  return OkStatus();
+  return value;
 }
 
-// -- class Scanner ------------------------------------------------------------
+// -- class Scanner --------------------------------------------------------------------------------
 
 // interface to read file line by line.
 // Example:
 //   Scanner scanner(fp);
-//   while (scanner.Scan()) {
-//     const std::string &s = scanner.text(); 
+//   while (scanner.scan()) {
+//     const std::string &s = scanner.getText(); 
 //   }
-//   RETURN_IF_ERROR(scanner.status());
 class Scanner {
  public:
-  Scanner(BufferedReader *reader);
+  static constexpr int BufferSize = 4096;
 
-  bool Scan();
-  const std::string &text() const;
-  Status status() const;
+  Scanner(Reader *reader);
+
+  // returns false once EOF reached.
+  bool scan();
+  const std::string &getText() const;
 
  private:
-  BufferedReader *reader_;
-  std::string text_;
-  Status status_;
+  Reader *_reader;
+  std::string _text;
+
+  util::FixedArray<ByteType> _buffer;
+  util::Span<ByteType> _bufferSpan;
+
+  bool readBuffer();
 };
 
 
-// ----------------------------------------------------------------------------
-// class ReadableFile
-// ----------------------------------------------------------------------------
+// -- class ReadableFile ---------------------------------------------------------------------------
 
 // reader for local file.
 class ReadableFile : public BufferedReader,
                      private util::NonCopyable {
  public:
-  static expected_ptr<ReadableFile> Open(const std::string &filename);
+  static std::unique_ptr<ReadableFile> open(const std::string &filename);
 
   ~ReadableFile();
 
   // implements interface Reader
-  Status Read(util::Span<ByteType> buffer, int *pcbytes) override;
+  int read(util::Span<ByteType> buffer) override;
 
  private:
-  FILE *fp_;
+  FILE *_fp;
 
   ReadableFile();
 };

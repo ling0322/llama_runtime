@@ -9,12 +9,12 @@
 namespace llama {
 namespace nn {
 
-expected_ptr<Operators> Operators::FromDevice(Device device) {
-  switch (device.type()) {
+std::unique_ptr<Operators> Operators::create(Device device) {
+  switch (device.getType()) {
     case Device::Type::kCpu:
-      return CpuOperators::Create();
+      return CPUOperators::create();
     default:
-      RETURN_ABORTED() << "invalid device";
+      throw AbortedException("invalid device");
   }
 }
 

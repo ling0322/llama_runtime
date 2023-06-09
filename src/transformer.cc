@@ -6,118 +6,98 @@ namespace llama {
 namespace nn {
 
 MultiheadSelfAttention::MultiheadSelfAttention()
-    : d_model_(0),
-      d_k_(0),
-      num_heads_(0) {}
+    : _dModel(0),
+      _dK(0),
+      _numHeads(0) {}
 
-expected_ptr<MultiheadSelfAttention> MultiheadSelfAttention::Create(
-    const Context &ctx,
-    int num_heads,
-    int d_model) {
+std::unique_ptr<MultiheadSelfAttention> MultiheadSelfAttention::create(
+    const Context &ctx, int numHeads, int dModel) {
   std::unique_ptr<MultiheadSelfAttention> layer{new MultiheadSelfAttention()};
-  if (d_model % num_heads != 0) {
-    RETURN_ABORTED() << "invalid d_model and num_heads";
+  if (dModel % numHeads != 0) {
+    throw AbortedException("invalid d_model and num_heads");
   }
 
-  layer->d_model_ = d_model;
-  layer->d_k_ = d_model / num_heads;
-  layer->num_heads_ = num_heads;
-  layer->ctx_ = ctx;
+  layer->_dModel = dModel;
+  layer->_dK = dModel / numHeads;
+  layer->_numHeads = numHeads;
+  layer->_ctx = ctx;
 
-  layer->pastk_name_ = ctx.name("k");
-  layer->pastv_name_ = ctx.name("v");
+  layer->_namePastK = ctx.name("k");
+  layer->_namePastV = ctx.name("v");
 
-  auto q_proj = Linear::Create(ctx.WithName(kQProj), d_model, d_model);
-  auto k_proj = Linear::Create(ctx.WithName(kKProj), d_model, d_model);
-  auto v_proj = Linear::Create(ctx.WithName(kVProj), d_model, d_model);
-  auto out_proj = Linear::Create(ctx.WithName(kOutProj), d_model, d_model);
-
-  RETURN_IF_ERROR(q_proj);
-  RETURN_IF_ERROR(k_proj);
-  RETURN_IF_ERROR(v_proj);
-  RETURN_IF_ERROR(out_proj);
-
-  layer->q_proj_ = std::move(q_proj).unique_ptr();
-  layer->k_proj_ = std::move(k_proj).unique_ptr();
-  layer->v_proj_ = std::move(v_proj).unique_ptr();
-  layer->out_proj_ = std::move(out_proj).unique_ptr();
+  layer->_qProj = Linear::create(ctx.withName(kQProj), dModel, dModel);
+  layer->_kProj = Linear::create(ctx.withName(kKProj), dModel, dModel);
+  layer->_vProj = Linear::create(ctx.withName(kVProj), dModel, dModel);
+  layer->_outProj = Linear::create(ctx.withName(kOutProj), dModel, dModel);
 
   return layer;
 }
 
-Status MultiheadSelfAttention::InitParameters(const TensorMap &state_dict) {
-  RETURN_IF_ERROR(q_proj_->InitParameters(state_dict));
-  RETURN_IF_ERROR(k_proj_->InitParameters(state_dict));
-  RETURN_IF_ERROR(v_proj_->InitParameters(state_dict));
-  RETURN_IF_ERROR(out_proj_->InitParameters(state_dict));
-
-  return OkStatus();
+void MultiheadSelfAttention::initParameters(const TensorMap &state_dict) {
+  _qProj->initParameters(state_dict);
+  _kProj->initParameters(state_dict);
+  _vProj->initParameters(state_dict);
+  _outProj->initParameters(state_dict);
 }
 
-Tensor MultiheadSelfAttention::Attention(
-    const Tensor &q,
-    const Tensor &k,
-    const Tensor &v,
-    const Tensor &mask) {
-  Operators *F = ctx_.F();
+Tensor MultiheadSelfAttention::attention(
+    TensorCRef q, TensorCRef k, TensorCRef v, TensorCRef mask) {
+  Operators *F = _ctx.F();
 
-  Tensor scores = F->MatMul(q, k.Transpose(-2, -1));
-  scores = F->Mul(scores,  1.0f / sqrtf(1.0f * d_k_));
+  Tensor scores = F->matmul(q, k.transpose(-2, -1));
+  scores = F->mul(scores,  1.0f / sqrtf(1.0f * _dK));
 
   if (!mask.empty()) {
-    scores = F->Add(scores, mask);
+    scores = F->add(scores, mask);
   }
 
-  scores = F->Softmax(scores);
-  Tensor outputs = F->MatMul(scores, v);
+  scores = F->softmax(scores);
+  Tensor outputs = F->matmul(scores, v);
   return outputs;
 }
 
-Tensor MultiheadSelfAttention::Forward(TensorMap *past,
-                                       TensorCRef inputs,
-                                       TensorCRef attn_mask) {
-  Operators *F = ctx_.F();
+Tensor MultiheadSelfAttention::forward(TensorMap *past, TensorCRef inputs, TensorCRef attn_mask) {
+  Operators *F = _ctx.F();
 
-  CHECK(inputs.dim() == 3);
-  CHECK(attn_mask.empty() || attn_mask.dim() == 2);
+  CHECK(inputs.getDim() == 3);
+  CHECK(attn_mask.empty() || attn_mask.getDim() == 2);
 
-  int bs = inputs.shape(0);
-  Tensor q_proj = q_proj_->Forward(inputs);
-  Tensor k_proj = k_proj_->Forward(inputs);
-  Tensor v_proj = v_proj_->Forward(inputs);
+  int bs = inputs.getShape(0);
+  Tensor qProj = _qProj->forward(inputs);
+  Tensor kProj = _kProj->forward(inputs);
+  Tensor vProj = _vProj->forward(inputs);
 
   // update k_proj and v_proj according to the kv_cache from past.
   int past_len = 0;
-  if (past && past->exists(pastk_name_) && past->exists(pastv_name_)) {
-    TensorCRef past_k = past->Get(pastk_name_);
-    TensorCRef past_v = past->Get(pastv_name_);
-    past_len = past_k.shape(1);
+  if (past && past->hasTensor(_namePastK) && past->hasTensor(_namePastV)) {
+    TensorCRef past_k = past->getTensor(_namePastK);
+    TensorCRef past_v = past->getTensor(_namePastV);
+    past_len = past_k.getShape(1);
 
-    k_proj = F->Cat(past_k, k_proj, 1);
-    v_proj = F->Cat(past_v, v_proj, 1);
+    kProj = F->cat(past_k, kProj, 1);
+    vProj = F->cat(past_v, vProj, 1);
     
-    CHECK(k_proj.shape(1) == v_proj.shape(1));
+    CHECK(kProj.getShape(1) == vProj.getShape(1));
   }
 
   // update kv_cache in past.
   if (past) {
-    past->Put(pastk_name_, k_proj);
-    past->Put(pastv_name_, v_proj);
+    past->putTensor(_namePastK, kProj);
+    past->putTensor(_namePastV, vProj);
   }
 
-  q_proj = q_proj.View({bs, -1, num_heads_, d_k_}).Transpose(1, 2);
-  k_proj = k_proj.View({bs, -1, num_heads_, d_k_}).Transpose(1, 2);
-  v_proj = v_proj.View({bs, -1, num_heads_, d_k_}).Transpose(1, 2);
+  qProj = qProj.view({bs, -1, _numHeads, _dK}).transpose(1, 2);
+  kProj = kProj.view({bs, -1, _numHeads, _dK}).transpose(1, 2);
+  vProj = vProj.view({bs, -1, _numHeads, _dK}).transpose(1, 2);
 
   Tensor mask = attn_mask.empty() 
       ? attn_mask 
-      : attn_mask.Slice(0, past_len, past_len + q_proj.shape(2))
-                 .Slice(1, 0, k_proj.shape(2));
-  Tensor scores = Attention(q_proj, k_proj, v_proj, mask);
-  scores = scores.Transpose(1, 2);
+      : attn_mask.slice(0, past_len, past_len + qProj.getShape(2)).slice(1, 0, kProj.getShape(2));
+  Tensor scores = attention(qProj, kProj, vProj, mask);
+  scores = scores.transpose(1, 2);
 
-  Tensor concat = F->Contiguous(scores).View({bs, -1, d_model_});
-  Tensor output = out_proj_->Forward(concat);
+  Tensor concat = F->contiguous(scores).view({bs, -1, _dModel});
+  Tensor output = _outProj->forward(concat);
   return output;
 }
 
