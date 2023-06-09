@@ -11,9 +11,9 @@ namespace llama {
 namespace nn {
 
 enum class GEMMBackend {
-  kDefault,
-  kAvx2,
-  kAvx512
+  DEFAULT,
+  AVX2,
+  AVX512
 };
 
 // interface for matrix multiplication.
@@ -22,15 +22,15 @@ class GEMM {
   GEMM();
 
   // float32 matrix multiplication. 
-  void sgemm(bool TransA, bool TransB,
-      int M, int N, int K,
-      const float *A, int lda,
-      const float *B, int ldb,
-      float *C, int ldc);
+  void sgemm(
+      bool TransA, bool TransB, int M, int N, int K, const float *A, int lda,
+      const float *B, int ldb, float *C, int ldc);
 
  private:
-  GEMMBackend sgemm_backend_;
-  
+  GEMMBackend _segmmBackend;
+
+  // choose the backend for each operations.
+  void chooseBackend();
 };
 
 }  // namespace nn

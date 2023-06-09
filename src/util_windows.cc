@@ -8,6 +8,14 @@
 namespace llama {
 namespace util {
 
+bool isAvx512Available() {
+  return IsProcessorFeaturePresent(PF_AVX512F_INSTRUCTIONS_AVAILABLE) == TRUE;
+}
+
+bool isAvx2Available() {
+  return IsProcessorFeaturePresent(PF_AVX2_INSTRUCTIONS_AVAILABLE) == TRUE;
+}
+
 Path Path::currentModulePath() {
   char filename[MAX_PATH + 1];
 

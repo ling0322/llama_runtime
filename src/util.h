@@ -12,8 +12,8 @@ namespace util {
 
 // -- OS dependent functions ---------------------------------------------------
 
-bool IsAvx512Available();
-bool IsAvx2Available();
+bool isAvx512Available();
+bool isAvx2Available();
 
 // ---------------------------------------------------------------------------+
 // BaseArray                                                                  |

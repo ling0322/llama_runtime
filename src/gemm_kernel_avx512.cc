@@ -1,11 +1,11 @@
-#include "gemm_common.h"
+#include "gemm_kernel.h"
 
 #include <immintrin.h>
 
 namespace llama {
 namespace nn {
 
-void SGEMM6x16Avx512Kernel::GEMMKernel(
+void SGEMM6x16Avx512Kernel::callKernel(
     int64_t kc, float *a, float *b, float *c, int64_t rs_c) {
   // a: kc x MR
   // b: kc x NR

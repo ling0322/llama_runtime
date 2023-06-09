@@ -97,6 +97,9 @@ class CPUOperators::Impl {
       SubtensorCf bias,
       float eps);
   Tensor causalMaskFp32(int max_len);
+
+ private:
+  GEMM _gemm;
 };
 
 // -- class CPUOperators::Impl::SubTensor ----------
@@ -302,8 +305,6 @@ void CPUOperators::Impl::gemmFp32(SubtensorCf A, SubtensorCf B, Subtensorf C) {
   CHECK(A.dimension(0) == C.dimension(0));
   CHECK(A.dimension(1) == B.dimension(0));
   CHECK(B.dimension(1) == C.dimension(1));
-
-  GEMM gemm;
   
   bool transa, transb;
   int lda, ldb;
@@ -331,12 +332,7 @@ void CPUOperators::Impl::gemmFp32(SubtensorCf A, SubtensorCf B, Subtensorf C) {
   int k = A.dimension(1);
   int n = B.dimension(1);
   int ldc = C.stride(0);
-  gemm.MatMul(
-      transa, transb,
-      m, n, k,
-      A.data, lda,
-      B.data, ldb,
-      C.data, ldc);
+  _gemm.sgemm(transa, transb, m, n, k, A.data, lda, B.data, ldb, C.data, ldc);
 }
 
 void CPUOperators::Impl::bmmFp32(SubtensorCf A, SubtensorCf B, Subtensorf C) {
@@ -649,12 +645,13 @@ void CPUOperators::Impl::catFp32(SubtensorCf A, SubtensorCf B, int dim, Subtenso
   }
 }
 
-// ---------------------------------------------------------------------------+
-// class CPUOperators                                                         |
-// ---------------------------------------------------------------------------+
+// -- class CPUOperators ----------
 
 std::unique_ptr<Operators> CPUOperators::create() {
-  return std::unique_ptr<Operators>{new CPUOperators()};
+  std::unique_ptr<CPUOperators> F{new CPUOperators()};
+  F->_impl = std::make_unique<Impl>();
+
+  return F;
 }
 
 Tensor CPUOperators::createTensor(std::initializer_list<int> shape, DType dtype) {

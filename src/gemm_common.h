@@ -7,56 +7,34 @@
 namespace llama {
 namespace nn {
 
-class SGEMM6x16DefaultKernel {
- public:
-  static constexpr int MR = 6;
-  static constexpr int NR = 16;
-
-  static void GEMMKernel(
-      int64_t kc, float *a, float *b, float *c, int64_t rs_c);
-};
-
-class SGEMM6x16Avx2Kernel {
- public:
-  static constexpr int MR = 6;
-  static constexpr int NR = 16;
-
-  static void GEMMKernel(
-      int64_t kc, float *a, float *b, float *c, int64_t rs_c);
-};
-
-class SGEMM6x16Avx512Kernel {
- public:
-  static constexpr int MR = 12;
-  static constexpr int NR = 32;
-
-  static void GEMMKernel(
-      int64_t kc, float *a, float *b, float *c, int64_t rs_c);
-};
-
-
 struct Block {
   float *data;
-  int stride;
-  int num_rows;
-  int num_cols;
+  int32_t stride;
+  int32_t numRows;
+  int32_t numCols;
   bool transposed;
 
-  constexpr Block RowRange(int row, int nr);
-  constexpr Block ColRange(int col, int nc);
-  constexpr Block Range(int row, int col, int nr, int nc);
-  constexpr void CopyTo(Block tgt);
+  constexpr Block sliceRow(int row, int nr);
+  constexpr Block sliceCol(int col, int nc);
+  constexpr Block slice(int row, int col, int nr, int nc);
+  constexpr void copyTo(Block tgt);
   constexpr Block T();
-  constexpr void FillZero();
+  constexpr void fillZero();
+
+ private:
+  constexpr void copy0(Block tgt);
+  constexpr void copy1(Block tgt);
+  constexpr void copy2(Block tgt);
+  constexpr void copy3(Block tgt);
 };
 
 struct PackedBlock {
   float *data;
-  int pack_size;
-  int num_rows;
-  int num_blocks;
+  int32_t packSize;
+  int32_t numRows;
+  int32_t numBlocks;
 
-  constexpr Block PackBlock(int i);
+  constexpr Block block(int i);
 };
 
 template<int MC, int KC, int NC, class TKernel>
@@ -77,31 +55,31 @@ class GEMMCommon {
       float *C, int ldc);
 
  private:
-  float *packed_buffer_;
+  float *_packedBuffer;
 
-  void Loop0SplitByNC();
-  void Loop1SplitByKC(Block Bn, Block Cj);
-  void Loop2SplitByMC(Block Ak, PackedBlock Bp, Block Cj);
-  void Loop3SplitByNR(PackedBlock Ap, PackedBlock Bp, Block Cij);
-  void Loop4SplitByMR(PackedBlock Ap, Block Bpr, Block Cijn);
-  void CallMicroKernel(Block Amkr, Block Bknr, Block Cijmn);
+  Block _bufferA;
+  Block _bufferB;
+  Block _bufferC;
 
-  Block _A;
-  Block _B;
-  Block _C;
+  Block _inputA;
+  Block _inputB;
+  Block _inputC;
 
-  Block _Ab;
-  Block _Bb;
-  Block _Cb;
+  void split0ByNC();
+  void split1ByKC(Block Bn, Block Cj);
+  void split2ByMC(Block Ak, PackedBlock Bp, Block Cj);
+  void split3ByNR(PackedBlock Ap, PackedBlock Bp, Block Cij);
+  void split4ByMR(PackedBlock Ap, Block Bpr, Block Cijn);
+  void callKernel(Block Amkr, Block Bknr, Block Cijmn);
 };
 
-constexpr Block Block::RowRange(int row, int nr) {
-  return Range(row, 0, nr, num_cols);
+constexpr Block Block::sliceRow(int row, int nr) {
+  return slice(row, 0, nr, numCols);
 }
-constexpr Block Block::ColRange(int col, int nc) {
-  return Range(0, col, num_rows, nc);
+constexpr Block Block::sliceCol(int col, int nc) {
+  return slice(0, col, numRows, nc);
 }
-constexpr Block Block::Range(int row, int col, int nr, int nc) {
+constexpr Block Block::slice(int row, int col, int nr, int nc) {
   return Block {
     data + (transposed ? row + col * stride : row * stride + col),
     stride,
@@ -110,36 +88,75 @@ constexpr Block Block::Range(int row, int col, int nr, int nc) {
     transposed
   };
 }
-constexpr void Block::CopyTo(Block tgt) {
-  ASSERT(num_rows == tgt.num_rows);
-  ASSERT(num_cols == tgt.num_cols);
 
-  for (int r = 0; r < num_rows; ++r) {
-    for (int c = 0; c < num_cols; ++c) {
-      if ((!transposed) && (!tgt.transposed)) {
-        tgt.data[r * tgt.stride + c] = data[r * stride + c];
-      } else if (transposed && (!tgt.transposed)) {
-        tgt.data[r * tgt.stride + c] = data[r + c * stride];
-      } else if ((!transposed) && tgt.transposed) {
-        tgt.data[r + c * tgt.stride] = data[r * stride + c];
-      } else if (transposed && tgt.transposed) {
-        tgt.data[r + c * tgt.stride] = data[r + c * stride];
-      }
+// copy NoTrans -> NoTrans
+constexpr void Block::copy0(Block tgt) {
+  for (int r = 0; r < numRows; ++r) {
+    int tgtOffset = r * tgt.stride;
+    int srcOffset = r * stride;
+    for (int c = 0; c < numCols; ++c) {
+      tgt.data[tgtOffset + c] = data[srcOffset + c];
     }
+  }
+}
+
+// copy Trans -> NoTrans
+constexpr void Block::copy1(Block tgt) {
+  for (int r = 0; r < numRows; ++r) {
+    int tgtOffset = r * tgt.stride;
+    for (int c = 0; c < numCols; ++c) {
+      tgt.data[tgtOffset + c] = data[r + c * stride];
+    }
+  }
+}
+
+// copy NoTrans -> Trans
+constexpr void Block::copy2(Block tgt) {
+  for (int r = 0; r < numRows; ++r) {
+    int srcOffset = r * stride;
+    for (int c = 0; c < numCols; ++c) {
+      tgt.data[r + c * tgt.stride] = data[srcOffset + c];
+    }
+  }
+}
+
+// copy Trans -> Trans
+constexpr void Block::copy3(Block tgt) {
+  for (int c = 0; c < numCols; ++c) {
+    int srcOffset = c * stride;
+    int tgtOffset = c * tgt.stride;
+    for (int r = 0; r < numRows; ++r) {
+        tgt.data[r + tgtOffset] = data[r + srcOffset];
+    }
+  }
+}
+
+constexpr void Block::copyTo(Block tgt) {
+  ASSERT(numRows == tgt.numRows);
+  ASSERT(numCols == tgt.numCols);
+
+  if ((!transposed) && (!tgt.transposed)) {
+    copy0(tgt);
+  } else if (transposed && (!tgt.transposed)) {
+    copy1(tgt);
+  } else if ((!transposed) && tgt.transposed) {
+    copy2(tgt);
+  } else if (transposed && tgt.transposed) {
+    copy3(tgt);
   }
 }
 constexpr Block Block::T() {
   return Block {
     data,
     stride,
-    num_cols,
-    num_rows,
+    numCols,
+    numRows,
     !transposed
   };
 }
-constexpr void Block::FillZero() {
-  for (int r = 0; r < num_rows; ++r) {
-    for (int c = 0; c < num_cols; ++c) {
+constexpr void Block::fillZero() {
+  for (int r = 0; r < numRows; ++r) {
+    for (int c = 0; c < numCols; ++c) {
       if (transposed) {
         data[r + c * stride] = 0.0f;
       } else {
@@ -148,174 +165,169 @@ constexpr void Block::FillZero() {
     }
   }
 }
-constexpr Block PackedBlock::PackBlock(int i) {
+constexpr Block PackedBlock::block(int i) {
   return Block {
-    data + pack_size * num_rows * i,
-    pack_size,
-    num_rows,
-    pack_size,
+    data + packSize * numRows * i,
+    packSize,
+    numRows,
+    packSize,
     false
   };
 }
 
 template<int MC, int KC, int NC, class TKernel>
 inline GEMMCommon<MC, KC, NC, TKernel>::GEMMCommon() {
-  int packed_size = (MC * KC + KC * NC + MR * NR) * sizeof(float);
-  packed_buffer_ = (float *)malloc(packed_size);
+  int packedSize = (MC * KC + KC * NC + MR * NR) * sizeof(float);
+  _packedBuffer = (float *)malloc(packedSize);
 
-  float *A = packed_buffer_;
+  float *A = _packedBuffer;
   float *B = A + MC * KC;
   float *C = B + KC * NC;
 
-  _Ab = Block { A, MR, (MC / MR) * KC, MR, false };
-  _Bb = Block { B, NR, (NC / NR) * KC, NR, false };
-  _Cb = Block { C, NR, MR, NR, false };
+  _bufferA = Block { A, MR, (MC / MR) * KC, MR, false };
+  _bufferB = Block { B, NR, (NC / NR) * KC, NR, false };
+  _bufferC = Block { C, NR, MR, NR, false };
 }
 
 template<int MC, int KC, int NC, class TKernel>
 inline GEMMCommon<MC, KC, NC, TKernel>::~GEMMCommon() {
-  free(packed_buffer_);
-  packed_buffer_ = nullptr;
+  free(_packedBuffer);
+  _packedBuffer = nullptr;
 }
 
 
 inline PackedBlock Pack(Block src, Block buf, int pack_size) {
-  int num_block = src.num_cols / pack_size;
-  int kc = src.num_rows;
-  PackedBlock tgt { buf.data, pack_size, kc, num_block };
-  ASSERT(pack_size * num_block * kc <= buf.num_cols * buf.num_rows);
+  int numBlock = src.numCols / pack_size;
+  int kc = src.numRows;
+  PackedBlock tgt { buf.data, pack_size, kc, numBlock };
+  ASSERT(pack_size * numBlock * kc <= buf.numCols * buf.numRows);
 
-  for (int b = 0; b < num_block; ++b) {
-    Block src_block = src.ColRange(b * pack_size, pack_size);
-    Block tgt_block = tgt.PackBlock(b);
-    src_block.CopyTo(tgt_block);
+  for (int b = 0; b < numBlock; ++b) {
+    Block srcBlock = src.sliceCol(b * pack_size, pack_size);
+    Block tgtBlock = tgt.block(b);
+    srcBlock.copyTo(tgtBlock);
   }
 
-  int _nc = src.num_cols % pack_size;
-  if (_nc) {
-    Block src_block = src.ColRange(num_block * pack_size, _nc);
-    Block tgt_block = tgt.PackBlock(num_block);
-    tgt_block.FillZero();
+  int nc = src.numCols % pack_size;
+  if (nc) {
+    Block srcBlock = src.sliceCol(numBlock * pack_size, nc);
+    Block tgtBlock = tgt.block(numBlock);
+    tgtBlock.fillZero();
 
-    tgt_block = tgt_block.ColRange(0, _nc);
-    src_block.CopyTo(tgt_block);
-    ++tgt.num_blocks;
+    tgtBlock = tgtBlock.sliceCol(0, nc);
+    srcBlock.copyTo(tgtBlock);
+    ++tgt.numBlocks;
   }
 
   return tgt;
 }
 
 template<int MC, int KC, int NC, class TKernel>
-inline void GEMMCommon<MC, KC, NC, TKernel>::Loop0SplitByNC() {
-  int nb = _B.num_cols / NC;
-  int _nc = _B.num_cols % NC;
+inline void GEMMCommon<MC, KC, NC, TKernel>::split0ByNC() {
+  int nb = _inputB.numCols / NC;
+  int nc = _inputB.numCols % NC;
 
   for (int i = 0; i < nb; ++i) {
-    Block Bn = _B.ColRange(i * NC, NC);
-    Block Cj = _C.ColRange(i * NC, NC);
-    Loop1SplitByKC(Bn, Cj);
+    Block Bn = _inputB.sliceCol(i * NC, NC);
+    Block Cj = _inputC.sliceCol(i * NC, NC);
+    split1ByKC(Bn, Cj);
   }
 
-  if (_nc) {
-    Block Bn = _B.ColRange(nb * NC, _nc);
-    Block Cj = _C.ColRange(nb * NC, _nc);
-    Loop1SplitByKC(Bn, Cj);
+  if (nc) {
+    Block Bn = _inputB.sliceCol(nb * NC, nc);
+    Block Cj = _inputC.sliceCol(nb * NC, nc);
+    split1ByKC(Bn, Cj);
   }
 }
 
 template<int MC, int KC, int NC, class TKernel>
-inline void GEMMCommon<MC, KC, NC, TKernel>::Loop1SplitByKC(
-    Block Bn, Block Cj) {
-  int kb = Bn.num_rows / KC;
-  int _kc = Bn.num_rows % KC;
+inline void GEMMCommon<MC, KC, NC, TKernel>::split1ByKC(Block Bn, Block Cj) {
+  int kb = Bn.numRows / KC;
+  int kc = Bn.numRows % KC;
 
   for (int i = 0; i < kb; ++i) {
-    Block Bkn = Bn.RowRange(i * KC, KC);
-    Block Ak = _A.ColRange(i * KC, KC);
-    PackedBlock Bp = nn::Pack(Bkn, _Bb, NR);
-    Loop2SplitByMC(Ak, Bp, Cj);
+    Block Bkn = Bn.sliceRow(i * KC, KC);
+    Block Ak = _inputA.sliceCol(i * KC, KC);
+    PackedBlock Bp = nn::Pack(Bkn, _bufferB, NR);
+    split2ByMC(Ak, Bp, Cj);
   }
 
-  if (_kc) {
-    Block Bkn = Bn.RowRange(kb * KC, _kc);
-    Block Ak = _A.ColRange(kb * KC, _kc);
-    PackedBlock Bp = nn::Pack(Bkn, _Bb, NR);
-    Loop2SplitByMC(Ak, Bp, Cj);
+  if (kc) {
+    Block Bkn = Bn.sliceRow(kb * KC, kc);
+    Block Ak = _inputA.sliceCol(kb * KC, kc);
+    PackedBlock Bp = nn::Pack(Bkn, _bufferB, NR);
+    split2ByMC(Ak, Bp, Cj);
   }
 }
 
 template<int MC, int KC, int NC, class TKernel>
-inline void GEMMCommon<MC, KC, NC, TKernel>::Loop2SplitByMC(
-    Block Ak, PackedBlock Bp, Block Cj) {
-  int mb = Ak.num_rows / MC;
-  int _mc = Ak.num_rows % MC;
+inline void GEMMCommon<MC, KC, NC, TKernel>::split2ByMC(Block Ak, PackedBlock Bp, Block Cj) {
+  int mb = Ak.numRows / MC;
+  int mc = Ak.numRows % MC;
 
   for (int i = 0; i < mb; ++i) {
-    Block Amk = Ak.RowRange(i * MC, MC);
-    Block Cij = Cj.RowRange(i * MC, MC);
-    PackedBlock Ap = nn::Pack(Amk.T(), _Ab, MR);
-    Loop3SplitByNR(Ap, Bp, Cij);
+    Block Amk = Ak.sliceRow(i * MC, MC);
+    Block Cij = Cj.sliceRow(i * MC, MC);
+    PackedBlock Ap = nn::Pack(Amk.T(), _bufferA, MR);
+    split3ByNR(Ap, Bp, Cij);
   }
 
-  if (_mc) {
-    Block Amk = Ak.RowRange(mb * MC, _mc);
-    Block Cij = Cj.RowRange(mb * MC, _mc);
+  if (mc) {
+    Block Amk = Ak.sliceRow(mb * MC, mc);
+    Block Cij = Cj.sliceRow(mb * MC, mc);
 
-    PackedBlock Ap = nn::Pack(Amk.T(), _Ab, MR);
-    Loop3SplitByNR(Ap, Bp, Cij);
+    PackedBlock Ap = nn::Pack(Amk.T(), _bufferA, MR);
+    split3ByNR(Ap, Bp, Cij);
   }
 }
 
 template<int MC, int KC, int NC, class TKernel>
-inline void GEMMCommon<MC, KC, NC, TKernel>::Loop3SplitByNR(
-    PackedBlock Ap, PackedBlock Bp, Block Cij) {
-  int np = Cij.num_cols / NR;
-  int _nr = Cij.num_cols % NR;
+inline void GEMMCommon<MC, KC, NC, TKernel>::split3ByNR(PackedBlock Ap, PackedBlock Bp, Block Cij) {
+  int np = Cij.numCols / NR;
+  int nr = Cij.numCols % NR;
 
   for (int i = 0; i < np; ++i) {
-    Block Bpr = Bp.PackBlock(i);
-    Block Cijn = Cij.ColRange(i * NR, NR);
-    Loop4SplitByMR(Ap, Bpr, Cijn);
+    Block Bpr = Bp.block(i);
+    Block Cijn = Cij.sliceCol(i * NR, NR);
+    split4ByMR(Ap, Bpr, Cijn);
   }
 
-  if (_nr) {
-    Block Bpr = Bp.PackBlock(np);
-    Block Cijn = Cij.ColRange(np * NR, _nr);
-    Loop4SplitByMR(Ap, Bpr, Cijn);
+  if (nr) {
+    Block Bpr = Bp.block(np);
+    Block Cijn = Cij.sliceCol(np * NR, nr);
+    split4ByMR(Ap, Bpr, Cijn);
   }
 }
 
 template<int MC, int KC, int NC, class TKernel>
-inline void GEMMCommon<MC, KC, NC, TKernel>::Loop4SplitByMR(
-    PackedBlock Ap, Block Bpr, Block Cijn) {
-  int mp = Cijn.num_rows / MR;
-  int _mr = Cijn.num_rows % MR;
+inline void GEMMCommon<MC, KC, NC, TKernel>::split4ByMR(PackedBlock Ap, Block Bpr, Block Cijn) {
+  int mp = Cijn.numRows / MR;
+  int mr = Cijn.numRows % MR;
 
   for (int i = 0; i < mp; ++i) {
-    Block Apr = Ap.PackBlock(i);
-    Block Cijmn = Cijn.RowRange(i * MR, MR);
-    CallMicroKernel(Apr, Bpr, Cijmn);
+    Block Apr = Ap.block(i);
+    Block Cijmn = Cijn.sliceRow(i * MR, MR);
+    callKernel(Apr, Bpr, Cijmn);
   }
 
-  if (_mr) {
-    Block Apr = Ap.PackBlock(mp);
-    Block Cijmn = Cijn.RowRange(mp * MR, _mr);
-    CallMicroKernel(Apr, Bpr, Cijmn);
+  if (mr) {
+    Block Apr = Ap.block(mp);
+    Block Cijmn = Cijn.sliceRow(mp * MR, mr);
+    callKernel(Apr, Bpr, Cijmn);
   }
 }
 
 template<int MC, int KC, int NC, class TKernel>
-inline void GEMMCommon<MC, KC, NC, TKernel>::CallMicroKernel(
-    Block Apr, Block Bpr, Block Cijmn) {
-  if (Cijmn.num_rows < MR || Cijmn.num_cols < NR) {
-    _Cb.FillZero();
-    Block Cb = _Cb.Range(0, 0, Cijmn.num_rows, Cijmn.num_cols);
-    Cijmn.CopyTo(Cb);
+inline void GEMMCommon<MC, KC, NC, TKernel>::callKernel(Block Apr, Block Bpr, Block Cijmn) {
+  if (Cijmn.numRows < MR || Cijmn.numCols < NR) {
+    _bufferC.fillZero();
+    Block Cb = _bufferC.slice(0, 0, Cijmn.numRows, Cijmn.numCols);
+    Cijmn.copyTo(Cb);
 
-    MicroKernel(Apr.num_rows, Apr.data, Bpr.data, _Cb.data, _Cb.stride);
-    Cb.CopyTo(Cijmn);
+    TKernel::callKernel(Apr.numRows, Apr.data, Bpr.data, _bufferC.data, _bufferC.stride);
+    Cb.copyTo(Cijmn);
   } else {
-    MicroKernel(Apr.num_rows, Apr.data, Bpr.data, Cijmn.data, Cijmn.stride);
+    TKernel::callKernel(Apr.numRows, Apr.data, Bpr.data, Cijmn.data, Cijmn.stride);
   }
 }
 
@@ -326,11 +338,11 @@ inline void GEMMCommon<MC, KC, NC, TKernel>::Apply(
     const float *A, int lda,
     const float *B, int ldb,
     float *C, int ldc) {
-  _A = Block { (float *)A, lda, m, k, transa };
-  _B = Block { (float *)B, ldb, k, n, transb };
-  _C = Block { (float *)C, ldc, m, n, false };
+  _inputA = Block { (float *)A, lda, m, k, transa };
+  _inputB = Block { (float *)B, ldb, k, n, transb };
+  _inputC = Block { (float *)C, ldc, m, n, false };
 
-  Gemm1stLoopSplitByNC();
+  split0ByNC();
 }
 
 }  // namespace nn
