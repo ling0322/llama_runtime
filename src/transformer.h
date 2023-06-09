@@ -10,46 +10,40 @@ namespace nn {
 class MultiheadSelfAttention : public Module {
  public:
   // create multi-head attention module from context. 
-  static expected_ptr<MultiheadSelfAttention> Create(
-      const Context &ctx,
-      int num_heads,
-      int d_model);
+  static std::unique_ptr<MultiheadSelfAttention> create(
+      const Context &ctx, int numHeads, int dModel);
 
   // initialize the module from context
-  void initParameters(const TensorMap &state_dict) override;
+  void initParameters(const TensorMap &stateDict) override;
 
-  // forward the inputs into multi-head self-attention. inputs was both q, k
-  // and v for the attention module.
-  // If past is not nullptr, it will concat kv_cache from past before compute
-  // attention, then put the updated kv_cache back to past.
-  Tensor Forward(TensorMap *past, TensorCRef inputs, TensorCRef mask);
+  // forward the inputs into multi-head self-attention. inputs was both q, k and v for the attention
+  // module. If past is not nullptr, it will concat kv_cache from past before compute attention,
+  // then put the updated kv_cache back to past.
+  Tensor forward(TensorMap *past, TensorCRef inputs, TensorCRef mask);
 
  private:
-  Context ctx_;
+  Context _ctx;
 
-  int d_model_;
-  int d_k_;
-  int num_heads_;
+  int _dModel;
+  int _dK;
+  int _numHeads;
 
-  std::string pastk_name_;
-  std::string pastv_name_;
+  std::string _namePastK;
+  std::string _namePastV;
 
   static constexpr char kQProj[] = "q_proj";
   static constexpr char kKProj[] = "k_proj";
   static constexpr char kVProj[] = "v_proj";
   static constexpr char kOutProj[] = "out_proj";
 
-  std::unique_ptr<Linear> q_proj_;
-  std::unique_ptr<Linear> k_proj_;
-  std::unique_ptr<Linear> v_proj_;
-  std::unique_ptr<Linear> out_proj_;
+  std::unique_ptr<Linear> _qProj;
+  std::unique_ptr<Linear> _kProj;
+  std::unique_ptr<Linear> _vProj;
+  std::unique_ptr<Linear> _outProj;
 
   MultiheadSelfAttention();
 
-  Tensor Attention(const Tensor &q,
-                   const Tensor &k,
-                   const Tensor &v,
-                   const Tensor &mask);
+  Tensor attention(const Tensor &q, const Tensor &k, const Tensor &v, const Tensor &mask);
 };
 
 

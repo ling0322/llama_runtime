@@ -26,7 +26,7 @@ std::unique_ptr<IniConfig> IniConfig::read(const std::string &filename) {
   IniSection section{ini_dir};
   State state = kBegin;
   while (scanner.scan()) {
-    std::string line = strings::Trim(scanner.getText());
+    std::string line = str::trim(scanner.getText());
     if (state == kBegin) {
       if (isEmptyLine(line)) {
         // self-loop
@@ -34,7 +34,7 @@ std::unique_ptr<IniConfig> IniConfig::read(const std::string &filename) {
         section._name = parseHeader(line);
         state = kSelfLoop;
       } else {
-        throw AbortedException(fmt::sprintf("invalid line: %s", line));
+        throw AbortedException(str::sprintf("invalid line: %s", line));
       }
     } else if (state == kSelfLoop) {
       if (isEmptyLine(line)) {
@@ -93,27 +93,27 @@ bool IniConfig::isHeader(const std::string &s) {
 
 std::string IniConfig::parseHeader(const std::string &s) {
   if (!isHeader(s)) {
-    throw AbortedException(fmt::sprintf("invalid line: %s", s));
+    throw AbortedException(str::sprintf("invalid line: %s", s));
   }
   
   std::string name = s.substr(1, s.size() - 2);
-  name = strings::Trim(name);
+  name = str::trim(name);
   if (name.empty()) {
-    throw AbortedException(fmt::sprintf("invalid ini section: %s", s));
+    throw AbortedException(str::sprintf("invalid ini section: %s", s));
   }
 
   return name;
 }
 
 std::pair<std::string, std::string> IniConfig::parseKeyValue(const std::string &s) {
-  auto row = strings::Split(s, "=");
+  auto row = str::split(s, "=");
   if (row.size() != 2) {
-    throw AbortedException(fmt::sprintf("invalid line: %s", s));
+    throw AbortedException(str::sprintf("invalid line: %s", s));
   }
-  std::string key = strings::ToLower(strings::Trim(row[0]));
-  std::string value = strings::Trim(row[1]);
+  std::string key = str::toLower(str::trim(row[0]));
+  std::string value = str::trim(row[1]);
   if (key.empty() || value.empty()) {
-    throw AbortedException(fmt::sprintf("invalid line: %s", s));
+    throw AbortedException(str::sprintf("invalid line: %s", s));
   }
 
   return std::make_pair(key, value);
@@ -127,7 +127,7 @@ IniSection::IniSection(const util::Path &iniDir) : _iniDir(iniDir) {}
 std::string IniSection::getString(const std::string &key) const {
   auto it = _kvTable.find(key);
   if (it == _kvTable.end()) {
-    throw AbortedException(fmt::sprintf("key not found (ini_session=%s): %s", _name, key));
+    throw AbortedException(str::sprintf("key not found (ini_session=%s): %s", _name, key));
   }
 
   return it->second;
@@ -135,19 +135,19 @@ std::string IniSection::getString(const std::string &key) const {
 
 int IniSection::getInt(const std::string &key) const {
   std::string s = getString(key);
-  return strings::Atoi(s);
+  return str::atoi(s);
 }
 
 bool IniSection::getBool(const std::string &key) const {
   std::string s = getString(key);
 
-  s = strings::ToLower(s);
+  s = str::toLower(s);
   if (s == "true" || s == "1") {
     return true;
   } else if (s == "false" || s == "0") {
     return false;
   } else {
-    throw AbortedException(fmt::sprintf("invalid bool value: %s", s));
+    throw AbortedException(str::sprintf("invalid bool value: %s", s));
   }
 
   // never reach here.

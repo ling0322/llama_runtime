@@ -53,11 +53,11 @@ std::unique_ptr<GPT2Block> GPT2Block::create(const Context &ctx, GPT2Config conf
   auto ln2 = LayerNorm::create(ctx.withName(kLn2), dModel);
   auto fc = Linear::create(ctx.withName(kFc), dModel, nInner);
   auto proj = Linear::create(ctx.withName(kProj), nInner, dModel);
-  auto attn = MultiheadSelfAttention::Create(ctx.withName(kAttn), config.nHead, dModel);
+  auto attn = MultiheadSelfAttention::create(ctx.withName(kAttn), config.nHead, dModel);
 
   block->_ln2 = std::move(ln2);
   block->_ln1 = std::move(ln1);
-  block->_attn = std::move(attn).unique_ptr();
+  block->_attn = std::move(attn);
   block->_fc = std::move(fc);
   block->_proj = std::move(proj);
 
@@ -77,7 +77,7 @@ Tensor GPT2Block::forward(TensorMap *past, TensorCRef input, TensorCRef mask) co
 
   Tensor residual = input;
   Tensor x = _ln1->forward(input);
-  x = _attn->Forward(past, x, mask);
+  x = _attn->forward(past, x, mask);
   x = F->add(x, residual);
 
   residual = x;
@@ -101,7 +101,7 @@ std::unique_ptr<GPT2Model> GPT2Model::create(const Context &ctx, GPT2Config conf
   model->_config = config;
 
   for (int i = 0; i < config.nLayer; ++i) {
-    std::string block_name = fmt::sprintf("%s%d", kBlock, i);
+    std::string block_name = str::sprintf("%s%d", kBlock, i);
     auto block = GPT2Block::create(model->_ctx.withName(block_name), config);
 
     model->_blocks.emplace_back(std::move(block));

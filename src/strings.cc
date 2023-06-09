@@ -9,12 +9,12 @@
 #include "third_party/utfcpp/utfcpp.h"
 
 namespace llama {
-namespace strings {
+namespace str {
 
 namespace {
 
 template<typename I>
-I FindFirstNotMatch(I begin, I end, PCStrType chars) {
+I findFirstNotMatch(I begin, I end, PCStrType chars) {
   I it = begin;
   for (; it < end; ++it) {
     PCStrType pch = chars;
@@ -40,107 +40,83 @@ I FindFirstNotMatch(I begin, I end, PCStrType chars) {
 #error WCHAR_MAX not defined!
 #endif
 #if defined(_MSC_VER) && _MSC_VER <= 1310
-#define BR_INTERNAL_WCHAR_IS_UTF16
+#define AL_INTERNAL_WCHAR_IS_UTF16
 #elif WCHAR_MAX > 0x10000
-#define BR_INTERNAL_WCHAR_IS_UTF32
+#define AL_INTERNAL_WCHAR_IS_UTF32
 #else
-#define BR_INTERNAL_WCHAR_IS_UTF16
+#define AL_INTERNAL_WCHAR_IS_UTF16
 #endif
 
-Status ToUtf8(const std::u16string &u16s, std::string *s) {
-  s->clear();
-  RETURN_IF_ERROR(utf8::utf16to8(
-      u16s.begin(),
-      u16s.end(),
-      std::back_inserter(*s)));
-  return OkStatus();
+std::string toUtf8(const std::u16string &u16s) {
+  std::string s;
+  utf8::utf16to8(u16s.begin(), u16s.end(), std::back_inserter(s));
+  return s;
 }
 
-Status ToUtf16(const std::string &s, std::u16string *u16s) {
-    u16s->clear();
-    RETURN_IF_ERROR(utf8::utf8to16(
-        s.begin(),
-        s.end(),
-        std::back_inserter(*u16s)));
-    return OkStatus();
+std::u16string toUtf16(const std::string &s) {
+  std::u16string u16s;
+  utf8::utf8to16(s.begin(), s.end(), std::back_inserter(u16s));
+  return u16s;
 }
 
-Status ToUtf8(const std::u32string &u32s, std::string *s) {
-  s->clear();
-  RETURN_IF_ERROR(utf8::utf32to8(
-      u32s.begin(),
-      u32s.end(),
-      std::back_inserter(*s)));
-  return OkStatus();
+std::string toUtf8(const std::u32string &u32s) {
+  std::string s;
+  utf8::utf32to8(u32s.begin(), u32s.end(), std::back_inserter(s));
+  return s;
 }
 
-Status ToUtf32(const std::string &s, std::u32string *u32s) {
-  u32s->clear();
-  RETURN_IF_ERROR(utf8::utf8to32(
-      s.begin(),
-      s.end(),
-      std::back_inserter(*u32s)));
-  return OkStatus();
+std::u32string toUtf32(const std::string &s) {
+  std::u32string u32s;
+  utf8::utf8to32(s.begin(), s.end(), std::back_inserter(u32s));
+  return u32s;
 }
 
-Status ToWide(const std::string &s, std::wstring *ws) {
-  ws->clear();
+std::wstring toWide(const std::string &s) {
+  std::wstring ws;
 
-#if defined(BR_INTERNAL_WCHAR_IS_UTF32)
-  RETURN_IF_ERROR(utf8::utf8to32(
-      s.begin(),
-      s.end(),
-      std::back_inserter(*ws)));
-#elif defined(BR_INTERNAL_WCHAR_IS_UTF16)
-  RETURN_IF_ERROR(utf8::utf8to16(
-      s.begin(),
-      s.end(),
-      std::back_inserter(*ws)));
+#if defined(AL_INTERNAL_WCHAR_IS_UTF32)
+  utf8::utf8to32(s.begin(), s.end(), std::back_inserter(ws));
+#elif defined(AL_INTERNAL_WCHAR_IS_UTF16)
+  utf8::utf8to16(s.begin(), s.end(), std::back_inserter(ws));
 #else
-#error macro BR_INTERNAL_WCHAR_IS_ not defined
+#error macro AL_INTERNAL_WCHAR_IS_ not defined
 #endif
 
-  return OkStatus();
+  return ws;
 }
 
-Status ToUtf8(const std::wstring &ws, std::string *s) {
-  s->clear();
+std::string ToUtf8(const std::wstring &ws) {
+  std::string s;
 
-#if defined(BR_INTERNAL_WCHAR_IS_UTF32)
-  RETURN_IF_ERROR(utf8::utf32to8(
-      ws.begin(),
-      ws.end(),
-      std::back_inserter(*s)));
-#elif defined(BR_INTERNAL_WCHAR_IS_UTF16)
-  RETURN_IF_ERROR(utf8::utf16to8(
-      ws.begin(),
-      ws.end(),
-      std::back_inserter(*s)));
+#if defined(AL_INTERNAL_WCHAR_IS_UTF32)
+  utf8::utf32to8(ws.begin(), ws.end(), std::back_inserter(s));
+#elif defined(AL_INTERNAL_WCHAR_IS_UTF16)
+  utf8::utf16to8(ws.begin(), ws.end(), std::back_inserter(s));
 #else
-#error macro BR_INTERNAL_WCHAR_IS_ not defined
+#error macro AL_INTERNAL_WCHAR_IS_ not defined
 #endif
 
-  return OkStatus();
+  return s;
 }
 
-std::string TrimLeft(const std::string &s, PCStrType chars) {
-  auto it = FindFirstNotMatch(s.begin(), s.end(), chars);
+std::string trimLeft(const std::string &s, PCStrType chars) {
+  auto it = findFirstNotMatch(s.begin(), s.end(), chars);
   return std::string(it, s.end());
 }
 
-std::string TrimRight(const std::string &s, PCStrType chars) {
-  auto it = FindFirstNotMatch(s.rbegin(), s.rend(), chars);
+std::string trimRight(const std::string &s, PCStrType chars) {
+  auto it = findFirstNotMatch(s.rbegin(), s.rend(), chars);
   auto n_deleted = it - s.rbegin();
   return std::string(s.begin(), s.end() - n_deleted);
 }
 
-std::string Trim(const std::string &s, PCStrType chars) {
-  auto it_begin = FindFirstNotMatch(s.begin(), s.end(), chars);
+std::string trim(const std::string &s, PCStrType chars) {
+  auto it_begin = findFirstNotMatch(s.begin(), s.end(), chars);
   if (it_begin == s.end()) {
     return "";
   }
 
-  auto it_r = FindFirstNotMatch(s.rbegin(), s.rend(), chars);
+  auto it_r = findFirstNotMatch(s.rbegin(), s.rend(), chars);
   auto n_deleted = it_r - s.rbegin();
   auto it_end = s.end() - n_deleted;
 
@@ -148,9 +124,7 @@ std::string Trim(const std::string &s, PCStrType chars) {
   return std::string(it_begin, it_end);
 }
 
-std::vector<std::string> Split(
-    const std::string &str,
-    const std::string &delim) {
+std::vector<std::string> split(const std::string &str, const std::string &delim) {
   std::vector<std::string> fields;
   int start = 0;
   int pos = 0;
@@ -163,19 +137,19 @@ std::vector<std::string> Split(
   return fields;
 }
 
-std::string ToLower(const std::string &s) {
+std::string toLower(const std::string &s) {
   std::string lower(s.begin(), s.end());
   std::transform(lower.begin(), lower.end(), lower.begin(), tolower);
   return lower;
 }
 
-int Atoi(const std::string &s) {
+int atoi(const std::string &s) {
   char *p = nullptr;
   long v = strtol(s.c_str(), &p, 0);
   if (*p == '\0') {
     return static_cast<int>(v);
   } else {
-    throw AbortedException(fmt::sprintf("invalid integer string: %s", s));
+    throw AbortedException(str::sprintf("invalid integer string: %s", s));
   }
 }
 
@@ -207,7 +181,7 @@ int _Sprintf0_ReadDigit(const char **ppch, char *buf, int buf_size) {
 }
 
 // parse format string and apply to ss
-char _Sprintf0_ParseFormat(const char **pp_string, std::stringstream &ss) {
+char sprintf0_parseFormat(const char **pp_string, std::stringstream &ss) {
   char digit_buffer[32];
   std::string format_string;
   const char *pch = *pp_string;
@@ -309,38 +283,37 @@ char _Sprintf0_ParseFormat(const char **pp_string, std::stringstream &ss) {
   return type_specifier;
 }
 
-std::string Replace(const std::string &from,
-                    const std::string &old,
-                    const std::string &repl) {
+std::string replace(const std::string &from, const std::string &old, const std::string &repl) {
   int pos = 0;
   std::string s = from;
   while((pos = s.find(old, pos)) != std::string::npos) {
-      s.replace(pos, old.length(), repl);
-      pos += repl.length();
+    s.replace(pos, old.length(), repl);
+    pos += repl.length();
   }
+
   return s;
 }
 
-std::vector<std::string> SplitToUtf8Chars(const std::string &s) {
-  std::vector<std::string> utf8_chars;
+std::vector<std::string> splitToUtf8Chars(const std::string &s) {
+  std::vector<std::string> utf8Chars;
 
   std::string::const_iterator begin = s.begin();
   uint32_t cp = 0;
-  char single_char[] = " ";
+  char singleChar[] = " ";
   while (begin < s.end()) {
     std::string::const_iterator next = begin;
-    Status status = utf8::next(next, s.end(), &cp);
-    if (status.ok()) {
-      utf8_chars.emplace_back(begin, next);
-      begin = next;  
-    } else {
-      single_char[0] = *begin;
-      utf8_chars.emplace_back(single_char);
+    try {
+      uint32_t cp = utf8::next(next, s.end());
+      utf8Chars.emplace_back(begin, next);
+      begin = next;
+    } catch (const AbortedException &) {
+      singleChar[0] = *begin;
+      utf8Chars.emplace_back(singleChar);
       ++begin;
     }
   }
 
-  return utf8_chars;
+  return utf8Chars;
 }
 
 }  // namespace strings

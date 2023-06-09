@@ -27,7 +27,7 @@ Path Path::dirname() const {
   }
 
   std::string name = std::string(path_.begin(), path_.begin() + last_delim_idx);
-  name = strings::TrimRight(name, PATH_DELIM);
+  name = str::trimRight(name, PATH_DELIM);
   return name;
 }
 
@@ -55,12 +55,12 @@ Path Path::operator/(const Path &path) const {
   }
 
   if ((!left.empty()) && left.back() == PATH_DELIM[0]) {
-    left = strings::TrimRight(left, PATH_DELIM);
+    left = str::trimRight(left, PATH_DELIM);
   }
 
   std::string right = path.path_;
   if ((!right.empty()) && right.front() == PATH_DELIM[0]) {
-    right = strings::TrimLeft(right, PATH_DELIM);
+    right = str::trimLeft(right, PATH_DELIM);
   }
 
   return left + PATH_DELIM + right;
@@ -75,7 +75,7 @@ std::string Path::string() const {
 }
 
 Status Path::AsWString(std::wstring *ws) const {
-  RETURN_IF_ERROR(strings::ToWide(path_, ws));
+  *ws = str::toWide(path_);
   return OkStatus();
 }
 

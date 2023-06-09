@@ -187,9 +187,7 @@ void CPUOperators::Impl::ApplyBinaryOperator(
 
 template<typename T>
 void CPUOperators::Impl::ApplyUnary1DTensorOp(
-    SubTensor<const T> A,
-    SubTensor<T> C,
-    UnaryOp<T> unary_op) {
+    SubTensor<const T> A, SubTensor<T> C, UnaryOp<T> unary_op) {
   CHECK(A.rank() == C.rank());
   CHECK(A.rank() >= 1);
 
@@ -207,9 +205,7 @@ void CPUOperators::Impl::ApplyUnary1DTensorOp(
 
 template<typename T>
 void CPUOperators::Impl::ForEach(
-    SubTensor<const T> A,
-    SubTensor<const T> B,
-    BinaryOpNR<T> closure) {
+    SubTensor<const T> A, SubTensor<const T> B, BinaryOpNR<T> closure) {
   CHECK(A.rank() == B.rank());
   CHECK(A.rank() >= 1);
 

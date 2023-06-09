@@ -35,7 +35,7 @@ Path Path::CurrentExecutablePath() {
 bool Path::isabs() const {
   if (path_.size() <= 1) return false;
 
-  std::string path = strings::Trim(path_);
+  std::string path = str::trim(path_);
   char disk = tolower(path.front());
   if (disk > 'z' || disk < 'a') {
     return false;
@@ -49,7 +49,7 @@ bool Path::isabs() const {
 }
 
 std::string Path::NormPath(const std::string &path) {
-  return strings::Replace(path, "/", "\\");
+  return str::replace(path, "/", "\\");
 }
 
 }  // namespace util

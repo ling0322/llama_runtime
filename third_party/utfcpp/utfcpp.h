@@ -29,7 +29,7 @@ DEALINGS IN THE SOFTWARE.
 #include <stdint.h>
 #include <iterator>
 #include <string>
-#include "status.h"
+#include "common.h"
 
 namespace llama
 {
@@ -333,18 +333,17 @@ namespace utf8
 /// The library API - functions intended to be called by the users
 
 template <typename octet_iterator>
-Status append(uint32_t cp, octet_iterator result, octet_iterator *out_result)
+octet_iterator append(uint32_t cp, octet_iterator result)
 {
     if (!utf8::internal::is_code_point_valid(cp)) {
-        RETURN_ABORTED() << "invalid code point " << cp;
+        throw AbortedException(str::sprintf("invalid code point %d", cp));
     }
 
-    *out_result = internal::append(cp, result);
-    return OkStatus();
+    return internal::append(cp, result);
 }
 
 template <typename octet_iterator>
-Status next(octet_iterator& it, octet_iterator end, uint32_t *out_cp)
+uint32_t next(octet_iterator& it, octet_iterator end)
 {
     uint32_t cp = 0;
     internal::utf_error err_code = utf8::internal::validate_next(it, end, cp);
@@ -352,20 +351,19 @@ Status next(octet_iterator& it, octet_iterator end, uint32_t *out_cp)
         case internal::UTF8_OK :
             break;
         case internal::NOT_ENOUGH_ROOM :
-            RETURN_ABORTED() << "not enough space";
+            throw AbortedException("not enough space");
         case internal::INVALID_LEAD :
         case internal::INCOMPLETE_SEQUENCE :
         case internal::OVERLONG_SEQUENCE :
-            RETURN_ABORTED() << "invalid utf-8 " << *it;
+            throw AbortedException(str::sprintf("invalid utf-8 %d", int(*it)));
         case internal::INVALID_CODE_POINT :
-            RETURN_ABORTED() << "invalid code point " << cp;
+            throw AbortedException(str::sprintf("invalid code point %d", cp));
     }
-    *out_cp = cp;
-    return OkStatus();
+    return cp;
 }
 
 template <typename u16bit_iterator, typename octet_iterator>
-Status utf16to8 (u16bit_iterator start, u16bit_iterator end, octet_iterator result)
+void utf16to8 (u16bit_iterator start, u16bit_iterator end, octet_iterator result)
 {
     u16bit_iterator it = start;
     octet_iterator next_result = result;
@@ -378,31 +376,30 @@ Status utf16to8 (u16bit_iterator start, u16bit_iterator end, octet_iterator resu
                 if (utf8::internal::is_trail_surrogate(trail_surrogate)) {
                     cp = (cp << 10) + trail_surrogate + internal::SURROGATE_OFFSET;
                 } else {
-                    RETURN_ABORTED() << "invalid utf16 trail surrogate " << trail_surrogate
-                                     << " in position " << it - start;
+                    throw AbortedException(str::sprintf(
+                        "invalid utf16 trail surrogate %d in position %d",
+                        trail_surrogate,
+                        it - start));
                 }
             } else {
-                RETURN_ABORTED() << "invalid utf16 lead surrogate " << cp
-                                 << " in position " << it - start;
+                throw AbortedException(str::sprintf(
+                    "invalid utf16 lead surrogate %d in position %d", cp, it - start));
             }
         } else if (utf8::internal::is_trail_surrogate(cp)) {
-            RETURN_ABORTED() << "lone trail surrogate " << cp << " in position "
-                             << it - start;
+            throw AbortedException(str::sprintf(
+                "lone trail surrogate %d in position %d", cp, it - start));
         }
 
-        RETURN_IF_ERROR(utf8::append(cp, result, &next_result));
-        result = next_result;
+        result = utf8::append(cp, result);
     }
-    
-    return OkStatus();
 }
 
 template <typename u16bit_iterator, typename octet_iterator>
-Status utf8to16 (octet_iterator start, octet_iterator end, u16bit_iterator result)
+void utf8to16 (octet_iterator start, octet_iterator end, u16bit_iterator result)
 {
     uint32_t cp = 0;
     while (start < end) {
-        RETURN_IF_ERROR(utf8::next(start, end, &cp));
+        uint32_t cp = utf8::next(start, end);
         if (cp > 0xffff) { //make a surrogate pair
             *result++ = static_cast<uint16_t>((cp >> 10)   + internal::LEAD_OFFSET);
             *result++ = static_cast<uint16_t>((cp & 0x3ff) + internal::TRAIL_SURROGATE_MIN);
@@ -410,31 +407,23 @@ Status utf8to16 (octet_iterator start, octet_iterator end, u16bit_iterator resul
         else
             *result++ = static_cast<uint16_t>(cp);
     }
-    return OkStatus();
 }
 
 template <typename octet_iterator, typename u32bit_iterator>
-Status utf32to8 (u32bit_iterator start, u32bit_iterator end, octet_iterator result)
+void utf32to8 (u32bit_iterator start, u32bit_iterator end, octet_iterator result)
 {
     while (start != end) {
-        octet_iterator next_result = result;
-        RETURN_IF_ERROR(utf8::append(*(start++), result, &next_result));
-        result = next_result;
+        result = utf8::append(*(start++), result);
     }
-
-    return OkStatus();
 }
 
 template <typename octet_iterator, typename u32bit_iterator>
-Status utf8to32 (octet_iterator start, octet_iterator end, u32bit_iterator result)
+void utf8to32 (octet_iterator start, octet_iterator end, u32bit_iterator result)
 {
-    uint32_t c = 0;
     for (; start < end; ++result)  {
-        RETURN_IF_ERROR(utf8::next(start, end, &c));
+        uint32_t c = utf8::next(start, end);
         *result = c;
     }
-
-    return OkStatus();
 }
 
 }  // namespace utf8

@@ -378,7 +378,7 @@ Tensor Tensor::transpose(int dim0, int dim1) const {
 
 void Tensor::throwIfInvalidShape(std::initializer_list<int> shape) {
   if (shape.size() != getDim()) {
-    throw AbortedError(fmt::sprintf(
+    throw AbortedError(str::sprintf(
         "invalid shape. dim=%d expected, but %d got.", shape.size(), getDim()));
   }
 
@@ -410,7 +410,7 @@ void Tensor::throwIfInvalidShape(std::initializer_list<int> shape) {
     }
     expected << ")";
 
-    throw AbortedError(fmt::sprintf(
+    throw AbortedError(str::sprintf(
         "invalid shape: %s expected, but %s found.", expected.str(), actual.str()));
   }
 }
