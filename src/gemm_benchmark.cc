@@ -6,6 +6,7 @@
 #include "gemm.h"
 #include "nn.h"
 #include "operators.h"
+#include "strings.h"
 
 using namespace llama;
 using namespace nn;
@@ -42,9 +43,7 @@ void benchmarkGEMM(int n, GemmType gemm_type, int num_run = 1) {
 
   Tensor C = callGEMM(F.get(), A, B);
   Tensor C_openblas = callOpenblasGEMM(F.get(), A, B);
-  F->print(C);
-  F->print(C_openblas);
-  // REQUIRE(F->AllClose(C, C_openblas));
+  REQUIRE(F->allClose(C, C_openblas));
 
   auto t0 = std::chrono::high_resolution_clock::now();
   for (int i = 0; i < num_run; ++i) {
@@ -62,17 +61,23 @@ void benchmarkGEMM(int n, GemmType gemm_type, int num_run = 1) {
   }
   auto t1 = std::chrono::high_resolution_clock::now();
   auto delta = t1 - t0;
-  auto duration_ms = delta / 1ms / num_run;
+  auto duration_ms = delta / 1ns / num_run / 1e6f;
 
-  LOG(INFO) << "n = " << n << " t = " << duration_ms << "ms";
+  LOG(INFO) << str::sprintf("n = %d t = %.2f ms", n, duration_ms);
 }
 
 TEST_CASE("benchmark for float32 GEMM", "[gemm][benchmark]") {
   openblas_set_num_threads(1);
-  benchmarkGEMM(1024, kOpenblas, 100);
-  benchmarkGEMM(1024, kFastAlpaca, 100);
-  benchmarkGEMM(2048, kFastAlpaca, 10);
-  benchmarkGEMM(2048, kOpenblas, 10);
-  benchmarkGEMM(4096, kFastAlpaca, 5);
-  benchmarkGEMM(4096, kOpenblas, 5);
+  LOG(INFO) << "openblas SGEMM:";
+  benchmarkGEMM(256, kOpenblas, 400);
+  benchmarkGEMM(512, kOpenblas, 200);
+  benchmarkGEMM(1024, kOpenblas, 50);
+  benchmarkGEMM(2048, kOpenblas, 5);
+  benchmarkGEMM(4096, kOpenblas, 1);
+  LOG(INFO) << "FastAlpaca SGEMM:";
+  benchmarkGEMM(256, kFastAlpaca, 400);
+  benchmarkGEMM(512, kFastAlpaca, 200);
+  benchmarkGEMM(1024, kFastAlpaca, 50);
+  benchmarkGEMM(2048, kFastAlpaca, 5);
+  benchmarkGEMM(4096, kFastAlpaca, 1);
 }

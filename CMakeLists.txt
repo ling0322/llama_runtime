@@ -5,7 +5,9 @@ if(WIN32)
   add_definitions( "/D_CRT_SECURE_NO_WARNINGS /wd4267 /DCATCH_AMALGAMATED_CUSTOM_MAIN" )
 endif(WIN32)
 
-#find_library(LIBONNXRUNTIME onnxruntime PATHS ${onnxruntime_SOURCE_DIR}/lib)
+set_source_files_properties("src/gemm_kernel_avx512.cc" PROPERTIES COMPILE_FLAGS /arch:AVX512)
+set_source_files_properties("src/gemm_kernel_avx2.cc" PROPERTIES COMPILE_FLAGS /arch:AVX2)
+
 set(llama_INCDIRS src .)
 set(llama_SOURCES
     "src/common.cc"

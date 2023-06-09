@@ -39,13 +39,10 @@ GEMM::GEMM() : _segmmBackend(GEMMBackend::DEFAULT) {
 void GEMM::chooseBackend() {
   if (util::isAvx512Available()) {
     _segmmBackend = GEMMBackend::AVX512;
-    LOG(INFO) << "Use AVX512 SGEMM backend.";
   } else if (util::isAvx2Available()) {
     _segmmBackend = GEMMBackend::AVX2;
-    LOG(INFO) << "Use AVX2 SGEMM backend.";
   } else {
     _segmmBackend = GEMMBackend::DEFAULT;
-    LOG(INFO) << "Use fallback SGEMM backend.";
   }
 }
 

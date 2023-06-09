@@ -242,7 +242,7 @@ void CPUOperators::Impl::randFp32(Tensor *tensor) {
 
   float randmax = RAND_MAX;
   for (int64_t i = 0; i < numel; ++i) {
-    data[i] = ::rand() / randmax;
+    data[i] = ::rand() / randmax - 0.5f;
   }
 }
 
