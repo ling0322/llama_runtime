@@ -33,12 +33,11 @@ std::vector<Tensor> MustReadAllTensors(const std::string &filename) {
 }
 
 Context MustGetCtxForCPU() {
-  expected_ptr<Operators> F = Operators::create(Device::createForCPU());
-  REQUIRE(F.ok());
+  auto F = Operators::create(Device::createForCPU());
 
   Context ctx;
   ctx.setDevice(Device::createForCPU());
-  ctx.setF(std::move(F).shared_ptr());
+  ctx.setF(std::move(F));
 
   return ctx;
 }

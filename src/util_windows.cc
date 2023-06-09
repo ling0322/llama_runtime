@@ -8,13 +8,13 @@
 namespace llama {
 namespace util {
 
-Path Path::CurrentModulePath() {
+Path Path::currentModulePath() {
   char filename[MAX_PATH + 1];
 
   HMODULE hm = NULL;
   BOOL b = GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | 
                               GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                              (LPCWSTR)&CurrentModulePath,
+                              (LPCWSTR)&currentModulePath,
                               &hm);
   CHECK(b);
 
@@ -24,7 +24,7 @@ Path Path::CurrentModulePath() {
   return filename;
 }
 
-Path Path::CurrentExecutablePath() {
+Path Path::currentExecutablePath() {
   char filename[MAX_PATH + 1];
   DWORD charsWritten = GetModuleFileNameA(NULL, filename, sizeof(filename));
   CHECK(charsWritten);
@@ -33,9 +33,9 @@ Path Path::CurrentExecutablePath() {
 }
 
 bool Path::isabs() const {
-  if (path_.size() <= 1) return false;
+  if (_path.size() <= 1) return false;
 
-  std::string path = str::trim(path_);
+  std::string path = str::trim(_path);
   char disk = tolower(path.front());
   if (disk > 'z' || disk < 'a') {
     return false;
@@ -48,7 +48,7 @@ bool Path::isabs() const {
   return false;
 }
 
-std::string Path::NormPath(const std::string &path) {
+std::string Path::normPath(const std::string &path) {
   return str::replace(path, "/", "\\");
 }
 

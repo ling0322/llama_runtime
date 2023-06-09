@@ -7,7 +7,6 @@
 #include <string>
 #include <vector>
 #include "common.h"
-#include "status.h"
 #include "util.h"
 
 namespace llama {
@@ -66,7 +65,7 @@ class BufferedReader : public Reader {
 template<typename T>
 T BufferedReader::readValue() {
   T value;
-  readSpan(util::MakeSpan(reinterpret_cast<ByteType *>(&value), sizeof(T)));
+  readSpan(util::makeSpan(reinterpret_cast<ByteType *>(&value), sizeof(T)));
   
   return value;
 }

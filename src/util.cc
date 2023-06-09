@@ -11,45 +11,45 @@ namespace util {
 // class Path
 //
 
-#ifdef LL_PLATFORM_WINDOWS
+#ifdef AL_PLATFORM_WINDOWS
 #define PATH_DELIM "\\"
 #else
 #define PATH_DELIM "/"
 #endif
 
-Path::Path(const std::string &path) : path_(NormPath(path)) {}
-Path::Path(std::string &&path): path_(NormPath(path)) {}
+Path::Path(const std::string &path) : _path(normPath(path)) {}
+Path::Path(std::string &&path): _path(normPath(path)) {}
 
 Path Path::dirname() const {
-  int last_delim_idx = path_.find_last_of(PATH_DELIM);
-  if (last_delim_idx == std::string::npos) {
+  int lastDelimIdx = _path.find_last_of(PATH_DELIM);
+  if (lastDelimIdx == std::string::npos) {
     return "";
   }
 
-  std::string name = std::string(path_.begin(), path_.begin() + last_delim_idx);
+  std::string name = std::string(_path.begin(), _path.begin() + lastDelimIdx);
   name = str::trimRight(name, PATH_DELIM);
   return name;
 }
 
 Path Path::basename() const {
-  int last_delim_idx = path_.find_last_of(PATH_DELIM);
-  if (last_delim_idx == std::string::npos) {
-    return path_;
+  int lastDelimIdx = _path.find_last_of(PATH_DELIM);
+  if (lastDelimIdx == std::string::npos) {
+    return _path;
   }
 
-  return std::string(path_.begin() + last_delim_idx + 1, path_.end());
+  return std::string(_path.begin() + lastDelimIdx + 1, _path.end());
 }
 
 bool Path::operator==(const Path &r) const {
-  return path_ == r.path_;
+  return _path == r._path;
 }
 
 bool Path::operator==(const std::string &r) const {
-  return path_ == r;
+  return _path == r;
 }
 
 Path Path::operator/(const Path &path) const {
-  std::string left = path_;
+  std::string left = _path;
   if (left.empty()) {
     return path;
   }
@@ -58,7 +58,7 @@ Path Path::operator/(const Path &path) const {
     left = str::trimRight(left, PATH_DELIM);
   }
 
-  std::string right = path.path_;
+  std::string right = path._path;
   if ((!right.empty()) && right.front() == PATH_DELIM[0]) {
     right = str::trimLeft(right, PATH_DELIM);
   }
@@ -71,12 +71,11 @@ Path Path::operator/(const std::string &path) const {
 }
 
 std::string Path::string() const {
-  return path_;
+  return _path;
 }
 
-Status Path::AsWString(std::wstring *ws) const {
-  *ws = str::toWide(path_);
-  return OkStatus();
+std::wstring Path::wstring() const {
+  return str::toWide(_path);
 }
 
 }  // namespace util

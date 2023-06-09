@@ -5,7 +5,6 @@
 #include <type_traits>
 #include <vector>
 #include "common.h"
-#include "status.h"
 
 namespace llama {
 namespace str {

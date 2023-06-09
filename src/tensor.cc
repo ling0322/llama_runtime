@@ -47,10 +47,10 @@ bool IsValidDType(DType dtype) {
 
 // -- class TensorShape ----------
 
-TensorShape::TensorShape(const TensorShape &size) : _data(size._data.Copy()) {}
+TensorShape::TensorShape(const TensorShape &size) : _data(size._data.copy()) {}
 TensorShape::TensorShape(TensorShape &&size) noexcept : _data(std::move(size._data)) {}
 TensorShape &TensorShape::operator=(const TensorShape &size) {
-  _data = size._data.Copy();
+  _data = size._data.copy();
   return *this;
 }
 TensorShape &TensorShape::operator=(TensorShape &&size) noexcept {
@@ -265,12 +265,12 @@ void Tensor::read(ReadableFile *fp) {
   if (numel > 1073741824) {
     throw AbortedException("tensor too big");
   }
-  _shape = TensorShape(util::MakeConstSpan(shape));
+  _shape = TensorShape(util::makeConstSpan(shape));
 
   // data
   _data = std::make_shared<TensorData>(numel, dtype);
   util::Span<ByteType> bs_data(_data->getData(), numel);
-  fp->readSpan(util::MakeSpan(_data->getData(), _data->getSizeInBytes()));
+  fp->readSpan(util::makeSpan(_data->getData(), _data->getSizeInBytes()));
   _dataPtr = _data->getData();
 
   // magic number
@@ -314,7 +314,7 @@ Tensor Tensor::view(std::initializer_list<int> shape) const {
   Tensor view;
   view._data = _data;
   view._dataPtr = _dataPtr;
-  view._shape = TensorShape(util::MakeConstSpan(realShape));
+  view._shape = TensorShape(util::makeConstSpan(realShape));
 
   CHECK(view.getNumEl() == this->getNumEl());
   return view;
@@ -378,7 +378,7 @@ Tensor Tensor::transpose(int dim0, int dim1) const {
 
 void Tensor::throwIfInvalidShape(std::initializer_list<int> shape) {
   if (shape.size() != getDim()) {
-    throw AbortedError(str::sprintf(
+    throw AbortedException(str::sprintf(
         "invalid shape. dim=%d expected, but %d got.", shape.size(), getDim()));
   }
 
@@ -410,7 +410,7 @@ void Tensor::throwIfInvalidShape(std::initializer_list<int> shape) {
     }
     expected << ")";
 
-    throw AbortedError(str::sprintf(
+    throw AbortedException(str::sprintf(
         "invalid shape: %s expected, but %s found.", expected.str(), actual.str()));
   }
 }

@@ -452,7 +452,7 @@ BPEEncoder::Symbol *BPEEncoder::mergeBigram(const Bigram &bigram) {
   Symbol *next = right->next;
   Symbol *prev = left->prev;
 
-  Symbol *merged = _symbolPool.Alloc();
+  Symbol *merged = _symbolPool.alloc();
   merged->tokenId = bigram.mergedTokenId;
   merged->next = next;
   merged->prev = prev;
@@ -486,7 +486,7 @@ std::vector<std::string> BPEEncoder::splitBytes(const std::string &s) {
 }
 
 BPEEncoder::Symbol *BPEEncoder::appendToken(Symbol *tail, int tokenId) {
-  Symbol *symbol = _symbolPool.Alloc();
+  Symbol *symbol = _symbolPool.alloc();
 
   symbol->tokenId = tokenId;
   symbol->prev = tail;
@@ -499,7 +499,7 @@ BPEEncoder::Symbol *BPEEncoder::appendToken(Symbol *tail, int tokenId) {
 
 void BPEEncoder::initSymbolList(const std::string &s) {
   // preprocess sentence
-  Symbol *header = _symbolPool.Alloc();
+  Symbol *header = _symbolPool.alloc();
   header->prev = nullptr;
   header->tokenId = Vocab::kInvalidToken;
 

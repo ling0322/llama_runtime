@@ -6,7 +6,6 @@
 #include <string>
 #include <unordered_map>
 #include "reader.h"
-#include "status.h"
 #include "util.h"
 
 namespace llama {

@@ -1,10 +1,8 @@
-#ifndef LLM_RUNTIME_TENSOR_H_
-#define LLM_RUNTIME_TENSOR_H_
+#pragma once
 
 #include <stdint.h>
 #include "common.h"
 #include "reader.h"
-#include "status.h"
 #include "util.h"
 
 namespace llama {
@@ -212,5 +210,3 @@ typedef const Tensor &TensorCRef;
 
 }  // namespace nn
 }  // namespace llama
-
-#endif  // LLM_RUNTIME_TENSOR_H_

@@ -140,12 +140,12 @@ struct CPUOperators::Impl::SubTensor {
 
 template<typename T>
 inline auto CPUOperators::Impl::makeSubtensor(Tensor &tensor) -> SubTensor<T> {
-  return SubTensor<T>{util::MakeConstSpan(tensor._shape._data), tensor.getData<T>()};
+  return SubTensor<T>{util::makeConstSpan(tensor._shape._data), tensor.getData<T>()};
 } 
 
 template<typename T>
 inline auto CPUOperators::Impl::makeConstSubtensor(const Tensor &tensor) -> SubTensor<const T> {
-  return SubTensor<const T>{util::MakeConstSpan(tensor._shape._data), tensor.getData<T>()};
+  return SubTensor<const T>{util::makeConstSpan(tensor._shape._data), tensor.getData<T>()};
 } 
 
 // ---------------------------------------------------------------------------+
@@ -224,7 +224,7 @@ void CPUOperators::Impl::ForEach(
 Tensor CPUOperators::Impl::createTensor(util::Span<const int> shape, DType dtype) {
   Tensor tensor;
 
-  tensor._shape = TensorShape(util::MakeConstSpan(shape));
+  tensor._shape = TensorShape(util::makeConstSpan(shape));
   int64_t numel = tensor._shape.getNumEl();
 
   tensor._data = std::make_shared<TensorData>(numel, dtype);
@@ -260,7 +260,7 @@ Tensor CPUOperators::Impl::matmulFp32(SubtensorCf A, SubtensorCf B) {
 
   if (A.rank() == B.rank() && A.rank() == 2) {
     // Both A and B is 2D tensor, call GEMM
-    Tensor C = createTensor(util::MakeConstSpan({A.dimension(0), B.dimension(1)}), DType::kFloat);
+    Tensor C = createTensor(util::makeConstSpan({A.dimension(0), B.dimension(1)}), DType::kFloat);
     Subtensorf Cs = makeSubtensor<float>(C);
     zerosFp32(Cs);
     gemmFp32(A, B, Cs);
@@ -287,7 +287,7 @@ Tensor CPUOperators::Impl::matmulFp32(SubtensorCf A, SubtensorCf B) {
     shape.push_back(A.dimension(broadcast_dims + batch_dims));
     shape.push_back(B.dimension(batch_dims + 1));
 
-    Tensor C = createTensor(util::MakeConstSpan(shape), DType::kFloat);
+    Tensor C = createTensor(util::makeConstSpan(shape), DType::kFloat);
     Subtensorf Cs = makeSubtensor<float>(C);
     zerosFp32(Cs);
 
@@ -374,7 +374,7 @@ Tensor CPUOperators::Impl::createTensorLike(SubtensorCf input) {
   }
 
   Tensor tensor;
-  tensor._shape = TensorShape(util::MakeConstSpan(shape));
+  tensor._shape = TensorShape(util::makeConstSpan(shape));
 
   // data
   int64_t numel = input.numel();
@@ -554,7 +554,7 @@ Tensor CPUOperators::Impl::lookupFp32(SubtensorCf table, SubtensorCl indices) {
   int batch_size = indices.dimension(0);
   int seq_len = indices.dimension(1);
   int d_model = table.dimension(1);
-  Tensor output = createTensor(util::MakeConstSpan({batch_size, seq_len, d_model}), DType::kFloat);
+  Tensor output = createTensor(util::makeConstSpan({batch_size, seq_len, d_model}), DType::kFloat);
   Subtensorf emb = makeSubtensor<float>(output);
 
   for (int batch = 0; batch < batch_size; ++batch) {
@@ -614,7 +614,7 @@ Tensor CPUOperators::Impl::layerNormFp32(
 }
 
 Tensor CPUOperators::Impl::causalMaskFp32(int seq_len) {
-  Tensor mask = createTensor(util::MakeConstSpan({seq_len, seq_len}), DType::kFloat);
+  Tensor mask = createTensor(util::makeConstSpan({seq_len, seq_len}), DType::kFloat);
   CHECK(mask.isContiguous());
 
   float *data = mask.getData<float>();
@@ -658,7 +658,7 @@ std::unique_ptr<Operators> CPUOperators::create() {
 }
 
 Tensor CPUOperators::createTensor(std::initializer_list<int> shape, DType dtype) {
-  return _impl->createTensor(util::MakeConstSpan(shape), dtype);
+  return _impl->createTensor(util::makeConstSpan(shape), dtype);
 }
 
 Tensor CPUOperators::createTensorLike(const Tensor &input) {
@@ -667,7 +667,7 @@ Tensor CPUOperators::createTensorLike(const Tensor &input) {
     shape_vec.push_back(elem.shape);
   }
 
-  return _impl->createTensor(util::MakeConstSpan(shape_vec), input.getDType());
+  return _impl->createTensor(util::makeConstSpan(shape_vec), input.getDType());
 }
 
 Tensor CPUOperators::rand(std::initializer_list<int> shape, DType dtype) {
@@ -853,7 +853,7 @@ Tensor CPUOperators::cat(const Tensor &A, const Tensor &B, int dim) {
     }
   }
 
-  Tensor C = _impl->createTensor(util::MakeConstSpan(shape), A.getDType());
+  Tensor C = _impl->createTensor(util::makeConstSpan(shape), A.getDType());
   switch (A.getDType()) {
     case DType::kFloat:
       _impl->catFp32(

@@ -4,7 +4,7 @@
 #include <functional>
 #include <memory>
 
-#include "status.h"
+#include "util.h"
 
 namespace llama {
 
@@ -13,39 +13,33 @@ namespace llama {
 //
 // Example:
 //
-// SharedLibrary library("foo");  // foo.dll for Windows
+// auto library = SharedLibrary::open("foo");  // foo.dll for Windows
 // std::function<int(float)> func = library.GetFunc<int(float)>("bar");
-class SharedLibrary {
+class SharedLibrary : private util::NonCopyable {
  public:
   class Impl;
 
-  SharedLibrary();
-  SharedLibrary(SharedLibrary &) = delete;
-  SharedLibrary(SharedLibrary &&) = delete;
-  SharedLibrary &operator=(SharedLibrary &) = delete;
-  SharedLibrary &operator=(SharedLibrary &&) = delete;
   ~SharedLibrary();
 
   // load a library by name from OS. Firstly, it will search the same directory
   // as caller module. Then, fallback to system search. In windows, the actual
   // library name would be `name`.dll. In Linux, it would be lib`name`.so
-  Status Open(const std::string &name);
-
-  // get raw function pointer by name. throw error if function not exist or
-  // other errors occured
-  void *GetRawFuncPtr(const std::string& name);
+  static std::unique_ptr<SharedLibrary> open(const std::string &name);
 
   // get function by name. return nullptr if function not found
   template<typename T>
-  T *GetFunc(const std::string& name) {
-    return reinterpret_cast<T *>(GetRawFuncPtr(name));
+  T *getFunc(const std::string& name) {
+    return reinterpret_cast<T *>(getFuncPtr(name));
   }
 
-  // returns true if the shared library is loaded
-  bool empty() const;
-
  private:
-  std::unique_ptr<Impl> impl_;
+  std::unique_ptr<Impl> _impl;
+
+  SharedLibrary();
+
+  // get raw function pointer by name. throw error if function not exist or
+  // other errors occured
+  void *getFuncPtr(const std::string& name);
 };
 
 }  // namespace llama

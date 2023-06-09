@@ -5,7 +5,6 @@
 #include <iomanip>
 #include <vector>
 #include "common.h"
-#include "status.h"
 #include "third_party/utfcpp/utfcpp.h"
 
 namespace llama {

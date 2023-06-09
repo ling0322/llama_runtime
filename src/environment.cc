@@ -3,7 +3,6 @@
 #include <mutex>
 #include <thread>
 #include "common.h"
-#include "status.h"
 #include "shared_library.h"
 #include "log.h"
 #include "util.h"

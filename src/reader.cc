@@ -1,7 +1,6 @@
 #include "reader.h"
 
 #include "common.h"
-#include "status.h"
 #include "strings.h"
 #include "log.h"
 #include "util.h"
@@ -15,7 +14,7 @@ std::vector<ByteType> readFile(const std::string &filename) {
   auto fp = ReadableFile::open(filename);
 
   for (; ; ) {
-    int cbytes = fp->read(util::MakeSpan(chunk));
+    int cbytes = fp->read(util::makeSpan(chunk));
     if (cbytes) {
       data.insert(data.end(), chunk.begin(), chunk.begin() + cbytes);
     } else {
@@ -47,7 +46,7 @@ int BufferedReader::readNextBuffer() {
   CHECK(_w - _r == 0);
   _r = 0;
   _w = 0;
-  _w = read(util::MakeSpan(_buffer));
+  _w = read(util::makeSpan(_buffer));
 
   return _w;
 }
@@ -71,7 +70,7 @@ std::string BufferedReader::readString(int n) {
   CHECK(n > 0);
 
   std::vector<ByteType> buffer(n);
-  readSpan(util::MakeSpan(buffer));
+  readSpan(util::makeSpan(buffer));
 
   return std::string(buffer.begin(), buffer.end());
 }
@@ -145,12 +144,12 @@ const std::string &Scanner::getText() const {
 }
 
 bool Scanner::readBuffer() {
-  int n = _reader->read(util::MakeSpan(_buffer));
+  int n = _reader->read(util::makeSpan(_buffer));
   if (!n) {
     return false;
   }
 
-  _bufferSpan = util::MakeSpan(_buffer.data(), n);
+  _bufferSpan = util::makeSpan(_buffer.data(), n);
   return true;
 }
 

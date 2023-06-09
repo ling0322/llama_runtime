@@ -4,7 +4,6 @@
 #include <limits>
 #include "gemm.h"
 #include "operators.h"
-#include "status.h"
 
 namespace llama {
 namespace nn {
