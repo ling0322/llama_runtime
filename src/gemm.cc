@@ -9,6 +9,33 @@
 namespace llama {
 namespace nn {
 
+// -- class GEMMArgs ----------
+
+GEMMArgs::GEMMArgs()
+    : TransA(false),
+      TransB(false),
+      M(0),
+      N(0),
+      K(0),
+      A(nullptr),
+      lda(0),
+      B(nullptr),
+      ldb(0),
+      C(nullptr),
+      ldc(0) {}
+
+
+// -- class GEMVArgs ----------
+
+GEMVArgs::GEMVArgs()
+    : TransA(false),
+      M(0),
+      N(0),
+      A(nullptr),
+      lda(0),
+      x(nullptr),
+      y(nullptr) {}
+
 // -- class SGEMM ----------
 
 typedef GEMMCommon<288, 512, 4096, SGEMM6x16DefaultKernel> SGEMMFallback;
@@ -18,23 +45,43 @@ typedef GEMMCommon<576, 512, 4096, SGEMM6x16Avx512Kernel> SGEMMAvx512;
 class SGEMM {
  public:
   virtual ~SGEMM() = default;
-  virtual void apply(
-      bool TransA, bool TransB, int M, int N, int K, const float *A, int lda,
-      const float *B, int ldb, float *C, int ldc) const = 0;
+  virtual void apply(const GEMMArgs &args) const = 0;
 };
 
 template<class TImpl>
 class SGEMMImpl : public SGEMM {
  public:
-  void apply(
-      bool TransA, bool TransB, int M, int N, int K, const float *A, int lda,
-      const float *B, int ldb, float *C, int ldc) const override {
-    TImpl().Apply(TransA, TransB, M, N, K, A, lda, B, ldb, C, ldc);
+  void apply(const GEMMArgs &args) const override {
+    TImpl().Apply(
+        args.TransA, args.TransB, args.M, args.N, args.K, args.A, args.lda, args.B, args.ldb,
+        args.C, args.ldc);
   }
 
  private:
   TImpl _sgemmImpl;
 };
+
+// -- class BatchSGEMM ----------
+
+class BatchSGEMM {
+ public:
+  virtual ~BatchSGEMM() = default;
+  virtual void apply(util::Span<const GEMMArgs> batchArgs) const = 0;
+};
+
+template<class TSGEMMImpl>
+class BatchSGEMMImpl : public BatchSGEMM {
+ public:  
+  void apply(util::Span<const GEMMArgs> batchArgs) const override;
+};
+
+template<class TSGEMMImpl>
+void BatchSGEMMImpl<TSGEMMImpl>::apply(util::Span<const GEMMArgs> batchArgs) const {
+  TSGEMMImpl sgemmImpl;
+  for (int batch = 0; batch < batchSize; ++batch) {
+
+  }
+}
 
 // -- class SAXPY ----------
 
@@ -50,9 +97,6 @@ class SAXPYImpl : public SAXPY {
   void apply(int64_t n, float a, const float *x, float *y) const override {
     TImpl::callKernel(n, a, x, y);
   }
-
- private:
-  TImpl _saxpyImpl;
 };
 
 // -- class SDOT ----------
@@ -69,9 +113,6 @@ class SDOTImpl : public SDOT {
   float apply(int64_t n, const float *x, const float *y) const override {
     return TImpl::callKernel(n, x, y);
   }
-
- private:
-  TImpl _sdotImpl;
 };
 
 // -- class GEMV ----------
@@ -79,50 +120,45 @@ class SDOTImpl : public SDOT {
 class SGEMV {
  public:
   virtual ~SGEMV() = default;
-  virtual void apply(
-      bool TransA, int M, int N, const float *A, int lda, const float *x, float *y) const = 0; 
+  virtual void apply(const GEMVArgs &args) const = 0; 
 };
 
 template<class TSAxpyKernel, class TSDotKernel>
 class SGEMVImpl : public SGEMV {
  public:
-  void apply(
-      bool TransA, int M, int N, const float *A, int lda, const float *x, float *y) const override;
+  void apply(const GEMVArgs &args) const override;
 
  private:
-  void applyTransA(int M, int N, const float *A, int lda, const float *x, float *y) const;
-  void applyNoTransA(int M, int N, const float *A, int lda, const float *x, float *y) const;
+  void applyTransA(const GEMVArgs &args) const;
+  void applyNoTransA(const GEMVArgs &args) const;
 };
 
 template<class TSAxpyKernel, class TSDotKernel>
-void SGEMVImpl<TSAxpyKernel, TSDotKernel>::applyTransA(
-    int M, int N, const float *A, int lda, const float *x, float *y) const {
+void SGEMVImpl<TSAxpyKernel, TSDotKernel>::applyTransA(const GEMVArgs &args) const {
   // dimemsion of (x, y) is (M, N)
-  const float *pa = A;
-  for (int m = 0; m < M; ++m) {
-    TSAxpyKernel::callKernel(N, x[m], pa, y);
-    pa += lda;
+  const float *pa = args.A;
+  for (int m = 0; m < args.M; ++m) {
+    TSAxpyKernel::callKernel(args.N, args.x[m], pa, args.y);
+    pa += args.lda;
   }
 }
 
 template<class TSAxpyKernel, class TSDotKernel>
-void SGEMVImpl<TSAxpyKernel, TSDotKernel>::applyNoTransA(
-    int M, int N, const float *A, int lda, const float *x, float *y) const {
+void SGEMVImpl<TSAxpyKernel, TSDotKernel>::applyNoTransA(const GEMVArgs &args) const {
   // dimemsion of (x, y) is (N, M)
-  const float *pa = A;
-  for (int m = 0; m < M; ++m) {
-    y[m] += TSDotKernel::callKernel(N, pa, x);
-    pa += lda;
+  const float *pa = args.A;
+  for (int m = 0; m < args.M; ++m) {
+    args.y[m] += TSDotKernel::callKernel(args.N, pa, args.x);
+    pa += args.lda;
   }
 }
 
 template<class TSAxpyKernel, class TSDotKernel>
-void SGEMVImpl<TSAxpyKernel, TSDotKernel>::apply(
-    bool TransA, int M, int N, const float *A, int lda, const float *x, float *y) const {
-  if (TransA) {
-    applyTransA(M, N, A, lda, x, y);
+void SGEMVImpl<TSAxpyKernel, TSDotKernel>::apply(const GEMVArgs &args) const {
+  if (args.TransA) {
+    applyTransA(args);
   } else {
-    applyNoTransA(M, N, A, lda, x, y);
+    applyNoTransA(args);
   }
 }
 
@@ -153,15 +189,12 @@ void GEMM::chooseBackend() {
   }
 }
 
-void GEMM::sgemm(
-    bool TransA, bool TransB, int M, int N, int K, const float *A, int lda,
-    const float *B, int ldb, float *C, int ldc) {
-  return _sgemmImpl->apply(TransA, TransB, M, N, K, A, lda, B, ldb, C, ldc);
+void GEMM::sgemm(const GEMMArgs &args) const {
+  return _sgemmImpl->apply(args);
 }
 
-void GEMM::sgemv(
-    bool TransA, int M, int N, const float *A, int lda, const float *x, float *y) const {
-  return _sgemvImpl->apply(TransA, M, N, A, lda, x, y);
+void GEMM::sgemv(const GEMVArgs &args) const {
+  return _sgemvImpl->apply(args);
 }
 
 }  // namespace nn

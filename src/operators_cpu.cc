@@ -333,7 +333,21 @@ void CPUOperators::Impl::gemmFp32(SubtensorCf A, SubtensorCf B, Subtensorf C) {
   int k = A.dimension(1);
   int n = B.dimension(1);
   int ldc = C.stride(0);
-  _gemm.sgemm(transa, transb, m, n, k, A.data, lda, B.data, ldb, C.data, ldc);
+
+  GEMMArgs gemmArgs;
+  gemmArgs.A = A.data;
+  gemmArgs.B = B.data;
+  gemmArgs.C = C.data;
+  gemmArgs.K = k;
+  gemmArgs.lda = lda;
+  gemmArgs.ldb = ldb;
+  gemmArgs.ldc = ldc;
+  gemmArgs.M = m;
+  gemmArgs.N = n;
+  gemmArgs.TransA = transa;
+  gemmArgs.TransB = transb;
+
+  _gemm.sgemm(gemmArgs);
 }
 
 Tensor CPUOperators::Impl::gemvFp32(SubtensorCf A, SubtensorCf B) {
@@ -363,7 +377,16 @@ Tensor CPUOperators::Impl::gemvFp32(SubtensorCf A, SubtensorCf B) {
   // when transA == false: len(x, y) = (n, m)
   // x is B
   // y is C
-  _gemm.sgemv(transA, m, n, A.data, lda, B.data, Cs.data);
+  GEMVArgs gemvArgs;
+  gemvArgs.A = A.data;
+  gemvArgs.lda = lda;
+  gemvArgs.M = m;
+  gemvArgs.N = n;
+  gemvArgs.TransA = transA;
+  gemvArgs.x = B.data;
+  gemvArgs.y = Cs.data;
+
+  _gemm.sgemv(gemvArgs);
   return C;
 }
 

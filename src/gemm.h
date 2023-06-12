@@ -21,6 +21,36 @@ class SGEMV;
 class SAXPY;
 class SDOT;
 
+// arguments for GEMM.
+struct GEMMArgs {
+  bool TransA;
+  bool TransB;
+  int M;
+  int N;
+  int K;
+  const float *A;
+  int lda;
+  const float *B;
+  int ldb;
+  float *C;
+  int ldc;
+
+  GEMMArgs();
+};
+
+// arguments for GEMV.
+struct GEMVArgs {
+  bool TransA;
+  int M;
+  int N;
+  const float *A;
+  int lda;
+  const float *x;
+  float *y;
+
+  GEMVArgs();
+};
+
 // interface for matrix multiplication.
 class GEMM {
  public:
@@ -28,12 +58,10 @@ class GEMM {
   ~GEMM();
 
   // matrix-matrix multiplication. 
-  void sgemm(
-      bool TransA, bool TransB, int M, int N, int K, const float *A, int lda,
-      const float *B, int ldb, float *C, int ldc);
+  void sgemm(const GEMMArgs &args) const;
 
   // matrix-vector multiplication. 
-  void sgemv(bool TransA, int M, int N, const float *A, int lda, const float *x, float *y) const;
+  void sgemv(const GEMVArgs &args) const;
 
   // y += a * x
   void saxpy(int64_t n, float a, float *x, float *y);
