@@ -40,7 +40,7 @@ Tensor RefMatMulFp32(const Tensor &A, const Tensor &B) {
   return C;
 }
 
-void TestGEMM(int m, int k, int n, bool transa, bool transb) {
+void testGEMM(int m, int k, int n, bool transa, bool transb) {
   auto F = Operators::create(Device::createForCPU());
 
   Tensor A = transa ? F->rand({k, m}, DType::kFloat)
@@ -57,7 +57,23 @@ void TestGEMM(int m, int k, int n, bool transa, bool transb) {
   REQUIRE(F->allClose(C, C_ref));
 }
 
-int test_shapes[][3] = {
+void testGEMV(int M, int N, bool TransA) {
+  auto F = Operators::create(Device::createForCPU());
+
+  Tensor A = TransA ? F->rand({N, M}, DType::kFloat) : F->rand({M, N}, DType::kFloat);
+  Tensor x = F->rand({N, 1}, DType::kFloat);
+
+  if (TransA) A = A.transpose(0, 1);
+
+  Tensor C = F->gemv(A, x.view({N}));
+  Tensor C_ref = RefMatMulFp32(A, x).view({M});
+
+  F->print(C);
+  F->print(C_ref);
+  REQUIRE(F->allClose(C, C_ref));
+}
+
+int gemmTestShapes[][3] = {
   {50, 50, 1},
   {1, 1, 1},
   {2, 2, 2},
@@ -72,13 +88,32 @@ int test_shapes[][3] = {
 TEST_CASE("float32 GEMM BVT", "[core][nn][gemm]") {
   int (*pshape)[3];
   
-  for (pshape = &test_shapes[0]; **pshape != 0; ++pshape) {
+  for (pshape = &gemmTestShapes[0]; **pshape != 0; ++pshape) {
     int m = (*pshape)[0];
     int k = (*pshape)[1];
     int n = (*pshape)[2];
 
-    TestGEMM(m, k, n, false, false);
-    TestGEMM(m, k, n, true, false);
-    TestGEMM(m, k, n, false, true);
+    testGEMM(m, k, n, false, false);
+    testGEMM(m, k, n, true, false);
+    testGEMM(m, k, n, false, true);
+  }
+}
+
+int gemvTestShapes[][2] = {
+  {2, 8},
+  {50, 10},
+  {1, 1},
+  {1024, 3}
+};
+
+TEST_CASE("float32 GEMV BVT", "[core][nn][gemm]") {
+  int (*pshape)[2];
+  
+  for (pshape = &gemvTestShapes[0]; **pshape != 0; ++pshape) {
+    int m = (*pshape)[0];
+    int n = (*pshape)[1];
+
+    testGEMV(m, n, false);
+    testGEMV(m, n, true);
   }
 }

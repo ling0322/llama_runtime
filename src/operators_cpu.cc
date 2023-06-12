@@ -68,6 +68,7 @@ class CPUOperators::Impl {
   Tensor createTensorLike(SubtensorCf A);
 
   Tensor matmulFp32(SubtensorCf A, SubtensorCf B);
+  Tensor gemvFp32(SubtensorCf A, SubtensorCf B);
 
   Tensor mulFp32(SubtensorCf A, float k);
   Tensor addFp32(SubtensorCf A, SubtensorCf B);
@@ -333,6 +334,37 @@ void CPUOperators::Impl::gemmFp32(SubtensorCf A, SubtensorCf B, Subtensorf C) {
   int n = B.dimension(1);
   int ldc = C.stride(0);
   _gemm.sgemm(transa, transb, m, n, k, A.data, lda, B.data, ldb, C.data, ldc);
+}
+
+Tensor CPUOperators::Impl::gemvFp32(SubtensorCf A, SubtensorCf B) {
+  CHECK(A.rank() == 2 && B.rank() == 1 && A.dimension(1) == B.dimension(0));
+
+  bool transA;
+  int lda, m, n;
+  if (A.stride(1) == 1) {
+    transA = false;
+    lda = A.stride(0);
+    m = A.dimension(0);
+    n = A.dimension(1);
+  } else if (A.stride(0) == 1) {
+    transA = true;
+    lda = A.stride(1);
+    m = A.dimension(1);
+    n = A.dimension(0);
+  } else {
+    NOT_IMPL();
+  }
+
+  Tensor C = createTensor({A.dimension(0)}, DType::kFloat);
+  Subtensorf Cs = makeSubtensor<float>(C);
+  zerosFp32(Cs);
+
+  // when transA == true: len(x, y) = (m, n)
+  // when transA == false: len(x, y) = (n, m)
+  // x is B
+  // y is C
+  _gemm.sgemv(transA, m, n, A.data, lda, B.data, Cs.data);
+  return C;
 }
 
 void CPUOperators::Impl::bmmFp32(SubtensorCf A, SubtensorCf B, Subtensorf C) {
@@ -701,6 +733,18 @@ Tensor CPUOperators::matmul(const Tensor &A, const Tensor &B) {
       break;
     default:
       CHECK(false) << "unsupported dtype for MatMul";
+      return Tensor();
+  }
+}
+
+Tensor CPUOperators::gemv(const Tensor &A, const Tensor &B) {
+  switch (A.getDType()) {
+    case DType::kFloat:
+      return _impl->gemvFp32(
+          _impl->makeConstSubtensor<float>(A), _impl->makeConstSubtensor<float>(B));
+      break;
+    default:
+      CHECK(false) << "unsupported dtype for gemv";
       return Tensor();
   }
 }

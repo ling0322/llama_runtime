@@ -7,6 +7,7 @@
 namespace llama {
 namespace nn {
 
+
 class SGEMM6x16DefaultKernel {
  public:
   static constexpr int MR = 6;
@@ -26,6 +27,16 @@ class SGEMM6x16Avx512Kernel {
   static constexpr int MR = 12;
   static constexpr int NR = 32;
   static void callKernel(int64_t kc, float *a, float *b, float *c, int64_t rs_c);
+};
+
+class SAXPYAvx2Kernel {
+ public:
+  static void callKernel(int64_t n, float a, const float *x, float *y);
+};
+
+class SDOTAvx2Kernel {
+ public:
+  static float callKernel(int64_t n, const float *x, const float *y);
 };
 
 }  // namespace nn

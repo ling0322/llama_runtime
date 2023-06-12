@@ -104,5 +104,64 @@ void SGEMM6x16Avx2Kernel::callKernel(
   pc += rs_c;
 }
 
+void SAXPYAvx2Kernel::callKernel(int64_t n, float a, const float *x, float *y) {
+  __m256 a00 = _mm256_broadcast_ss(&a);
+  __m256 x00, y00;
+
+  int64_t nb = n / 8;
+  int64_t nr = n % 8;
+
+  const float *px = x;
+  float *py = y;
+  for (int i = 0; i < nb; ++i) {
+    x00 = _mm256_load_ps(px);
+    y00 = _mm256_load_ps(py);
+
+    y00 = _mm256_fmadd_ps(a00, x00, y00);
+    _mm256_store_ps(py, y00);
+
+    px += 8;
+    py += 8;
+  }
+
+  for (int i = 0; i < nr; ++i) {
+    *py++ += a * *px++;
+  }
+}
+
+float SDOTAvx2Kernel::callKernel(int64_t n, const float *x, const float *y) {
+  __m256 x00, y00, a00;
+
+  a00 = _mm256_setzero_ps();
+
+  int64_t nb = n / 8;
+  int64_t nr = n % 8;
+
+  const float *px = x;
+  const float *py = y;
+  for (int i = 0; i < nb; ++i) {
+    x00 = _mm256_load_ps(px);
+    y00 = _mm256_load_ps(py);
+    a00 = _mm256_fmadd_ps(x00, y00, a00);
+
+    px += 8;
+    py += 8;
+  }
+
+  // unroll a00
+  __m128 r4 = _mm_add_ps(_mm256_extractf128_ps(a00, 1), _mm256_castps256_ps128(a00));
+  __m128 r4h = _mm_movehl_ps(r4, r4);
+  __m128 r2 = _mm_add_ps(r4, r4h);
+  __m128 r2h = _mm_movehdup_ps(r2);
+  __m128 r1 = _mm_add_ps(r2, r2h);
+  float sum = _mm_cvtss_f32(r1);
+
+  for (int i = 0; i < nr; ++i) {
+    sum += *px++ * *py++;
+  }
+
+  return sum;
+}
+
 }  // namespace nn
 }  // namespace llama

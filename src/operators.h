@@ -33,18 +33,23 @@ class Operators {
   // Return:
   //   <float>(..., D): layer normalized input.
   virtual Tensor layerNorm(
-      const Tensor &input,
-      const Tensor &weight,
-      const Tensor &bias,
-      float eps) = 0;
+      const Tensor &input, const Tensor &weight, const Tensor &bias, float eps) = 0;
 
-  // Matrix product of two tensors.
+  // Generic matrix product of two tensors.
   // Args:
   //   A <float>(M, N): matrix A;
   //   B <float>(N, K): matrix B;
   // Returns:
   //   (M, K); A dot B
   virtual Tensor matmul(const Tensor &a, const Tensor &b) = 0;
+
+  // matrix-vector multiplication.
+  // Args:
+  //   A <float>(M, N): matrix A;
+  //   x <float>(N, ): vector x;
+  // Return:
+  //   <float>(M): A dot x.
+  virtual Tensor gemv(const Tensor &a, const Tensor &b) = 0;
 
   // Element wise multiply input and other.
   virtual Tensor mul(const Tensor &input, float other) = 0;
