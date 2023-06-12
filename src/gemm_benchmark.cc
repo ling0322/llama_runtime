@@ -36,9 +36,10 @@ Tensor callOpenblasGEMM(Operators *F, TensorCRef A, TensorCRef B) {
 
 Tensor callOpenblasGEMV(Operators *F, TensorCRef A, TensorCRef B) {
   Tensor C = F->createTensor({A.getShape(1)}, DType::kFloat);
+  int lda = A.getStride(0) > 1 ? A.getStride(0) : A.getStride(1);
   cblas_sgemv(
       CblasRowMajor, CblasNoTrans, A.getShape(0), A.getShape(1), 1.0f, A.getData<float>(),
-      A.getStride(0), B.getData<float>(), 1, 0.0f, C.getData<float>(), 1);
+      lda, B.getData<float>(), 1, 0.0f, C.getData<float>(), 1);
 
   return C;
 }
@@ -47,7 +48,9 @@ enum GEMMType {
   GEMM_LLMRT,
   GEMM_OPENBLAS,
   GEMV_LLMRT,
-  GEMV_OPENBLAS
+  GEMV_OPENBLAS,
+  GEMV_TRANS_LLMRT,
+  GEMV_TRANS_OPENBLAS
 };
 
 
@@ -58,6 +61,10 @@ void benchmarkGEMM(int n, GEMMType gemmType, int numRun = 1) {
   Tensor B = gemmType == GEMM_LLMRT || gemmType == GEMM_OPENBLAS
       ? F->rand({n, n}, DType::kFloat)
       : F->rand({n}, DType::kFloat);
+
+  if (gemmType == GEMV_TRANS_LLMRT || gemmType == GEMV_TRANS_OPENBLAS) {
+    A = A.transpose(0, 1);
+  }
 
   auto t0 = std::chrono::high_resolution_clock::now();
   for (int i = 0; i < numRun; ++i) {
@@ -73,6 +80,12 @@ void benchmarkGEMM(int n, GEMMType gemmType, int numRun = 1) {
         C = callGEMV(F.get(), A, B);
         break;
       case GEMV_OPENBLAS:
+        C = callOpenblasGEMV(F.get(), A, B);
+        break;
+      case GEMV_TRANS_LLMRT:
+        C = callGEMV(F.get(), A, B);
+        break;
+      case GEMV_TRANS_OPENBLAS:
         C = callOpenblasGEMV(F.get(), A, B);
         break;
       default:
@@ -94,7 +107,8 @@ TEST_CASE("benchmark for float32 GEMM", "[gemm][benchmark]") {
   benchmarkGEMM(1024, GEMM_OPENBLAS, 50);
   benchmarkGEMM(2048, GEMM_OPENBLAS, 5);
   benchmarkGEMM(4096, GEMM_OPENBLAS, 1);
-  LOG(INFO) << "FastAlpaca SGEMM:";
+
+  LOG(INFO) << "LLmRT SGEMM:";
   benchmarkGEMM(256, GEMM_LLMRT, 400);
   benchmarkGEMM(512, GEMM_LLMRT, 200);
   benchmarkGEMM(1024, GEMM_LLMRT, 50);
@@ -110,10 +124,25 @@ TEST_CASE("benchmark for float32 GEMV", "[gemv][benchmark]") {
   benchmarkGEMM(1024, GEMV_OPENBLAS, 50);
   benchmarkGEMM(2048, GEMV_OPENBLAS, 5);
   benchmarkGEMM(4096, GEMV_OPENBLAS, 1);
-  LOG(INFO) << "FastAlpaca SGEMV:";
+
+  LOG(INFO) << "LLmRT SGEMV:";
   benchmarkGEMM(256, GEMV_LLMRT, 400);
   benchmarkGEMM(512, GEMV_LLMRT, 200);
   benchmarkGEMM(1024, GEMV_LLMRT, 50);
   benchmarkGEMM(2048, GEMV_LLMRT, 5);
   benchmarkGEMM(4096, GEMV_LLMRT, 1);
+
+  LOG(INFO) << "openblas TransA SGEMV:";
+  benchmarkGEMM(256, GEMV_TRANS_OPENBLAS, 400);
+  benchmarkGEMM(512, GEMV_TRANS_OPENBLAS, 200);
+  benchmarkGEMM(1024, GEMV_TRANS_OPENBLAS, 50);
+  benchmarkGEMM(2048, GEMV_TRANS_OPENBLAS, 5);
+  benchmarkGEMM(4096, GEMV_TRANS_OPENBLAS, 1);
+
+  LOG(INFO) << "LLmRT TransA SGEMV:";
+  benchmarkGEMM(256, GEMV_TRANS_LLMRT, 400);
+  benchmarkGEMM(512, GEMV_TRANS_LLMRT, 200);
+  benchmarkGEMM(1024, GEMV_TRANS_LLMRT, 50);
+  benchmarkGEMM(2048, GEMV_TRANS_LLMRT, 5);
+  benchmarkGEMM(4096, GEMV_TRANS_LLMRT, 1);
 }
