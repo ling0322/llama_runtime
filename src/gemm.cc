@@ -1,8 +1,7 @@
 #include "gemm.h"
 
 #include <stdlib.h>
-#include "gemm_common.h"
-#include "gemm_kernel.h"
+#include "gemm_internal.h"
 #include "log.h"
 #include "util.h"
 

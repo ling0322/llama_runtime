@@ -1,6 +1,4 @@
-#include "gemm.h"
-
-#include "gemm_kernel.h"
+#include "gemm_internal.h"
 
 namespace llama {
 namespace nn {

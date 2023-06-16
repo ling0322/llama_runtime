@@ -1,4 +1,4 @@
-#include "gemm_kernel.h"
+#include "gemm_internal.h"
 
 #include <immintrin.h>
 
