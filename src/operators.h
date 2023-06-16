@@ -41,7 +41,7 @@ class Operators {
   //   B <float>(N, K): matrix B;
   // Returns:
   //   (M, K); A dot B
-  virtual Tensor matmul(const Tensor &a, const Tensor &b) = 0;
+  virtual Tensor gemm(const Tensor &a, const Tensor &b) = 0;
 
   // matrix-vector multiplication.
   // Args:
@@ -50,6 +50,25 @@ class Operators {
   // Return:
   //   <float>(M): A dot x.
   virtual Tensor gemv(const Tensor &a, const Tensor &b) = 0;
+
+  // batch matrix-matrix multiplication. B could be broadcast if A have additional broadcast
+  // dimensions. The batch dimensions for A and B should be equal. 
+  // Args:
+  //   A <float>(<broadcase-dims>, <batch-dims>, M, K): matrix A;
+  //   B <float>(<batch-dims>, K, N): matrix B;
+  // Return:
+  //   <float>(<batch-dims>, M, N): batched GEMM result of A and B.
+  virtual Tensor bmm(const Tensor &a, const Tensor &b) = 0;
+
+  // batch matrix-vector multiplication. A is a batched matrix and B is a batched vector. Like
+  // bmm, A and B will be broadcasted if there are broadcastable. For example, A is (i, 1, m, n)
+  // and B is (i, j, n), then the return matrix would be (i, j, m).
+  // Args:
+  //   A <float>(<batch-dims>, M, N): matrix A, batch of matrix;
+  //   B <float>(<batch-dims>, N): matrix B, batch of vector;
+  // Return:
+  //   <float>(<batch-dims>, M): batched GEMV result of A and B.
+  virtual Tensor bmv(const Tensor &a, const Tensor &b) = 0;
 
   // Element wise multiply input and other.
   virtual Tensor mul(const Tensor &input, float other) = 0;
@@ -114,6 +133,15 @@ class Operators {
   // Returns:
   //   C: concatenated tensor.
   virtual Tensor cat(const Tensor &A, const Tensor &B, int dim) = 0;
+
+  // matrix multiplication of tensor A and B. It will dispatch the operator to mm, mv, bmm
+  // and bmv according to the input shape of A and B.
+  // Args:
+  //   A <float>(...): tensor A;
+  //   B <float>(...): tensor B;
+  // Return:
+  //   <float>(<batch-dims>, M): matrix multiplication result of A and B.
+  virtual Tensor matmul(const Tensor &A, const Tensor &B);
 };
 
 }  // namespace nn

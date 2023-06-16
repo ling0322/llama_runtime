@@ -5,7 +5,7 @@
 
 #include <stdint.h>
 #include <memory>
-#include "log.h"
+#include "util.h"
 
 namespace llama {
 namespace nn {
@@ -17,7 +17,9 @@ enum class GEMMBackend {
 };
 
 class SGEMM;
+class BatchSGEMM;
 class SGEMV;
+class BatchSGEMV;
 class SAXPY;
 class SDOT;
 
@@ -60,8 +62,14 @@ class GEMM {
   // matrix-matrix multiplication. 
   void sgemm(const GEMMArgs &args) const;
 
+  // batched matrix-matrix multiplication.
+  void sgemmBatch(util::Span<const GEMMArgs> batchArgs) const;
+
   // matrix-vector multiplication. 
   void sgemv(const GEMVArgs &args) const;
+
+  // matrix-vector multiplication. 
+  void sgemvBatch(util::Span<const GEMVArgs> batchArgs) const;
 
   // y += a * x
   void saxpy(int64_t n, float a, float *x, float *y);
@@ -71,7 +79,9 @@ class GEMM {
 
  private:
   std::unique_ptr<SGEMM> _sgemmImpl;
+  std::unique_ptr<BatchSGEMM> _sgemmBatchImpl;
   std::unique_ptr<SGEMV> _sgemvImpl;
+  std::unique_ptr<BatchSGEMV> _sgemvBatchImpl;
   std::unique_ptr<SAXPY> _saxpyImpl;
   std::unique_ptr<SDOT> _sdotImpl;
 

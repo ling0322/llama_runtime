@@ -96,6 +96,39 @@ TensorShape TensorShape::transpose(int dim0, int dim1) const {
   return size;
 }
 
+TensorShape TensorShape::squeeze(int dim) const {
+  CHECK(getShape(dim) == 1);
+
+  dim = getRealDim(dim);
+  TensorShape size;
+  size._data = util::FixedArray<Elem>(getDim() - 1);
+  for (int d = 0; d < dim; ++d) {
+    size._data[d] = _data[d];
+  }
+  for (int d = dim + 1; d < getDim(); ++d) {
+    size._data[d - 1] = _data[d];
+  }
+
+  return size;
+}
+
+TensorShape TensorShape::unsqueeze(int dim) const {
+  dim = getRealDim(dim);
+
+  TensorShape size;
+  size._data = util::FixedArray<Elem>(getDim() + 1);
+  for (int d = 0; d < dim; ++d) {
+    size._data[d] = _data[d];
+  }
+  size._data[dim].shape = 1;
+  size._data[dim].stride = dim == 0 ? getStride(0) * getShape(0) : getStride(dim - 1);
+  for (int d = dim; d < getDim(); ++d) {
+    size._data[d + 1] = _data[d];
+  }
+
+  return size;
+}
+
 int TensorShape::getRealDim(int d) const {
   CHECK(!empty());
   int rank = getDim();
@@ -286,7 +319,7 @@ ByteType *Tensor::getRawData(DType dtype) const {
   return _dataPtr;
 }
 
-Tensor Tensor::view(std::initializer_list<int> shape) const {
+Tensor Tensor::view(util::Span<const int> shape) const {
   CHECK(isContiguous()) << "only contiguous tensor supports View()";
 
   std::vector<ShapeType> realShape{shape.begin(), shape.end()};
@@ -318,6 +351,14 @@ Tensor Tensor::view(std::initializer_list<int> shape) const {
 
   CHECK(view.getNumEl() == this->getNumEl());
   return view;
+}
+
+std::vector<Tensor::ShapeType> Tensor::getShape() const {
+  std::vector<ShapeType> shape;
+  for (int d = 0; d < getDim(); ++d) {
+    shape.push_back(getShape(d));
+  }
+  return shape;
 }
 
 bool Tensor::isContiguous() const {
@@ -372,6 +413,24 @@ Tensor Tensor::transpose(int dim0, int dim1) const {
   tensor._data = _data;
   tensor._dataPtr = _dataPtr;
   tensor._shape = _shape.transpose(dim0, dim1);
+
+  return tensor;
+}
+
+Tensor Tensor::unsqueeze(int dim) const {
+  Tensor tensor;
+  tensor._data = _data;
+  tensor._dataPtr = _dataPtr;
+  tensor._shape = _shape.unsqueeze(dim);
+
+  return tensor;
+}
+
+Tensor Tensor::squeeze(int dim) const {
+  Tensor tensor;
+  tensor._data = _data;
+  tensor._dataPtr = _dataPtr;
+  tensor._shape = _shape.squeeze(dim);
 
   return tensor;
 }

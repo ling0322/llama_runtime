@@ -16,6 +16,14 @@ bool isAvx2Available() {
   return IsProcessorFeaturePresent(PF_AVX2_INSTRUCTIONS_AVAILABLE) == TRUE;
 }
 
+void *alloc32ByteAlignedMem(int64_t size) {
+  return _aligned_malloc(size, 32);
+}
+
+void free32ByteAlignedMem(void *ptr) {
+  _aligned_free(ptr);
+}
+
 Path Path::currentModulePath() {
   char filename[MAX_PATH + 1];
 

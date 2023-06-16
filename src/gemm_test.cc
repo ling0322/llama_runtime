@@ -51,7 +51,7 @@ void testGEMM(int m, int k, int n, bool transa, bool transb) {
   if (transa) A = A.transpose(0, 1);
   if (transb) B = B.transpose(0, 1);
 
-  Tensor C = F->matmul(A, B);
+  Tensor C = F->gemm(A, B);
   Tensor C_ref = RefMatMulFp32(A, B);
 
   REQUIRE(F->allClose(C, C_ref));

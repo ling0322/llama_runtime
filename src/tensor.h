@@ -65,6 +65,10 @@ class TensorShape {
   // dimensions dim0 and dim1 are swapped.
   TensorShape transpose(int dim0, int dim1) const;
 
+  // add or remove one shape=1 dimension at specified dimension.
+  TensorShape unsqueeze(int dim) const;
+  TensorShape squeeze(int dim) const;
+
   // Returns a sub-Size starting at specified dimension.
   TensorShape subsize(int d) const;
 
@@ -130,6 +134,7 @@ class Tensor {
   // get the size in dimention `d`. `d` supports positive number (index) and negative number (index
   // from back). Crash if `d` is out of boundary
   ShapeType getShape(int d) const { return _shape.getShape(d); }
+  std::vector<ShapeType> getShape() const;
 
   // get stride for dimension `d`. 
   ShapeType getStride(int d) const { return _shape.getStride(d); }
@@ -144,7 +149,7 @@ class Tensor {
   DType getDType() const;
 
   // return a new tensor with the same data as the self tensor but of a different shape.
-  Tensor view(std::initializer_list<int> shape) const;
+  Tensor view(util::Span<const int> shape) const;
 
   // Get slice of this tensor. `dim` is the dimension to slice. [begin, end) is the range. For
   // [begin, end) only version, dimension 0 is used. Negative `begin` and `end` is accepted. Crash
@@ -155,6 +160,10 @@ class Tensor {
   // Get subtensor at specified index of first dimension. Negative `index` is accepted. Crash if
   // `index` out of boundary.
   Tensor subtensor(int index) const;
+
+  // add or remove an additional shape=1 dimension at specified position.
+  Tensor unsqueeze(int dim) const;
+  Tensor squeeze(int dim) const;
 
   Tensor transpose(int dim0, int dim1) const;
 

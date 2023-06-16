@@ -58,6 +58,8 @@ set(OPENBLAS_DYNLIB ${OPENBLAS_DIR}/bin/libopenblas.dll)
 set(llama_benchmark_SOURCES
     ${llama_SOURCES}
     "src/gemm_benchmark.cc"
+    "src/gpt2_model_benchmark.cc"
+    "src/nn_test_helper.cc"
     "src/test_helper.cc"
     "src/test_main.cc"
     "third_party/catch2/catch_amalgamated.cpp")

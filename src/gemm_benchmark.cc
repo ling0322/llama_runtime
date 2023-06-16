@@ -13,7 +13,7 @@ using namespace nn;
 using namespace std::literals;
 
 Tensor callGEMM(Operators *F, TensorCRef A, TensorCRef B) {
-  return F->matmul(A, B);
+  return F->gemm(A, B);
 }
 
 Tensor callGEMV(Operators *F, TensorCRef A, TensorCRef B) {

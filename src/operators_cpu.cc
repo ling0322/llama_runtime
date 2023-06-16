@@ -69,6 +69,9 @@ class CPUOperators::Impl {
 
   Tensor matmulFp32(SubtensorCf A, SubtensorCf B);
   Tensor gemvFp32(SubtensorCf A, SubtensorCf B);
+  Tensor bmmFp32(SubtensorCf A, SubtensorCf B);
+  Tensor bmvFp32(SubtensorCf A, SubtensorCf B);
+  Tensor gemmFp32(SubtensorCf A, SubtensorCf B);
 
   Tensor mulFp32(SubtensorCf A, float k);
   Tensor addFp32(SubtensorCf A, SubtensorCf B);
@@ -82,8 +85,6 @@ class CPUOperators::Impl {
   void printFp32(SubtensorCf tensor);
   
   bool allCloseFp32(SubtensorCf A, SubtensorCf B, float rtol, float atol);
-  void gemmFp32(SubtensorCf A, SubtensorCf B, Subtensorf C);
-  void bmmFp32(SubtensorCf A, SubtensorCf B, Subtensorf C);
 
   void catFp32(SubtensorCf A, SubtensorCf B, int dim, Subtensorf C);
 
@@ -101,6 +102,12 @@ class CPUOperators::Impl {
 
  private:
   GEMM _gemm;
+
+  // generate GEMMArgs for A * B -> C.
+  GEMMArgs generateGemmArgs(SubtensorCf A, SubtensorCf B, Subtensorf C);
+
+  // generate GEMVArgs for A * B -> C.
+  GEMVArgs generateGemvArgs(SubtensorCf A, SubtensorCf B, Subtensorf C);
 };
 
 // -- class CPUOperators::Impl::SubTensor ----------
@@ -259,48 +266,7 @@ void CPUOperators::Impl::zerosFp32(Subtensorf tensor) {
   }
 }
 
-Tensor CPUOperators::Impl::matmulFp32(SubtensorCf A, SubtensorCf B) {
-  CHECK(A.rank() >= B.rank() && B.rank() >= 2);
-
-  if (A.rank() == B.rank() && A.rank() == 2) {
-    // Both A and B is 2D tensor, call GEMM
-    Tensor C = createTensor(util::makeConstSpan({A.dimension(0), B.dimension(1)}), DType::kFloat);
-    Subtensorf Cs = makeSubtensor<float>(C);
-    zerosFp32(Cs);
-    gemmFp32(A, B, Cs);
-
-    return C;
-  } else {
-    // BMM
-    std::vector<int> shape;
-
-    // broadcast B
-    int broadcast_dims = A.rank() - B.rank();
-    for (int i = 0; i < broadcast_dims; ++i) {
-      shape.push_back(A.dimension(i));
-    }
-
-    // batch dim: B.shape(i) == A.shape(broadcast_dims + i)
-    int batch_dims = B.rank() - 2;
-    for (int i = 0; i < batch_dims; ++i) {
-      CHECK(A.dimension(broadcast_dims + i) == B.dimension(i));
-      shape.push_back(B.dimension(i));
-    }
-
-    // GEMM dims (A.shape(-2), B.shape(-1))
-    shape.push_back(A.dimension(broadcast_dims + batch_dims));
-    shape.push_back(B.dimension(batch_dims + 1));
-
-    Tensor C = createTensor(util::makeConstSpan(shape), DType::kFloat);
-    Subtensorf Cs = makeSubtensor<float>(C);
-    zerosFp32(Cs);
-
-    bmmFp32(A, B, Cs);
-    return C;
-  }
-}
-
-void CPUOperators::Impl::gemmFp32(SubtensorCf A, SubtensorCf B, Subtensorf C) {
+GEMMArgs CPUOperators::Impl::generateGemmArgs(SubtensorCf A, SubtensorCf B, Subtensorf C) {
   CHECK(A.rank() == B.rank() && A.rank() == C.rank());
   CHECK(A.rank() == 2);
   CHECK(A.dimension(0) == C.dimension(0));
@@ -347,11 +313,13 @@ void CPUOperators::Impl::gemmFp32(SubtensorCf A, SubtensorCf B, Subtensorf C) {
   gemmArgs.TransA = transa;
   gemmArgs.TransB = transb;
 
-  _gemm.sgemm(gemmArgs);
+  return gemmArgs;
 }
 
-Tensor CPUOperators::Impl::gemvFp32(SubtensorCf A, SubtensorCf B) {
+
+GEMVArgs CPUOperators::Impl::generateGemvArgs(SubtensorCf A, SubtensorCf B, Subtensorf C) {
   CHECK(A.rank() == 2 && B.rank() == 1 && A.dimension(1) == B.dimension(0));
+  CHECK(C.rank() == 1 && C.dimension(0) == A.dimension(0));
 
   bool transA;
   int lda, m, n;
@@ -369,10 +337,6 @@ Tensor CPUOperators::Impl::gemvFp32(SubtensorCf A, SubtensorCf B) {
     NOT_IMPL();
   }
 
-  Tensor C = createTensor({A.dimension(0)}, DType::kFloat);
-  Subtensorf Cs = makeSubtensor<float>(C);
-  zerosFp32(Cs);
-
   // when transA == true: len(x, y) = (m, n)
   // when transA == false: len(x, y) = (n, m)
   // x is B
@@ -384,38 +348,126 @@ Tensor CPUOperators::Impl::gemvFp32(SubtensorCf A, SubtensorCf B) {
   gemvArgs.N = n;
   gemvArgs.TransA = transA;
   gemvArgs.x = B.data;
-  gemvArgs.y = Cs.data;
+  gemvArgs.y = C.data;
 
+  return gemvArgs;
+}
+
+Tensor CPUOperators::Impl::gemmFp32(SubtensorCf A, SubtensorCf B) {
+  CHECK(A.rank() == B.rank() && A.rank() == 2);
+
+  Tensor C = createTensor(util::makeConstSpan({A.dimension(0), B.dimension(1)}), DType::kFloat);
+  Subtensorf Cs = makeSubtensor<float>(C);
+  zerosFp32(Cs);
+
+  GEMMArgs gemmArgs = generateGemmArgs(A, B, Cs);
+  _gemm.sgemm(gemmArgs);
+
+  return C;
+}
+
+Tensor CPUOperators::Impl::gemvFp32(SubtensorCf A, SubtensorCf B) {
+  CHECK(A.rank() == 2 && B.rank() == 1);
+
+  Tensor C = createTensor({A.dimension(0)}, DType::kFloat);
+  Subtensorf Cs = makeSubtensor<float>(C);
+  zerosFp32(Cs);
+
+  GEMVArgs gemvArgs = generateGemvArgs(A, B, Cs);
   _gemm.sgemv(gemvArgs);
   return C;
 }
 
-void CPUOperators::Impl::bmmFp32(SubtensorCf A, SubtensorCf B, Subtensorf C) {
-  CHECK(A.rank() == C.rank());
-  CHECK(A.rank() >= B.rank());
+Tensor CPUOperators::Impl::bmmFp32(SubtensorCf A, SubtensorCf B) {
+  CHECK(A.rank() >= B.rank() && A.rank() > 2 && A.rank() <= 4 && B.rank() >= 2);
+  std::vector<int> shape;
 
-  CHECK(A.dimension(0) == C.dimension(0));
-  if (A.rank() == B.rank() && B.rank() == 2) {
-    gemmFp32(A, B, C);
-  } else if (A.rank() > B.rank()) {
-    // broadcast B
-    for (int i = 0; i < A.dimension(0); ++i) {
-      SubtensorCf As = A.subtensor(i);
-      Subtensorf Cs = C.subtensor(i);
-      bmmFp32(As, B, Cs);
-    }
-  } else if (A.rank() == B.rank()) {
-    // batch dim
-    CHECK(A.dimension(0) == B.dimension(0));
-    for (int i = 0; i < A.dimension(0); ++i) {
-      SubtensorCf As = A.subtensor(i);
-      SubtensorCf Bs = B.subtensor(i);
-      Subtensorf Cs = C.subtensor(i);
-      bmmFp32(As, Bs, Cs);
-    }
-  } else {
-    NOT_IMPL();
+  // broadcast B
+  int broadcastDims = A.rank() - B.rank();
+  for (int i = 0; i < broadcastDims; ++i) {
+    shape.push_back(A.dimension(i));
   }
+
+  // batch dim: B.shape(i) == A.shape(broadcastDims + i)
+  int batchDims = B.rank() - 2;
+  for (int i = 0; i < batchDims; ++i) {
+    CHECK(A.dimension(broadcastDims + i) == B.dimension(i));
+    shape.push_back(B.dimension(i));
+  }
+
+  // GEMM dims (A.shape(-2), B.shape(-1))
+  shape.push_back(A.dimension(broadcastDims + batchDims));
+  shape.push_back(B.dimension(batchDims + 1));
+
+  Tensor tensorC = createTensor(shape, DType::kFloat);
+  Subtensorf C = makeSubtensor<float>(tensorC);
+  zerosFp32(C);
+
+  std::vector<GEMMArgs> batchArgs;
+  if (A.rank() == 3) {
+    bool broadcastB = B.rank() == 2;
+    for (int i = 0; i < A.dimension(0); ++i) {
+      SubtensorCf Bs = broadcastB ? B : B.subtensor(i);
+      batchArgs.push_back(generateGemmArgs(A.subtensor(i), Bs, C.subtensor(i)));
+    }
+  } else if (A.rank() == 4) {
+    bool broadcastB = B.rank() < 4;
+    for (int i = 0; i < A.dimension(0); ++i) {
+      SubtensorCf As = A.subtensor(i);
+      SubtensorCf Bs = broadcastB ? B : B.subtensor(i);
+      Subtensorf Cs = C.subtensor(i);
+      bool broadcastBs = B.rank() < 3;
+      for (int j = 0; j < As.dimension(0); ++j) {
+        SubtensorCf Bs0 = broadcastBs ? Bs : Bs.subtensor(j);
+        batchArgs.push_back(generateGemmArgs(As.subtensor(j), Bs0, Cs.subtensor(j)));
+      }
+    }
+  }
+
+  _gemm.sgemmBatch(batchArgs);
+  return tensorC;
+}
+
+Tensor CPUOperators::Impl::bmvFp32(SubtensorCf A, SubtensorCf B) {
+  CHECK(A.rank() - B.rank() == 1 && B.rank() >= 2);
+
+  std::vector<int> shape;
+  int batchDims = B.rank() - 1;
+  for (int d = 0; d < batchDims; ++d) {
+    int dimA = A.dimension(d);
+    int dimB = B.dimension(d);
+
+    CHECK(dimA == 1 || dimB == 1 || dimA == dimB);
+    shape.push_back(std::max(dimA, dimB));
+  }
+
+  shape.push_back(A.dimension(batchDims));
+  Tensor tensorC = createTensor(shape, DType::kFloat);
+  Subtensorf C = makeSubtensor<float>(tensorC);
+
+  std::vector<GEMVArgs> batchArgs;
+  if (A.rank() == 3) {
+    for (int i = 0; i < shape[0]; ++i) {
+      SubtensorCf As = A.dimension(0) == 1 ? A.subtensor(0) : A.subtensor(i);
+      SubtensorCf Bs = B.dimension(0) == 1 ? B.subtensor(0) : B.subtensor(i);
+
+      batchArgs.push_back(generateGemvArgs(As, Bs, C.subtensor(i)));
+    }
+  } else if (A.rank() == 4) {
+    for (int i = 0; i < shape[0]; ++i) {
+      SubtensorCf As = A.dimension(0) == 1 ? A.subtensor(0) : A.subtensor(i);
+      SubtensorCf Bs = B.dimension(0) == 1 ? B.subtensor(0) : B.subtensor(i);
+      Subtensorf Cs = C.subtensor(i);
+      for (int j = 0; j < shape[1]; ++j) {
+        SubtensorCf As0 = As.dimension(0) == 1 ? As.subtensor(0) : As.subtensor(i);
+        SubtensorCf Bs0 = Bs.dimension(0) == 1 ? Bs.subtensor(0) : Bs.subtensor(i);
+        batchArgs.push_back(generateGemvArgs(As0, Bs0, Cs.subtensor(i)));
+      }
+    }
+  }
+
+  _gemm.sgemvBatch(batchArgs);
+  return tensorC;
 }
 
 Tensor CPUOperators::Impl::createTensorLike(SubtensorCf input) {
@@ -748,14 +800,37 @@ Tensor CPUOperators::zeros(std::initializer_list<int> shape, DType dtype) {
   return tensor;
 }
 
-Tensor CPUOperators::matmul(const Tensor &A, const Tensor &B) {
+Tensor CPUOperators::gemm(const Tensor &A, const Tensor &B) {
   switch (A.getDType()) {
     case DType::kFloat:
-      return _impl->matmulFp32(
+      return _impl->gemmFp32(
           _impl->makeConstSubtensor<float>(A), _impl->makeConstSubtensor<float>(B));
       break;
     default:
       CHECK(false) << "unsupported dtype for MatMul";
+      return Tensor();
+  }
+}
+
+Tensor CPUOperators::bmm(const Tensor &A, const Tensor &B) {
+  switch (A.getDType()) {
+    case DType::kFloat:
+      return _impl->bmmFp32(
+          _impl->makeConstSubtensor<float>(A), _impl->makeConstSubtensor<float>(B));
+    default:
+      CHECK(false) << "unsupported dtype for MatMul";
+      return Tensor();
+  }
+}
+
+Tensor CPUOperators::bmv(const Tensor &A, const Tensor &B) {
+  switch (A.getDType()) {
+    case DType::kFloat:
+      return _impl->bmvFp32(
+          _impl->makeConstSubtensor<float>(A), _impl->makeConstSubtensor<float>(B));
+      break;
+    default:
+      CHECK(false) << "unsupported dtype for bmv";
       return Tensor();
   }
 }

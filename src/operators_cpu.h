@@ -18,8 +18,10 @@ class CPUOperators : public Operators {
 
   // implement interface Operators
   Tensor lookup(TensorCRef table, TensorCRef indices) override;
-  Tensor matmul(TensorCRef a, TensorCRef b) override;
+  Tensor gemm(TensorCRef a, TensorCRef b) override;
   Tensor gemv(TensorCRef A, TensorCRef x) override;
+  Tensor bmm(TensorCRef A, TensorCRef x) override;
+  Tensor bmv(const Tensor &A, const Tensor &B) override;
   Tensor mul(TensorCRef input, float other) override;
   Tensor softmax(TensorCRef input) override;
   Tensor gelu(TensorCRef input) override;

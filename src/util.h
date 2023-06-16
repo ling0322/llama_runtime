@@ -14,6 +14,8 @@ namespace util {
 
 bool isAvx512Available();
 bool isAvx2Available();
+void *alloc32ByteAlignedMem(int64_t nbytes);
+void free32ByteAlignedMem(void *);
 
 // ---------------------------------------------------------------------------+
 // BaseArray                                                                  |
@@ -137,6 +139,15 @@ class Span : public BaseArray<T> {
             typename = std::enable_if<std::is_const<T>::value, U>::type>
   Span(std::initializer_list<value_type> v LR_LIFETIME_BOUND) noexcept
       : Span(v.begin(), v.size()) {}
+
+  // automatic convert std::vector<T> to Span<const T>.
+  // NOTE: initializer_list should outlives span when using this constructor.
+  // Examples:
+  //   Span<const int> v = {1, 2, 3};  // WRONG: lifetime of initializer_list is shorter than v;
+  template <typename U = T,
+            typename = std::enable_if<std::is_const<T>::value, U>::type>
+  Span(std::vector<value_type> &v LR_LIFETIME_BOUND) noexcept
+      : Span(v.data(), v.size()) {}
 
   Span<T> subspan(size_type pos = 0, size_type len = npos) const {
     ASSERT(pos <= size());

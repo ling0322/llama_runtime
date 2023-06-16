@@ -138,7 +138,14 @@ void Linear::initParameters(const TensorMap &stateDict) {
 
 Tensor Linear::forward(const Tensor &input) const {
   Operators *F = _ctx.F();
-  Tensor x = F->matmul(input, _w.transpose(0, 1));
+  Tensor x;
+  if (input.getDim() == 1) {
+    x = F->gemv(_w, input);
+  } else if (input.getDim() == 2) {
+    x = F->gemm(input, _w.transpose(0, 1));
+  } else if (input.getDim() > 2) {
+    x = F->bmm(input, _w.transpose(0, 1));
+  }
   x = F->add(x, _b);
 
   return x;
