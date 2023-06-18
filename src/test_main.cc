@@ -4,10 +4,10 @@
 using llama::Environment;
 
 int main(int argc, char **argv) {
-  Environment::Init();
+  Environment::init();
 
   int result = Catch::Session().run(argc, argv);
-  Environment::Destroy();
+  Environment::destroy();
 
   return result;
 }

@@ -1,12 +1,11 @@
-#ifndef FASTALPACA_GEMM_KERNEL_H_
-#define FASTALPACA_GEMM_KERNEL_H_
+#pragma once
 
 #include <stdint.h>
+#include "environment.h"
 #include "log.h"
 
 namespace llama {
 namespace nn {
-
 
 class SGEMM6x16DefaultKernel {
  public:
@@ -318,6 +317,7 @@ inline void GEMMCommon<MC, KC, NC, TKernel>::split3ByNR(PackedBlock Ap, PackedBl
   int np = Cij.numCols / NR;
   int nr = Cij.numCols % NR;
 
+  #pragma omp parallel for num_threads(Environment::getLLmRTBlasNumThreads())
   for (int i = 0; i < np; ++i) {
     Block Bpr = Bp.block(i);
     Block Cijn = Cij.sliceCol(i * NR, NR);
@@ -379,5 +379,3 @@ inline void GEMMCommon<MC, KC, NC, TKernel>::Apply(
 
 }  // namespace nn
 }  // namespace llama
-
-#endif  // FASTALPACA_GEMM_KERNEL_H_

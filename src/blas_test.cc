@@ -1,7 +1,6 @@
 #include <functional>
 
 #include "test_helper.h"
-#include "gemm.h"
 #include "nn.h"
 #include "operators.h"
 
@@ -79,8 +78,13 @@ int gemmTestShapes[][3] = {
   {2, 2, 2},
   {50, 50, 1},
   {513, 2, 513},
+  {200, 1, 300},
+  {1, 200, 300},
+  {200, 300, 1},
   {16, 16, 5000},
   {16, 5000, 16},
+  {16, 512, 16},
+  {16, 1024, 16},
   {5000, 16, 16},
   {0, 0, 0}
 };

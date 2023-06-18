@@ -1,7 +1,8 @@
-#include "gemm.h"
+#include "llmrt_blas.h"
 
 #include <stdlib.h>
-#include "gemm_internal.h"
+#include "environment.h"
+#include "blas_kernel.h"
 #include "log.h"
 #include "util.h"
 
@@ -300,52 +301,71 @@ void BatchSGEMMImpl<TSGEMMImpl>::apply(util::Span<const GEMMArgs> batchArgs) con
   }
 }
 
-// -- class GEMM ----------
+// -- class LLmRTBlas ----------
 
-GEMM::GEMM() {
-  chooseBackend();
-}
-
-GEMM::~GEMM() {}
-
-void GEMM::chooseBackend() {
+LLmRTBlasBackend LLmRTBlas::findBestBackend() {
   if (util::isAvx512Available()) {
-    _sgemmImpl = std::make_unique<SGEMMImplAvx512>();
-    _sgemmBatchImpl = std::make_unique<BatchSGEMMImpl<SGEMMImplAvx512>>();
-    _sgemvImpl = std::make_unique<SGEMVImplAvx512>();
-    _sgemvBatchImpl = std::make_unique<BatchSGEMVImpl<SGEMVImplAvx512>>();
-    _saxpyImpl = std::make_unique<SAXPYImpl<SAXPYAvx2Kernel>>();
-    _sdotImpl = std::make_unique<SDOTImpl<SDOTAvx2Kernel>>();
+    LOG(INFO) << "LLmRT GEMM: Use Avx512 backend.";
+    return LLmRTBlasBackend::AVX512;
   } else if (util::isAvx2Available()) {
-    _sgemmImpl = std::make_unique<SGEMMImplAvx2>();
-    _sgemmBatchImpl = std::make_unique<BatchSGEMMImpl<SGEMMImplAvx2>>();
-    _sgemvImpl = std::make_unique<SGEMVImpl<SAXPYAvx2Kernel, SDOTAvx2Kernel>>();
-    _sgemvBatchImpl = std::make_unique<BatchSGEMVImpl<SGEMVImplAvx2>>();
-    _saxpyImpl = std::make_unique<SAXPYImpl<SAXPYAvx2Kernel>>();
-    _sdotImpl = std::make_unique<SDOTImpl<SDOTAvx2Kernel>>();
+    LOG(INFO) << "LLmRT GEMM: Use Avx2 backend.";
+    return LLmRTBlasBackend::AVX2;
   } else {
-    _sgemmImpl = std::make_unique<SGEMMImplDefault>();
-    _sgemmBatchImpl = std::make_unique<BatchSGEMMImpl<SGEMMImplDefault>>();
-    _sgemvImpl = std::make_unique<SGEMVImplDefault>();
-    _sgemvBatchImpl = std::make_unique<BatchSGEMVImpl<SGEMVImplDefault>>();
-    _saxpyImpl = std::make_unique<SAXPYImpl<SAXPYAvx2Kernel>>();
-    _sdotImpl = std::make_unique<SDOTImpl<SDOTAvx2Kernel>>();
+    LOG(WARN) << "LLmRT GEMM: fallback to default backend.";
+    return LLmRTBlasBackend::AVX2;
   }
 }
 
-void GEMM::sgemm(const GEMMArgs &args) const {
+LLmRTBlas::LLmRTBlas() {
+  initBackend();
+}
+
+LLmRTBlas::~LLmRTBlas() {}
+
+void LLmRTBlas::initBackend() {
+  switch (Environment::getLLmRTBlasBackend()) {
+    case LLmRTBlasBackend::AVX512:
+      _sgemmImpl = std::make_unique<SGEMMImplAvx512>();
+      _sgemmBatchImpl = std::make_unique<BatchSGEMMImpl<SGEMMImplAvx512>>();
+      _sgemvImpl = std::make_unique<SGEMVImplAvx512>();
+      _sgemvBatchImpl = std::make_unique<BatchSGEMVImpl<SGEMVImplAvx512>>();
+      _saxpyImpl = std::make_unique<SAXPYImpl<SAXPYAvx2Kernel>>();
+      _sdotImpl = std::make_unique<SDOTImpl<SDOTAvx2Kernel>>();
+      break;
+    case LLmRTBlasBackend::AVX2:
+      _sgemmImpl = std::make_unique<SGEMMImplAvx2>();
+      _sgemmBatchImpl = std::make_unique<BatchSGEMMImpl<SGEMMImplAvx2>>();
+      _sgemvImpl = std::make_unique<SGEMVImpl<SAXPYAvx2Kernel, SDOTAvx2Kernel>>();
+      _sgemvBatchImpl = std::make_unique<BatchSGEMVImpl<SGEMVImplAvx2>>();
+      _saxpyImpl = std::make_unique<SAXPYImpl<SAXPYAvx2Kernel>>();
+      _sdotImpl = std::make_unique<SDOTImpl<SDOTAvx2Kernel>>();
+      break;
+    case LLmRTBlasBackend::DEFAULT:
+      _sgemmImpl = std::make_unique<SGEMMImplDefault>();
+      _sgemmBatchImpl = std::make_unique<BatchSGEMMImpl<SGEMMImplDefault>>();
+      _sgemvImpl = std::make_unique<SGEMVImplDefault>();
+      _sgemvBatchImpl = std::make_unique<BatchSGEMVImpl<SGEMVImplDefault>>();
+      _saxpyImpl = std::make_unique<SAXPYImpl<SAXPYAvx2Kernel>>();
+      _sdotImpl = std::make_unique<SDOTImpl<SDOTAvx2Kernel>>();
+      break;
+    default:
+      NOT_IMPL();
+  }
+}
+
+void LLmRTBlas::sgemm(const GEMMArgs &args) const {
   return _sgemmImpl->apply(args);
 }
 
-void GEMM::sgemv(const GEMVArgs &args) const {
+void LLmRTBlas::sgemv(const GEMVArgs &args) const {
   return _sgemvImpl->apply(args);
 }
 
-void GEMM::sgemmBatch(util::Span<const GEMMArgs> batchArgs) const {
+void LLmRTBlas::sgemmBatch(util::Span<const GEMMArgs> batchArgs) const {
   return _sgemmBatchImpl->apply(batchArgs);
 }
 
-void GEMM::sgemvBatch(util::Span<const GEMVArgs> batchArgs) const {
+void LLmRTBlas::sgemvBatch(util::Span<const GEMVArgs> batchArgs) const {
   return _sgemvBatchImpl->apply(batchArgs);
 }
 

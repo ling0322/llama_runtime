@@ -55,6 +55,11 @@ class LogWrapperINFO : public LogWrapper {
   LogWrapperINFO(PCStrType source_file, int source_line) : 
       LogWrapper(LogSeverity::kInfo, source_file, source_line) {}
 };
+class LogWrapperWARN : public LogWrapper {
+ public:
+  LogWrapperWARN(PCStrType source_file, int source_line) : 
+      LogWrapper(LogSeverity::kWarning, source_file, source_line) {}
+};
 class LogWrapperFATAL : public LogWrapper {
  public:
   LogWrapperFATAL(PCStrType source_file, int source_line) : 

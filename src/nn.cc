@@ -2,7 +2,7 @@
 
 #include <stdlib.h>
 #include <limits>
-#include "gemm.h"
+#include "llmrt_blas.h"
 #include "operators.h"
 
 namespace llama {

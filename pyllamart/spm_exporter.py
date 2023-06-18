@@ -294,5 +294,5 @@ class TokenizerExporter:
         model.tokenizer_config().write_ini(output_ini, "tokenizer", output_model)
 
 if __name__ == '__main__':
-    #TokenizerExporter.run(["-t", "spm", "-i", "pyllamart/tokenizer.model", "-o", "llama_spm"])
-    TokenizerExporter.run(["-t", "transformers", "-i", "gpt2", "-o", "gpt2_bpe"])
+    TokenizerExporter.run(["-t", "spm", "-i", "tokenizer.model", "-o", "llama_spm"])
+    #TokenizerExporter.run(["-t", "transformers", "-i", "gpt2", "-o", "gpt2_bpe"])

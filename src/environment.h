@@ -1,5 +1,4 @@
-#ifndef LLAMA_CC_ENV_H_
-#define LLAMA_CC_ENV_H_
+#pragma once
 
 #include <memory>
 #include <mutex>
@@ -9,33 +8,31 @@ namespace llama {
 
 namespace nn {
 class Operators;
+enum class LLmRTBlasBackend;
+
 }  // namespace nn
 
 // stores all global function and objects required in finley
 class Environment : private util::NonCopyable {
  public:
   class Impl;
-
-  // destructor.
-  ~Environment();
   
   // initialize and destryy the global environment
-  static void Init();
-  static void Destroy();
+  static void init();
+  static void destroy();
 
-  // get an instance of Env. Before calling this function Init() should be
-  // called. This function is lock-free
-  static const Environment *instance();
+  // get the best backend implementation of LLmRT-BLAS.
+  static nn::LLmRTBlasBackend getLLmRTBlasBackend();
+
+  // get or set the num-threads for LLmRT-BLAS.
+  static int getLLmRTBlasNumThreads();
+  static void setLLmRTBlasNumThreads(int numThreads);
+  
+  static int getBlasNumThreads();
   
  private:
   // global pointer of Env as well as its Init() and Destroy() mutex
-  static Environment *env_;
-  static std::mutex mutex_;
-
-  // singleton constructor
-  Environment();
+  static Impl *_instance;
 };
 
 }  // namespace llama
-
-#endif  // LLAMA_CC_ENV_H_

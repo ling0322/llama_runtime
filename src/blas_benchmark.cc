@@ -2,8 +2,9 @@
 #include <functional>
 
 #include "cblas.h"
+#include "environment.h"
 #include "test_helper.h"
-#include "gemm.h"
+#include "llmrt_blas.h"
 #include "nn.h"
 #include "operators.h"
 #include "strings.h"
@@ -99,8 +100,7 @@ void benchmarkGEMM(int n, GEMMType gemmType, int numRun = 1) {
   LOG(INFO) << str::sprintf("n = %d t = %.2f ms", n, duration_ms);
 }
 
-TEST_CASE("benchmark for float32 GEMM", "[gemm][benchmark]") {
-  openblas_set_num_threads(1);
+void benchmarkSGEMM() {
   LOG(INFO) << "openblas SGEMM:";
   benchmarkGEMM(256, GEMM_OPENBLAS, 400);
   benchmarkGEMM(512, GEMM_OPENBLAS, 200);
@@ -114,10 +114,11 @@ TEST_CASE("benchmark for float32 GEMM", "[gemm][benchmark]") {
   benchmarkGEMM(1024, GEMM_LLMRT, 50);
   benchmarkGEMM(2048, GEMM_LLMRT, 5);
   benchmarkGEMM(4096, GEMM_LLMRT, 1);
+
+  LOG(INFO) << " ";
 }
 
-TEST_CASE("benchmark for float32 GEMV", "[gemv][benchmark]") {
-  openblas_set_num_threads(1);
+void benchmarkSGEMV() {
   LOG(INFO) << "openblas SGEMV:";
   benchmarkGEMM(256, GEMV_OPENBLAS, 400);
   benchmarkGEMM(512, GEMV_OPENBLAS, 200);
@@ -145,4 +146,34 @@ TEST_CASE("benchmark for float32 GEMV", "[gemv][benchmark]") {
   benchmarkGEMM(1024, GEMV_TRANS_LLMRT, 50);
   benchmarkGEMM(2048, GEMV_TRANS_LLMRT, 5);
   benchmarkGEMM(4096, GEMV_TRANS_LLMRT, 1);
+
+  LOG(INFO) << " ";
+}
+
+TEST_CASE("benchmark for float32 GEMM", "[gemm][benchmark]") {
+  openblas_set_num_threads(1);
+  Environment::setLLmRTBlasNumThreads(1);
+
+  LOG(INFO) << "Benchmark SGEMM with numThreads=1";
+  benchmarkSGEMM();
+  
+  openblas_set_num_threads(8);
+  Environment::setLLmRTBlasNumThreads(8);
+
+  LOG(INFO) << "Benchmark SGEMM with numThreads=8";
+  benchmarkSGEMM();
+}
+
+TEST_CASE("benchmark for float32 GEMV", "[gemv][benchmark]") {
+  openblas_set_num_threads(1);
+  Environment::setLLmRTBlasNumThreads(1);
+
+  LOG(INFO) << "Benchmark SGEMV with numThreads=1";
+  benchmarkSGEMV();
+
+  openblas_set_num_threads(8);
+  Environment::setLLmRTBlasNumThreads(8);
+
+  LOG(INFO) << "Benchmark SGEMV with numThreads=8";
+  benchmarkSGEMV();
 }

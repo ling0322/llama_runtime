@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.11)
 project(llama)
 
+find_package(OpenMP REQUIRED)
+
 if(WIN32)
   add_definitions( "/D_CRT_SECURE_NO_WARNINGS /wd4267 /DCATCH_AMALGAMATED_CUSTOM_MAIN" )
 endif(WIN32)
@@ -10,14 +12,14 @@ set_source_files_properties("src/gemm_kernel_avx2.cc" PROPERTIES COMPILE_FLAGS /
 
 set(llama_INCDIRS src .)
 set(llama_SOURCES
+    "src/blas_kernel.cc"
+    "src/blas_kernel_avx512.cc"
+    "src/blas_kernel_avx2.cc"
     "src/common.cc"
     "src/environment.cc"
-    "src/gemm.cc"
-    "src/gemm_kernel.cc"
-    "src/gemm_kernel_avx512.cc"
-    "src/gemm_kernel_avx2.cc"
     "src/gpt2_model.cc"
     "src/ini_config.cc"
+    "src/llmrt_blas.cc"
     "src/log.cc"
     "src/nn.cc"
     "src/operators.cc"
@@ -36,7 +38,7 @@ target_compile_features(llama PRIVATE cxx_std_14)
 
 set(llama_test_SOURCES
     ${llama_SOURCES}
-    "src/gemm_test.cc"
+    "src/blas_test.cc"
     "src/gpt2_model_test.cc"
     "src/nn_test.cc"
     "src/nn_test_helper.cc"
@@ -54,17 +56,16 @@ set(OPENBLAS_INCLUDE_DIR ${OPENBLAS_DIR}/include)
 set(OPENBLAS_LIB ${OPENBLAS_DIR}/lib/libopenblas.lib)
 set(OPENBLAS_DYNLIB ${OPENBLAS_DIR}/bin/libopenblas.dll)
 
-
 set(llama_benchmark_SOURCES
     ${llama_SOURCES}
-    "src/gemm_benchmark.cc"
+    "src/blas_benchmark.cc"
     "src/gpt2_model_benchmark.cc"
     "src/nn_test_helper.cc"
     "src/test_helper.cc"
     "src/test_main.cc"
     "third_party/catch2/catch_amalgamated.cpp")
 add_executable(llama_benchmark ${llama_benchmark_SOURCES})
-target_link_libraries(llama_benchmark ${OPENBLAS_LIB})
+target_link_libraries(llama_benchmark ${OPENBLAS_LIB} OpenMP::OpenMP_CXX)
 target_include_directories(llama_benchmark PRIVATE ${llama_INCDIRS} ${OPENBLAS_INCLUDE_DIR})
 add_custom_command(TARGET llama_benchmark POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy ${OPENBLAS_DYNLIB} $<TARGET_FILE_DIR:llama_benchmark>)

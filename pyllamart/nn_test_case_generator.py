@@ -102,5 +102,5 @@ def gen_gpt2():
         write_lrt_tensor(logits, fp)
 
 if __name__ == '__main__':
-    gen_multi_head_attention()
+    gen_gpt2()
 

@@ -4,9 +4,9 @@
 #include <cmath>
 #include <limits>
 #include <memory>
+#include "llmrt_blas.h"
 #include "nn.h"
 #include "operators.h"
-#include "gemm.h"
 #include "tensor.h"
 
 namespace llama {
@@ -101,7 +101,7 @@ class CPUOperators::Impl {
   Tensor causalMaskFp32(int max_len);
 
  private:
-  GEMM _gemm;
+  LLmRTBlas _llmrtBlas;
 
   // generate GEMMArgs for A * B -> C.
   GEMMArgs generateGemmArgs(SubtensorCf A, SubtensorCf B, Subtensorf C);
@@ -361,7 +361,7 @@ Tensor CPUOperators::Impl::gemmFp32(SubtensorCf A, SubtensorCf B) {
   zerosFp32(Cs);
 
   GEMMArgs gemmArgs = generateGemmArgs(A, B, Cs);
-  _gemm.sgemm(gemmArgs);
+  _llmrtBlas.sgemm(gemmArgs);
 
   return C;
 }
@@ -374,7 +374,7 @@ Tensor CPUOperators::Impl::gemvFp32(SubtensorCf A, SubtensorCf B) {
   zerosFp32(Cs);
 
   GEMVArgs gemvArgs = generateGemvArgs(A, B, Cs);
-  _gemm.sgemv(gemvArgs);
+  _llmrtBlas.sgemv(gemvArgs);
   return C;
 }
 
@@ -424,7 +424,7 @@ Tensor CPUOperators::Impl::bmmFp32(SubtensorCf A, SubtensorCf B) {
     }
   }
 
-  _gemm.sgemmBatch(batchArgs);
+  _llmrtBlas.sgemmBatch(batchArgs);
   return tensorC;
 }
 
@@ -466,7 +466,7 @@ Tensor CPUOperators::Impl::bmvFp32(SubtensorCf A, SubtensorCf B) {
     }
   }
 
-  _gemm.sgemvBatch(batchArgs);
+  _llmrtBlas.sgemvBatch(batchArgs);
   return tensorC;
 }
 

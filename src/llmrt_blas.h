@@ -1,7 +1,5 @@
 // A default cpu-based GEMM
-
-#ifndef GLM_RUNTIME_GLAS_H_
-#define GLM_RUNTIME_GLAS_H_
+#pragma once
 
 #include <stdint.h>
 #include <memory>
@@ -10,7 +8,7 @@
 namespace llama {
 namespace nn {
 
-enum class GEMMBackend {
+enum class LLmRTBlasBackend {
   DEFAULT,
   AVX2,
   AVX512
@@ -54,10 +52,13 @@ struct GEMVArgs {
 };
 
 // interface for matrix multiplication.
-class GEMM {
+class LLmRTBlas {
  public:
-  GEMM();
-  ~GEMM();
+  // find the best backend for GEMM. By design, this function would be called in 
+  static LLmRTBlasBackend findBestBackend();
+
+  LLmRTBlas();
+  ~LLmRTBlas();
 
   // matrix-matrix multiplication. 
   void sgemm(const GEMMArgs &args) const;
@@ -86,11 +87,9 @@ class GEMM {
   std::unique_ptr<SDOT> _sdotImpl;
 
   // choose the backend for each operations.
-  void chooseBackend();
+  void initBackend();
 };
 
 
 }  // namespace nn
 }  // namespace llama
-
-#endif  // GLM_RUNTIME_GLAS_H_

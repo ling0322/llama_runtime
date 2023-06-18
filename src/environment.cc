@@ -6,34 +6,74 @@
 #include "shared_library.h"
 #include "log.h"
 #include "util.h"
+#include "llmrt_blas.h"
 
 namespace llama {
 
-// ----------------------------------------------------------------------------
-// Env
-// ----------------------------------------------------------------------------
+// -- class Environment::Impl ----------
 
-Environment *Environment::env_ = nullptr;
-std::mutex Environment::mutex_;
+class Environment::Impl {
+ public:
+  Impl();
+  ~Impl();
 
-Environment::Environment() {}
-Environment::~Environment() {}
+  nn::LLmRTBlasBackend getLLmRTBlasBackend() const;
+  int getLLmRTBlasNumThreads() const;
+  void setLLmRTBlasNumThreads(int numThreads);
 
-void Environment::Init() {
-  std::lock_guard<std::mutex> guard(mutex_);
-  if (env_) {
-    return;
-  }
+ private:
+  nn::LLmRTBlasBackend _llmrtBlasBackend;
+  int _llmrtBlasNumThreads;
+
+  void init();
+};
+
+Environment::Impl::Impl() :
+    _llmrtBlasBackend(nn::LLmRTBlasBackend::DEFAULT),
+    _llmrtBlasNumThreads(8) {
+  init();
+}
+Environment::Impl::~Impl() {}
+
+void Environment::Impl::init() {
+  _llmrtBlasBackend = nn::LLmRTBlas::findBestBackend();
 }
 
-void Environment::Destroy() {
-  std::lock_guard<std::mutex> guard(mutex_);
+nn::LLmRTBlasBackend Environment::Impl::getLLmRTBlasBackend() const {
+  return _llmrtBlasBackend;
 }
 
-const Environment *Environment::instance() {
-  CHECK(env_) << "Env::instance() called before Init() or after Destroy()";
-  return env_;
+int Environment::Impl::getLLmRTBlasNumThreads() const {
+  return _llmrtBlasNumThreads;
+}
+void Environment::Impl::setLLmRTBlasNumThreads(int numThreads) {
+  _llmrtBlasNumThreads = numThreads;
 }
 
+// -- class Environment::Impl ----------
+
+Environment::Impl *Environment::_instance = nullptr;
+
+void Environment::init() {
+  _instance = new Impl();
+}
+
+void Environment::destroy() {
+  delete _instance;
+}
+
+nn::LLmRTBlasBackend Environment::getLLmRTBlasBackend() {
+  CHECK(_instance);
+  return _instance->getLLmRTBlasBackend();
+}
+
+int Environment::getLLmRTBlasNumThreads() {
+  CHECK(_instance);
+  return _instance->getLLmRTBlasNumThreads();
+}
+
+void Environment::setLLmRTBlasNumThreads(int numThreads) {
+  _instance->setLLmRTBlasNumThreads(numThreads);
+}
 
 }  // namespace llama
