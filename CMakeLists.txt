@@ -12,14 +12,13 @@ set_source_files_properties("src/gemm_kernel_avx2.cc" PROPERTIES COMPILE_FLAGS /
 
 set(llama_INCDIRS src .)
 set(llama_SOURCES
-    "src/blas_kernel.cc"
-    "src/blas_kernel_avx512.cc"
-    "src/blas_kernel_avx2.cc"
     "src/common.cc"
+    "src/gemm_kernel.cc"
+    "src/gemm_kernel_avx512.cc"
+    "src/gemm_kernel_avx2.cc"
     "src/environment.cc"
     "src/gpt2_model.cc"
     "src/ini_config.cc"
-    "src/llmrt_blas.cc"
     "src/log.cc"
     "src/nn.cc"
     "src/operators.cc"
@@ -38,7 +37,6 @@ target_compile_features(llama PRIVATE cxx_std_14)
 
 set(llama_test_SOURCES
     ${llama_SOURCES}
-    "src/blas_test.cc"
     "src/gpt2_model_test.cc"
     "src/nn_test.cc"
     "src/nn_test_helper.cc"
@@ -58,9 +56,9 @@ set(OPENBLAS_DYNLIB ${OPENBLAS_DIR}/bin/libopenblas.dll)
 
 set(llama_benchmark_SOURCES
     ${llama_SOURCES}
-    "src/blas_benchmark.cc"
     "src/gpt2_model_benchmark.cc"
     "src/nn_test_helper.cc"
+    "src/operators_benchmark.cc"
     "src/test_helper.cc"
     "src/test_main.cc"
     "third_party/catch2/catch_amalgamated.cpp")

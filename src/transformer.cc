@@ -44,7 +44,7 @@ Tensor MultiheadSelfAttention::attention(
     TensorCRef q, TensorCRef k, TensorCRef v, TensorCRef mask) {
   Operators *F = _ctx.F();
 
-  Tensor scores = F->bmm(q, k.transpose(-2, -1));
+  Tensor scores = F->matmul(q, k.transpose(-2, -1));
   scores = F->mul(scores,  1.0f / sqrtf(1.0f * _dK));
 
   if (!mask.empty()) {
@@ -52,7 +52,7 @@ Tensor MultiheadSelfAttention::attention(
   }
 
   scores = F->softmax(scores);
-  Tensor outputs = F->bmm(scores, v);
+  Tensor outputs = F->matmul(scores, v);
   return outputs;
 }
 

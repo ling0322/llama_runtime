@@ -6,7 +6,7 @@
 #include "shared_library.h"
 #include "log.h"
 #include "util.h"
-#include "llmrt_blas.h"
+#include "gemm_kernel.h"
 
 namespace llama {
 
@@ -17,37 +17,37 @@ class Environment::Impl {
   Impl();
   ~Impl();
 
-  nn::LLmRTBlasBackend getLLmRTBlasBackend() const;
-  int getLLmRTBlasNumThreads() const;
-  void setLLmRTBlasNumThreads(int numThreads);
+  nn::CPUMathBackend getCpuMathBackend() const;
+  int getCpuMathNumThreads() const;
+  void setCpuMathNumThreads(int numThreads);
 
  private:
-  nn::LLmRTBlasBackend _llmrtBlasBackend;
-  int _llmrtBlasNumThreads;
+  nn::CPUMathBackend _cpuMathBackend;
+  int _cpuMathNumThreads;
 
   void init();
 };
 
 Environment::Impl::Impl() :
-    _llmrtBlasBackend(nn::LLmRTBlasBackend::DEFAULT),
-    _llmrtBlasNumThreads(8) {
+    _cpuMathBackend(nn::CPUMathBackend::DEFAULT),
+    _cpuMathNumThreads(8) {
   init();
 }
 Environment::Impl::~Impl() {}
 
 void Environment::Impl::init() {
-  _llmrtBlasBackend = nn::LLmRTBlas::findBestBackend();
+  _cpuMathBackend = nn::findBestCpuMathBackend();
 }
 
-nn::LLmRTBlasBackend Environment::Impl::getLLmRTBlasBackend() const {
-  return _llmrtBlasBackend;
+nn::CPUMathBackend Environment::Impl::getCpuMathBackend() const {
+  return _cpuMathBackend;
 }
 
-int Environment::Impl::getLLmRTBlasNumThreads() const {
-  return _llmrtBlasNumThreads;
+int Environment::Impl::getCpuMathNumThreads() const {
+  return _cpuMathNumThreads;
 }
-void Environment::Impl::setLLmRTBlasNumThreads(int numThreads) {
-  _llmrtBlasNumThreads = numThreads;
+void Environment::Impl::setCpuMathNumThreads(int numThreads) {
+  _cpuMathNumThreads = numThreads;
 }
 
 // -- class Environment::Impl ----------
@@ -62,18 +62,18 @@ void Environment::destroy() {
   delete _instance;
 }
 
-nn::LLmRTBlasBackend Environment::getLLmRTBlasBackend() {
+nn::CPUMathBackend Environment::getCpuMathBackend() {
   CHECK(_instance);
-  return _instance->getLLmRTBlasBackend();
+  return _instance->getCpuMathBackend();
 }
 
-int Environment::getLLmRTBlasNumThreads() {
+int Environment::getCpuMathNumThreads() {
   CHECK(_instance);
-  return _instance->getLLmRTBlasNumThreads();
+  return _instance->getCpuMathNumThreads();
 }
 
-void Environment::setLLmRTBlasNumThreads(int numThreads) {
-  _instance->setLLmRTBlasNumThreads(numThreads);
+void Environment::setCpuMathNumThreads(int numThreads) {
+  _instance->setCpuMathNumThreads(numThreads);
 }
 
 }  // namespace llama

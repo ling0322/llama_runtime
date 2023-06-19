@@ -164,7 +164,7 @@ Tensor GPT2Model::forward(TensorMap *past, TensorCRef inputIds) const {
 
 Tensor GPT2Model::logits(TensorCRef hiddenState) const {
   Operators *F = _ctx.F();
-  return F->bmm(hiddenState, _wte.transpose(0, 1));
+  return F->matmul(hiddenState, _wte.transpose(0, 1));
 }
 
 }  // namespace nn

@@ -4,7 +4,7 @@
 #include <cmath>
 #include <limits>
 #include <memory>
-#include "llmrt_blas.h"
+#include "gemm_kernel.h"
 #include "nn.h"
 #include "operators.h"
 #include "tensor.h"
@@ -19,6 +19,8 @@ constexpr int kPrintEdgeItems = 3;
 // the CPU implementation of Operators
 class CPUOperators::Impl {
  public:
+  Impl();
+
   typedef TensorShape::Elem Shape;
 
   // sub-tensor. Stores the shape and data pointer to a sub region of the 
@@ -68,9 +70,7 @@ class CPUOperators::Impl {
   Tensor createTensorLike(SubtensorCf A);
 
   Tensor matmulFp32(SubtensorCf A, SubtensorCf B);
-  Tensor gemvFp32(SubtensorCf A, SubtensorCf B);
   Tensor bmmFp32(SubtensorCf A, SubtensorCf B);
-  Tensor bmvFp32(SubtensorCf A, SubtensorCf B);
   Tensor gemmFp32(SubtensorCf A, SubtensorCf B);
 
   Tensor mulFp32(SubtensorCf A, float k);
@@ -101,13 +101,11 @@ class CPUOperators::Impl {
   Tensor causalMaskFp32(int max_len);
 
  private:
-  LLmRTBlas _llmrtBlas;
+  std::unique_ptr<SGEMM> _sgemmImpl;
+  std::unique_ptr<BatchSGEMM> _batchSgemmImpl;
 
   // generate GEMMArgs for A * B -> C.
   GEMMArgs generateGemmArgs(SubtensorCf A, SubtensorCf B, Subtensorf C);
-
-  // generate GEMVArgs for A * B -> C.
-  GEMVArgs generateGemvArgs(SubtensorCf A, SubtensorCf B, Subtensorf C);
 };
 
 // -- class CPUOperators::Impl::SubTensor ----------
@@ -159,9 +157,12 @@ inline auto CPUOperators::Impl::makeConstSubtensor(const Tensor &tensor) -> SubT
   return SubTensor<const T>{util::makeConstSpan(tensor._shape._data), tensor.getData<T>()};
 } 
 
-// ---------------------------------------------------------------------------+
-// CpuOperators::Impl                                                         |
-// ---------------------------------------------------------------------------+
+// -- class CpuOperators::Impl ----------
+
+CPUOperators::Impl::Impl() {
+  _batchSgemmImpl = BatchSGEMM::create();
+  _sgemmImpl = SGEMM::create();
+}
 
 template<typename T>
 void CPUOperators::Impl::ApplyBinaryOperator(
@@ -316,41 +317,14 @@ GEMMArgs CPUOperators::Impl::generateGemmArgs(SubtensorCf A, SubtensorCf B, Subt
   return gemmArgs;
 }
 
-
-GEMVArgs CPUOperators::Impl::generateGemvArgs(SubtensorCf A, SubtensorCf B, Subtensorf C) {
-  CHECK(A.rank() == 2 && B.rank() == 1 && A.dimension(1) == B.dimension(0));
-  CHECK(C.rank() == 1 && C.dimension(0) == A.dimension(0));
-
-  bool transA;
-  int lda, m, n;
-  if (A.stride(1) == 1) {
-    transA = false;
-    lda = A.stride(0);
-    m = A.dimension(0);
-    n = A.dimension(1);
-  } else if (A.stride(0) == 1) {
-    transA = true;
-    lda = A.stride(1);
-    m = A.dimension(1);
-    n = A.dimension(0);
+Tensor CPUOperators::Impl::matmulFp32(SubtensorCf A, SubtensorCf B) {
+  if (A.rank() == 2 && B.rank() == 2) {
+    return gemmFp32(A, B);
+  } else if (A.rank() >= 2 && B.rank() >= 2) {
+    return bmmFp32(A, B);
   } else {
     NOT_IMPL();
   }
-
-  // when transA == true: len(x, y) = (m, n)
-  // when transA == false: len(x, y) = (n, m)
-  // x is B
-  // y is C
-  GEMVArgs gemvArgs;
-  gemvArgs.A = A.data;
-  gemvArgs.lda = lda;
-  gemvArgs.M = m;
-  gemvArgs.N = n;
-  gemvArgs.TransA = transA;
-  gemvArgs.x = B.data;
-  gemvArgs.y = C.data;
-
-  return gemvArgs;
 }
 
 Tensor CPUOperators::Impl::gemmFp32(SubtensorCf A, SubtensorCf B) {
@@ -361,20 +335,8 @@ Tensor CPUOperators::Impl::gemmFp32(SubtensorCf A, SubtensorCf B) {
   zerosFp32(Cs);
 
   GEMMArgs gemmArgs = generateGemmArgs(A, B, Cs);
-  _llmrtBlas.sgemm(gemmArgs);
+  _sgemmImpl->apply(gemmArgs);
 
-  return C;
-}
-
-Tensor CPUOperators::Impl::gemvFp32(SubtensorCf A, SubtensorCf B) {
-  CHECK(A.rank() == 2 && B.rank() == 1);
-
-  Tensor C = createTensor({A.dimension(0)}, DType::kFloat);
-  Subtensorf Cs = makeSubtensor<float>(C);
-  zerosFp32(Cs);
-
-  GEMVArgs gemvArgs = generateGemvArgs(A, B, Cs);
-  _llmrtBlas.sgemv(gemvArgs);
   return C;
 }
 
@@ -424,49 +386,7 @@ Tensor CPUOperators::Impl::bmmFp32(SubtensorCf A, SubtensorCf B) {
     }
   }
 
-  _llmrtBlas.sgemmBatch(batchArgs);
-  return tensorC;
-}
-
-Tensor CPUOperators::Impl::bmvFp32(SubtensorCf A, SubtensorCf B) {
-  CHECK(A.rank() - B.rank() == 1 && B.rank() >= 2);
-
-  std::vector<int> shape;
-  int batchDims = B.rank() - 1;
-  for (int d = 0; d < batchDims; ++d) {
-    int dimA = A.dimension(d);
-    int dimB = B.dimension(d);
-
-    CHECK(dimA == 1 || dimB == 1 || dimA == dimB);
-    shape.push_back(std::max(dimA, dimB));
-  }
-
-  shape.push_back(A.dimension(batchDims));
-  Tensor tensorC = createTensor(shape, DType::kFloat);
-  Subtensorf C = makeSubtensor<float>(tensorC);
-
-  std::vector<GEMVArgs> batchArgs;
-  if (A.rank() == 3) {
-    for (int i = 0; i < shape[0]; ++i) {
-      SubtensorCf As = A.dimension(0) == 1 ? A.subtensor(0) : A.subtensor(i);
-      SubtensorCf Bs = B.dimension(0) == 1 ? B.subtensor(0) : B.subtensor(i);
-
-      batchArgs.push_back(generateGemvArgs(As, Bs, C.subtensor(i)));
-    }
-  } else if (A.rank() == 4) {
-    for (int i = 0; i < shape[0]; ++i) {
-      SubtensorCf As = A.dimension(0) == 1 ? A.subtensor(0) : A.subtensor(i);
-      SubtensorCf Bs = B.dimension(0) == 1 ? B.subtensor(0) : B.subtensor(i);
-      Subtensorf Cs = C.subtensor(i);
-      for (int j = 0; j < shape[1]; ++j) {
-        SubtensorCf As0 = As.dimension(0) == 1 ? As.subtensor(0) : As.subtensor(i);
-        SubtensorCf Bs0 = Bs.dimension(0) == 1 ? Bs.subtensor(0) : Bs.subtensor(i);
-        batchArgs.push_back(generateGemvArgs(As0, Bs0, Cs.subtensor(i)));
-      }
-    }
-  }
-
-  _llmrtBlas.sgemvBatch(batchArgs);
+  _batchSgemmImpl->apply(batchArgs);
   return tensorC;
 }
 
@@ -800,49 +720,14 @@ Tensor CPUOperators::zeros(std::initializer_list<int> shape, DType dtype) {
   return tensor;
 }
 
-Tensor CPUOperators::gemm(const Tensor &A, const Tensor &B) {
+Tensor CPUOperators::matmul(const Tensor &A, const Tensor &B) {
   switch (A.getDType()) {
     case DType::kFloat:
-      return _impl->gemmFp32(
+      return _impl->matmulFp32(
           _impl->makeConstSubtensor<float>(A), _impl->makeConstSubtensor<float>(B));
       break;
     default:
       CHECK(false) << "unsupported dtype for MatMul";
-      return Tensor();
-  }
-}
-
-Tensor CPUOperators::bmm(const Tensor &A, const Tensor &B) {
-  switch (A.getDType()) {
-    case DType::kFloat:
-      return _impl->bmmFp32(
-          _impl->makeConstSubtensor<float>(A), _impl->makeConstSubtensor<float>(B));
-    default:
-      CHECK(false) << "unsupported dtype for MatMul";
-      return Tensor();
-  }
-}
-
-Tensor CPUOperators::bmv(const Tensor &A, const Tensor &B) {
-  switch (A.getDType()) {
-    case DType::kFloat:
-      return _impl->bmvFp32(
-          _impl->makeConstSubtensor<float>(A), _impl->makeConstSubtensor<float>(B));
-      break;
-    default:
-      CHECK(false) << "unsupported dtype for bmv";
-      return Tensor();
-  }
-}
-
-Tensor CPUOperators::gemv(const Tensor &A, const Tensor &B) {
-  switch (A.getDType()) {
-    case DType::kFloat:
-      return _impl->gemvFp32(
-          _impl->makeConstSubtensor<float>(A), _impl->makeConstSubtensor<float>(B));
-      break;
-    default:
-      CHECK(false) << "unsupported dtype for gemv";
       return Tensor();
   }
 }

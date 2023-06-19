@@ -1,5 +1,4 @@
-#ifndef LLM_RUNTIME_OPERATORS_CPU_H_
-#define LLM_RUNTIME_OPERATORS_CPU_H_
+#pragma once
 
 #include <stdint.h>
 #include <memory>
@@ -18,10 +17,7 @@ class CPUOperators : public Operators {
 
   // implement interface Operators
   Tensor lookup(TensorCRef table, TensorCRef indices) override;
-  Tensor gemm(TensorCRef a, TensorCRef b) override;
-  Tensor gemv(TensorCRef A, TensorCRef x) override;
-  Tensor bmm(TensorCRef A, TensorCRef x) override;
-  Tensor bmv(const Tensor &A, const Tensor &B) override;
+  Tensor matmul(TensorCRef a, TensorCRef b) override;
   Tensor mul(TensorCRef input, float other) override;
   Tensor softmax(TensorCRef input) override;
   Tensor gelu(TensorCRef input) override;
@@ -49,4 +45,3 @@ class CPUOperators : public Operators {
 }  // namespace nn
 }  // namespace llama
 
-#endif  // LLM_RUNTIME_OPERATORS_CPU_H_

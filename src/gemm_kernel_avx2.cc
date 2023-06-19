@@ -1,12 +1,10 @@
-#include "blas_kernel.h"
-
 #include <immintrin.h>
+#include <stdint.h>
 
 namespace llama {
 namespace nn {
 
-void SGEMM6x16Avx2Kernel::callKernel(
-    int64_t kc, float *a, float *b, float *c, int64_t rs_c) {
+void sgemmKernel6x16Avx2(int64_t kc, float *a, float *b, float *c, int64_t rs_c) {
   // a: kc x MR
   // b: kc x NR
 
@@ -104,7 +102,7 @@ void SGEMM6x16Avx2Kernel::callKernel(
   pc += rs_c;
 }
 
-void SAXPYAvx2Kernel::callKernel(int64_t n, float a, const float *x, float *y) {
+void saxpyKernelAvx2(int64_t n, float a, const float *x, float *y) {
   __m256 a00 = _mm256_broadcast_ss(&a);
   __m256 x00, y00;
 
@@ -129,7 +127,7 @@ void SAXPYAvx2Kernel::callKernel(int64_t n, float a, const float *x, float *y) {
   }
 }
 
-float SDOTAvx2Kernel::callKernel(int64_t n, const float *x, const float *y) {
+float sdotKernelAvx2(int64_t n, const float *x, const float *y) {
   __m256 x00, y00, a00;
 
   a00 = _mm256_setzero_ps();

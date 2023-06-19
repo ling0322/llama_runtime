@@ -28,7 +28,11 @@ TEST_CASE("test GPT2 module", "[core][nn][gpt2]") {
   Tensor in = tensors[0];
   Tensor out = tensors[1];
   Tensor x = model->forward(nullptr, in);
+  ctx.F()->print(x);
   x = model->logits(x);
+
+  ctx.F()->print(x);
+  ctx.F()->print(out);
 
   REQUIRE(ctx.F()->allClose(out, x));
 

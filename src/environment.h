@@ -8,7 +8,7 @@ namespace llama {
 
 namespace nn {
 class Operators;
-enum class LLmRTBlasBackend;
+enum class CPUMathBackend;
 
 }  // namespace nn
 
@@ -22,14 +22,12 @@ class Environment : private util::NonCopyable {
   static void destroy();
 
   // get the best backend implementation of LLmRT-BLAS.
-  static nn::LLmRTBlasBackend getLLmRTBlasBackend();
+  static nn::CPUMathBackend getCpuMathBackend();
 
-  // get or set the num-threads for LLmRT-BLAS.
-  static int getLLmRTBlasNumThreads();
-  static void setLLmRTBlasNumThreads(int numThreads);
-  
-  static int getBlasNumThreads();
-  
+  // get or set the num-threads for CPU math operators.
+  static int getCpuMathNumThreads();
+  static void setCpuMathNumThreads(int numThreads);
+    
  private:
   // global pointer of Env as well as its Init() and Destroy() mutex
   static Impl *_instance;

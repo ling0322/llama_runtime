@@ -4,7 +4,6 @@
 #include "cblas.h"
 #include "environment.h"
 #include "test_helper.h"
-#include "llmrt_blas.h"
 #include "nn.h"
 #include "operators.h"
 #include "strings.h"
@@ -14,11 +13,11 @@ using namespace nn;
 using namespace std::literals;
 
 Tensor callGEMM(Operators *F, TensorCRef A, TensorCRef B) {
-  return F->gemm(A, B);
+  return F->matmul(A, B);
 }
 
 Tensor callGEMV(Operators *F, TensorCRef A, TensorCRef B) {
-  return F->gemv(A, B);
+  return F->matmul(A, B);
 }
 
 Tensor callOpenblasGEMM(Operators *F, TensorCRef A, TensorCRef B) {
@@ -61,7 +60,7 @@ void benchmarkGEMM(int n, GEMMType gemmType, int numRun = 1) {
   Tensor A = F->rand({n, n}, DType::kFloat);
   Tensor B = gemmType == GEMM_LLMRT || gemmType == GEMM_OPENBLAS
       ? F->rand({n, n}, DType::kFloat)
-      : F->rand({n}, DType::kFloat);
+      : F->rand({n, 1}, DType::kFloat);
 
   if (gemmType == GEMV_TRANS_LLMRT || gemmType == GEMV_TRANS_OPENBLAS) {
     A = A.transpose(0, 1);
@@ -152,13 +151,13 @@ void benchmarkSGEMV() {
 
 TEST_CASE("benchmark for float32 GEMM", "[gemm][benchmark]") {
   openblas_set_num_threads(1);
-  Environment::setLLmRTBlasNumThreads(1);
+  Environment::setCpuMathNumThreads(1);
 
   LOG(INFO) << "Benchmark SGEMM with numThreads=1";
   benchmarkSGEMM();
   
   openblas_set_num_threads(8);
-  Environment::setLLmRTBlasNumThreads(8);
+  Environment::setCpuMathNumThreads(8);
 
   LOG(INFO) << "Benchmark SGEMM with numThreads=8";
   benchmarkSGEMM();
@@ -166,13 +165,13 @@ TEST_CASE("benchmark for float32 GEMM", "[gemm][benchmark]") {
 
 TEST_CASE("benchmark for float32 GEMV", "[gemv][benchmark]") {
   openblas_set_num_threads(1);
-  Environment::setLLmRTBlasNumThreads(1);
+  Environment::setCpuMathNumThreads(1);
 
   LOG(INFO) << "Benchmark SGEMV with numThreads=1";
   benchmarkSGEMV();
 
   openblas_set_num_threads(8);
-  Environment::setLLmRTBlasNumThreads(8);
+  Environment::setCpuMathNumThreads(8);
 
   LOG(INFO) << "Benchmark SGEMV with numThreads=8";
   benchmarkSGEMV();

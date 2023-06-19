@@ -1,12 +1,10 @@
-#include "blas_kernel.h"
-
 #include <immintrin.h>
+#include <stdint.h>
 
 namespace llama {
 namespace nn {
 
-void SGEMM6x16Avx512Kernel::callKernel(
-    int64_t kc, float *a, float *b, float *c, int64_t rs_c) {
+void sgemmKernel12x32Avx512(int64_t kc, float *a, float *b, float *c, int64_t rs_c) {
   // a: kc x MR
   // b: kc x NR
 
