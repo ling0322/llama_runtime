@@ -29,6 +29,7 @@ set(llama_SOURCES
     "src/tokenizer/tokenizer.cc"
     "src/util/ini_config.cc"
     "src/util/log.cc"
+    "src/util/random.cc"
     "src/util/reader.cc"
     "src/util/shared_library_windows.cc"
     "src/util/strings.cc"

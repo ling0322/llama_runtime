@@ -35,10 +35,10 @@ void dequantizeInt4ToFloat32Fallback(const ByteType *src, float scale, int n, fl
   CHECK(n % 2 == 0);
   int nb = n / 2;
 
-  const int8_t *p = reinterpret_cast<const int8_t *>(src);
+  const uint8_t *p = reinterpret_cast<const uint8_t *>(src);
   for (int i = 0; i < nb; ++i) {
-    *tgt++ = scale * (*p >> 4);
-    *tgt++ = scale * ((*p << 4) >> 4);
+    *tgt++ = scale * (static_cast<int>(*p >> 4) - 8);
+    *tgt++ = scale * ((static_cast<int>(*p) & 0xf) - 8);
     ++p;
   }
 }
