@@ -409,31 +409,5 @@ int Pool<T, BLOCK_SIZE>::getNumAllocated() const {
   return _currentBlock * BLOCK_SIZE + _currentOffset - _free.size();
 }
 
-// -- class Random ----------
-
-// random number generator.
-class Random {
- public:
-  static constexpr int32_t RandMax = 2147483647;  // 2^31-1
-
-  // initialize the random number generator by current time.
-  Random();
-
-  // initialize thr random number generator by manual seed.
-  Random(uint64_t seed);
-
-  // fill `l` with a list of float numbers in range [0, 1).
-  void random(Span<float> l);
-
-  // fill `l` with a list of uint8_t numbers in range [0, 255).
-  void randomUInt8(Span<uint8_t> l);
-
-  // return next random int number in range [0, RandMax).
-  int32_t nextInt();
-
- private:
-  uint64_t _x;
-};
-
 }  // namespace util
 }  // namespace llama
