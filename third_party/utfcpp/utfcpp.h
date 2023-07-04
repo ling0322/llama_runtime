@@ -29,7 +29,7 @@ DEALINGS IN THE SOFTWARE.
 #include <stdint.h>
 #include <iterator>
 #include <string>
-#include "common.h"
+#include "common/common.h"
 
 namespace llama
 {
