@@ -23,6 +23,7 @@ typedef GEMMCommon<576, 512, 4096, SGEMM12x32Avx512Kernel> SGEMMKernelAvx512;
 class SGEMM {
  public:
   virtual ~SGEMM() = default;
+
   virtual void apply(
       bool transA,
       bool transB,
@@ -35,6 +36,21 @@ class SGEMM {
       int ldb,
       float *C,
       int ldc) const = 0;
+
+  virtual void applyBatch(
+      int batchSize,
+      bool transA,
+      bool transB,
+      int M,
+      int N,
+      int K,
+      const float *const *batchA,
+      int lda,
+      const float *const *batchB,
+      int ldb,
+      float *const *batchC,
+      int ldc) const = 0;
+  
 };
 
 template<class TGEMMKernel, class TGEMVImpl>
@@ -60,6 +76,20 @@ class SGEMMImpl : public SGEMM {
       TGEMMKernel().Apply(transA, transB, M, N, K, A, lda, B, ldb, C, ldc);
     }
   }
+
+  void applyBatch(
+      int batchSize,
+      bool transA,
+      bool transB,
+      int M,
+      int N,
+      int K,
+      const float *const *batchA,
+      int lda,
+      const float *const *batchB,
+      int ldb,
+      float *const *batchC,
+      int ldc) const override;
 
  private:
   TGEMVImpl _sgemvImpl;
@@ -96,6 +126,35 @@ class SGEMMImpl : public SGEMM {
 typedef SGEMMImpl<SGEMMKernelAvx512, SGEMVImplAvx512> SGEMMImplAvx512;
 typedef SGEMMImpl<SGEMMKernelAvx2, SGEMVImplAvx2> SGEMMImplAvx2;
 typedef SGEMMImpl<SGEMMKernelDefault, SGEMVImplDefault> SGEMMImplDefault;
+
+template<class TGEMMKernel, class TGEMVImpl>
+void SGEMMImpl<TGEMMKernel, TGEMVImpl>::applyBatch(
+    int batchSize,
+    bool transA,
+    bool transB,
+    int M,
+    int N,
+    int K,
+    const float *const *batchA,
+    int lda,
+    const float *const *batchB,
+    int ldb,
+    float *const *batchC,
+    int ldc) const {
+  TGEMMKernel gemmKernel;
+  for (int i = 0; i < batchSize; ++i) {
+    const float *A = batchA[i];
+    const float *B = batchB[i];
+    float *C = batchC[i];
+    if (M == 1) {
+      applyRowVectorA(transA, transB, M, N, K, A, lda, B, ldb, C, ldc);
+    } else if (N == 1) {
+      applyColumnVectorB(transA, transB, M, N, K, A, lda, B, ldb, C, ldc);
+    } else {
+      gemmKernel.Apply(transA, transB, M, N, K, A, lda, B, ldb, C, ldc);
+    }
+  }
+}
 
 template<class TGEMMKernel, class TGEMVImpl>
 void SGEMMImpl<TGEMMKernel, TGEMVImpl>::applyRowVectorA(

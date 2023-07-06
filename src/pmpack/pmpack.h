@@ -47,3 +47,18 @@ void pmpack_gemm_fp32qint4fp32(
     int groupSizeB,
     float *C,
     int ldc);
+
+void pmpack_gemm_fp32qint4fp32_batch(
+    int batchSize,
+    bool transA,
+    bool transB,
+    int M,
+    int N,
+    int K,
+    const float *const *batchA,
+    int lda,
+    const void *const *batchB,
+    const float *const *batchScaleB,
+    int groupSizeB,
+    float *const *batchC,
+    int ldc);

@@ -2,78 +2,14 @@
 
 #include <stdint.h>
 #include "common/common.h"
+#include "nn/device.h"
+#include "nn/dtype.h"
+#include "nn/tensor_data.h"
 #include "util/reader.h"
 #include "util/util.h"
 
 namespace llama {
 namespace nn {
-
-// storage device for tensor data.
-class Device {
- public:
-  enum class Type {
-    kCpu,
-    kUnknown
-  };
-
-  static Device createForCPU();
-
-  // construct device by device type
-  Device();
-  Device(Type type);
-
-  // get type of the device
-  Type getType() const { return _type; }
-
- private:
-  Type _type;
-};
-
-typedef int64_t LongType;
-
-enum class DType : int16_t { 
-  kUnknown = 0,
-  kFloat = 1,
-  kLong = 2
-};
-
-// get type-id
-template <typename T>
-DType getTypeID();
-
-// get the size of specific dtype
-int getDTypeSize(DType dtype);
-
-// return true of DType is valid
-bool isValidDType(DType dtype);
-
-// contains dimension and stride information for an axis in tensor
-class TensorData {
- public:
-  static std::shared_ptr<TensorData> create(int64_t numel, DType dtype);
-  static std::shared_ptr<TensorData> create(
-      int64_t numel, int32_t groupSize, DType dtype, DType scaleDtype);
-
-  virtual ~TensorData() = default;
-
-  // get the device of tensor data.
-  virtual Device getDevice() const = 0;
-
-  ByteType *getData() const { return _data; }
-  ByteType *getScaleData() const { return _scaleData; }
-  DType getDType() const { return _dtype; }
-  int64_t getSizeInBytes() const { return _numel * getDTypeSize(_dtype); }
-  int64_t getGroupSize() const { return _groupSize; }
-
- protected:
-  ByteType *_data;
-  ByteType *_scaleData;  // used in quantized tensor only. Scale for the quantization group.
-  int64_t _groupSize;    // number of elements per quantization group. 0 for no quantization.
-  int64_t _numel;
-  DType _dtype;
-
-  TensorData();
-};
 
 // Stores shape and stride of a Tensor.
 class TensorShape {
@@ -210,6 +146,9 @@ class Tensor {
   const T *getData() const {
     return reinterpret_cast<T *>(getRawData(getTypeID<T>()));
   }
+
+  // get the internal TensorData object.
+  const TensorData *getDataObject() const { return _data.get(); }
 
   // return specific element at index. Size of `indices` should be the same as tensor dimension.
   // And the data should in CPU.

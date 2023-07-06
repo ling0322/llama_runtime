@@ -7,15 +7,6 @@
 namespace llama {
 namespace nn {
 
-// -- class Device ----------
-
-Device::Device() : _type(Type::kUnknown) {}
-Device::Device(Type type) : _type(type) {}
-
-Device Device::createForCPU() {
-  return Device(Type::kCpu);
-}
-
 // -- class TensorMap ----------
 
 // tensor_dict format

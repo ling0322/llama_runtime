@@ -112,4 +112,5 @@ TEST_CASE("test dotFp32Int4Fp32", "[core][gemm][avx2]") {
 
 TEST_CASE("test pmpack_gemm_fp32qint4fp32", "[core][gemm][avx2]") {
   testGemmFp32QInt4Fp32(32, 32, 32);
+  testGemmFp32QInt4Fp32(1, 32, 32);
 }

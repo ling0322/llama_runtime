@@ -409,5 +409,19 @@ int Pool<T, BLOCK_SIZE>::getNumAllocated() const {
   return _currentBlock * BLOCK_SIZE + _currentOffset - _free.size();
 }
 
+
+// return a vector that repeatging `v` n times.
+template<typename T>
+std::vector<T> repeat(util::Span<const T> v, int n) {
+  std::vector<T> rep;
+  for (int i = 0; i < n; ++i) {
+    for (const T &elem : v) {
+      rep.emplace_back(elem);
+    }
+  }
+
+  return rep;
+}
+
 }  // namespace util
 }  // namespace llama

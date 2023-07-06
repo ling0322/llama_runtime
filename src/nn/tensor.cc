@@ -8,42 +8,6 @@
 namespace llama {
 namespace nn {
 
-// ---------------------------------------------------------------------------+
-// class DType                                                                |
-// ---------------------------------------------------------------------------+
-
-template <>
-DType getTypeID<float>() {
-  return DType::kFloat;
-}
-template <>
-DType getTypeID<int64_t>() {
-  return DType::kLong;
-}
-
-template DType getTypeID<float>();
-template DType getTypeID<int64_t>();
-
-int getDTypeSize(DType dtype) {
-  switch (dtype) {
-    case DType::kFloat:
-      return 4;
-    case DType::kLong:
-      return 8;
-    default:
-      NOT_IMPL();
-  }
-}
-
-bool IsValidDType(DType dtype) {
-  switch (dtype) {
-    case DType::kFloat:
-    case DType::kLong:
-      return true;
-    default:
-      return false;
-  }
-}
 
 // -- class TensorShape ----------
 
@@ -187,50 +151,6 @@ void TensorShape::setShape(int dim, ShapeType shape) {
   _data[dim].shape = shape;
 }
 
-// -- class TensorData ---------------------------------------------------------
-
-TensorData::TensorData()
-    : _data(nullptr),
-      _scaleData(nullptr),
-      _groupSize(0),
-      _numel(0),
-      _dtype(DType::kUnknown) {}
-
-// -- class CPUTensorData ---------------------------------------------------------
-
-class CPUTensorData : public TensorData {
- public:
-  ~CPUTensorData();
-
-  Device getDevice() const override;
-};
-
-std::shared_ptr<TensorData> TensorData::create(int64_t numel, DType dtype) {
-  auto tensorData = std::make_shared<CPUTensorData>();
-  int64_t size = numel * getDTypeSize(dtype);
-  tensorData->_data = (ByteType *)util::alloc32ByteAlignedMem(size);
-  tensorData->_numel = numel;
-  tensorData->_dtype = dtype;
-
-  return tensorData;
-}
-
-CPUTensorData::~CPUTensorData() {
-  if (_data) {
-    util::free32ByteAlignedMem(_data);
-    _data = nullptr;
-  }
-
-  if (_scaleData) {
-    util::free32ByteAlignedMem(_scaleData);
-    _scaleData = nullptr;
-  }
-}
-
-Device CPUTensorData::getDevice() const {
-  return Device(Device::Type::kCpu);
-}
-
 // -- class Tensor -------------------------------------------------------------
 
 template<typename T>
@@ -309,7 +229,7 @@ void Tensor::read(ReadableFile *fp) {
   // dtype
   int16_t dtype_int16 = fp->readValue<int16_t>();
   DType dtype = static_cast<DType>(dtype_int16);
-  if (!IsValidDType(dtype)) {
+  if (!isValidDType(dtype)) {
     throw AbortedException("invalid dtype");
   }
 
@@ -413,9 +333,7 @@ Tensor Tensor::slice(int dim, int begin, int end) const {
   tensor._data = _data;
   tensor._shape = _shape;
   tensor._shape.setShape(dim, end - begin);
-
-  int dtypeSize = getDTypeSize(tensor.getDType());
-  tensor._dataPtr = _dataPtr + _shape.getStride(dim) * dtypeSize * begin;
+  tensor._dataPtr = _dataPtr + getDTypeTotalSize(tensor.getDType(), _shape.getStride(dim)) * begin;
 
   return tensor;
 }
@@ -431,9 +349,7 @@ Tensor Tensor::subtensor(int index) const {
   Tensor tensor;
   tensor._data = _data;
   tensor._shape = _shape.subsize(1);
-
-  int dtype_size = getDTypeSize(tensor.getDType());
-  tensor._dataPtr = _dataPtr + _shape.getStride(0) * dtype_size * index;
+  tensor._dataPtr = _dataPtr + getDTypeTotalSize(tensor.getDType(), _shape.getStride(0)) * index;
 
   return tensor;
 }

@@ -2,7 +2,6 @@
 
 #include <stdlib.h>
 #include <memory>
-#include "pmpack/batch_sgemm.h"
 #include "pmpack/gemm_fp32qint4fp32.h"
 #include "pmpack/sgemm.h"
 #include "util/log.h"
@@ -46,14 +45,12 @@ class PMPack {
   // get kernel implementations.
   const SGEMM *getSgemm() const { return _sgemm.get(); }
   const IGemmFp32QInt4Fp32 *getGemmFp32QInt4Fp32() const { return _gemmFp32QInt4Fp32.get(); }
-  const BatchSGEMM *getBatchSgemm() const { return _sgemmBatch.get(); }
 
  private:
   static PMPack *_instance;
   static int _numThreads;
 
   std::unique_ptr<SGEMM> _sgemm;
-  std::unique_ptr<BatchSGEMM> _sgemmBatch;
   std::unique_ptr<IGemmFp32QInt4Fp32> _gemmFp32QInt4Fp32;
 };
 
@@ -69,17 +66,14 @@ void PMPack::init() {
   switch (findBestCpuMathBackend()) {
     case CPUMathBackend::AVX512:
       _instance->_sgemm = std::make_unique<SGEMMImplAvx512>();
-      _instance->_sgemmBatch = std::make_unique<BatchSGEMMImpl<SGEMMImplAvx512>>();
       _instance->_gemmFp32QInt4Fp32 = std::make_unique<GemmFp32QInt4Fp32Avx512>();
       break;
     case CPUMathBackend::AVX2:
       _instance->_sgemm = std::make_unique<SGEMMImplAvx2>();
-      _instance->_sgemmBatch = std::make_unique<BatchSGEMMImpl<SGEMMImplAvx2>>();
       _instance->_gemmFp32QInt4Fp32 = std::make_unique<GemmFp32QInt4Fp32Avx2>();
       break;
     case CPUMathBackend::DEFAULT:
       _instance->_sgemm = std::make_unique<SGEMMImplDefault>();
-      _instance->_sgemmBatch = std::make_unique<BatchSGEMMImpl<SGEMMImplDefault>>();
       _instance->_gemmFp32QInt4Fp32 = std::make_unique<GemmFp32QInt4Fp32Fallback>();
       break;
     default:
@@ -149,7 +143,7 @@ void pmpack_sgemm_batch(
     int ldb,
     float *const *batchC,
     int ldc) {
-  llama::nn::PMPack::getInstance()->getBatchSgemm()->apply(
+  llama::nn::PMPack::getInstance()->getSgemm()->applyBatch(
       batch_size, transA, transB, M, N, K, batchA, lda, batchB, ldb, batchC, ldc);
 }
 
@@ -168,4 +162,34 @@ void pmpack_gemm_fp32qint4fp32(
     int ldc) {
   llama::nn::PMPack::getInstance()->getGemmFp32QInt4Fp32()->apply(
       transA, transB, M, N, K, A, lda, B, scaleDataB, groupSizeB, C, ldc);
+}
+
+void pmpack_gemm_fp32qint4fp32_batch(
+    int batchSize,
+    bool transA,
+    bool transB,
+    int M,
+    int N,
+    int K,
+    const float *const *batchA,
+    int lda,
+    const void *const *batchB,
+    const float *const *batchScaleB,
+    int groupSizeB,
+    float *const *batchC,
+    int ldc) {
+  llama::nn::PMPack::getInstance()->getGemmFp32QInt4Fp32()->applyBatch(
+      batchSize,
+      transA,
+      transB,
+      M,
+      N,
+      K,
+      batchA,
+      lda,
+      batchB,
+      batchScaleB,
+      groupSizeB,
+      batchC,
+      ldc);
 }

@@ -58,6 +58,7 @@ typedef const char *PCStrType;
 typedef unsigned char ByteType;
 typedef const unsigned char CByteType;
 
+
 enum class StatusCode : int {
   kOK = 0,
   kAborted = 1,

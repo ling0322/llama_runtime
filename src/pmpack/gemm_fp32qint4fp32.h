@@ -11,6 +11,8 @@
 #include "pmpack/sgemm.h"
 #include "util/util.h"
 
+// IGemmFp32QInt4Fp32 -> GemmFp32QInt4Fp32Impl -> GemmFp32QInt4Fp32Kernel
+
 namespace llama {
 namespace nn {
 
@@ -30,28 +32,21 @@ class IGemmFp32QInt4Fp32 {
       int groupSizeB,
       float *C,
       int ldc) const = 0;
-};
 
-template<class TGEMMKernel>
-class GemmFp32QInt4Fp32Kernel {
- public:
-  void apply(
+  virtual void applyBatch(
+      int batchSize,
       bool transA,
       bool transB,
       int M,
       int N,
       int K,
-      const float *A,
+      const float *const *batchA,
       int lda,
-      const void *B,
-      const float *scaleDataB,
+      const void *const *batchB,
+      const float *const *batchScaleB,
       int groupSizeB,
-      float *C,
-      int ldc);
-
- private:
-  util::AutoCPtr<float> _dequantData;
-  int64_t _dequantNumEl;
+      float *const *batchC,
+      int ldc) const = 0;
 };
 
 template<class TQGemmKernel, class TQDotKernel>
@@ -79,6 +74,21 @@ class GemmFp32QInt4Fp32Impl : public IGemmFp32QInt4Fp32 {
     }
   }
 
+  void applyBatch(
+      int batchSize,
+      bool transA,
+      bool transB,
+      int M,
+      int N,
+      int K,
+      const float *const *batchA,
+      int lda,
+      const void *const *batchB,
+      const float *const *batchScaleB,
+      int groupSizeB,
+      float *const *batchC,
+      int ldc) const override;
+
  private:
   void appleRowVectorA(
       bool transA,
@@ -93,6 +103,28 @@ class GemmFp32QInt4Fp32Impl : public IGemmFp32QInt4Fp32 {
       int groupSizeB,
       float *C,
       int ldc) const;
+};
+
+template<class TGEMMKernel>
+class GemmFp32QInt4Fp32Kernel {
+ public:
+  void apply(
+      bool transA,
+      bool transB,
+      int M,
+      int N,
+      int K,
+      const float *A,
+      int lda,
+      const void *B,
+      const float *scaleDataB,
+      int groupSizeB,
+      float *C,
+      int ldc);
+
+ private:
+  util::AutoCPtr<float> _dequantData;
+  int64_t _dequantNumEl;
 };
 
 template<class TGEMMKernel>
@@ -149,6 +181,39 @@ typedef GemmFp32QInt4Fp32Impl<GemmFp32QInt4Fp32Kernel<SGEMMKernelAvx2>,
                               DOTFp32Int4Fp32Avx2Kernel> GemmFp32QInt4Fp32Avx2;
 typedef GemmFp32QInt4Fp32Impl<GemmFp32QInt4Fp32Kernel<SGEMMKernelDefault>,
                               DOTFp32Int4Fp32FallbackKernel> GemmFp32QInt4Fp32Fallback;
+
+template<class TQGemmKernel, class TQDotKernel>
+void GemmFp32QInt4Fp32Impl<TQGemmKernel, TQDotKernel>::applyBatch(
+    int batchSize,
+    bool transA,
+    bool transB,
+    int M,
+    int N,
+    int K,
+    const float *const *batchA,
+    int lda,
+    const void *const *batchB,
+    const float *const *batchScaleB,
+    int groupSizeB,
+    float *const *batchC,
+    int ldc) const {
+  TQGemmKernel qgemmKernel;
+
+  for (int i = 0; i < batchSize; ++i) {
+    const float *A = batchA[i];
+    const void *B = batchB[i];
+    const float *scaleB = batchScaleB[i];
+    float *C = batchC[i];
+
+    if (M == 1) {
+      appleRowVectorA(transA, transB, M, N, K, A, lda, B, scaleB, groupSizeB, C, ldc);
+    } else if (N == 1) {
+      NOT_IMPL();
+    } else {
+      qgemmKernel.apply(transA, transB, M, N, K, A, lda, B, scaleB, groupSizeB, C, ldc);
+    }
+  }
+}
 
 template<class TQGemmKernel, class TQDotKernel>
 void GemmFp32QInt4Fp32Impl<TQGemmKernel, TQDotKernel>::appleRowVectorA(
