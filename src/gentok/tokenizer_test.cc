@@ -1,11 +1,12 @@
-#include "common/test_helper.h"
-#include "util/ini_config.h"
-#include "util/reader.h"
-#include "util/strings.h"
-#include "tokenizer/tokenizer.h"
-#include "util/util.h"
+#include "catch2/catch_amalgamated.hpp"
+#include "llyn/ini_config.h"
+#include "llyn/reader.h"
+#include "llyn/strings.h"
+#include "gentok/tokenizer.h"
 
-using namespace llama;
+using namespace gentok;
+using namespace ly;
+
 
 std::vector<std::string> encodeAsPieces(const Tokenizer *tokenizer, const std::string &s) {
   std::vector<std::string> tokens;
@@ -26,12 +27,12 @@ void testTokenizer(const std::string &ini_file, const std::string &test_case) {
   auto fp = ReadableFile::open(test_case);
   Scanner scanner(fp.get());
   while (scanner.scan()) {
-    std::string line = str::trimRight(scanner.getText(), "\r\n");
-    auto row = str::split(line, "\t");
+    std::string line = ly::trimRight(scanner.getText(), "\r\n");
+    auto row = ly::split(line, "\t");
     REQUIRE(row.size() == 2);
 
     auto sentence = std::move(row[0]);
-    auto ref_pieces = str::split(str::trim(row[1]), " ");
+    auto ref_pieces = ly::split(ly::trim(row[1]), " ");
     auto pieces = encodeAsPieces(tokenizer.get(), sentence);
 
     REQUIRE(pieces == ref_pieces);

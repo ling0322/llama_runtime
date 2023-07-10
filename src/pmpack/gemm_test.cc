@@ -1,14 +1,11 @@
-#include "common/test_helper.h"
+#include "catch2/catch_amalgamated.hpp"
 
 #include "pmpack/gemm_kernel.h"
 #include "pmpack/pmpack.h"
-#include "flint/nn_test_helper.h"
 #include "flint/operators.h"
-#include "util/random.h"
-#include "util/util.h"
+#include "llyn/random.h"
 
-using namespace llama;
-using namespace nn;
+using namespace pmpack;
 
 constexpr uint32_t MagicNumber = 0x55aa;
 

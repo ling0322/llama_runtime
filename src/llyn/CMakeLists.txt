@@ -16,4 +16,5 @@ target_include_directories(llyn PRIVATE ..)
 target_compile_features(llyn PRIVATE cxx_std_14)
 
 set(llyn_test_SOURCES
-    "llyn/strings_test.cc")
+    "${CMAKE_CURRENT_LIST_DIR}/strings_test.cc"
+    "${CMAKE_CURRENT_LIST_DIR}/path_test.cc" PARENT_SCOPE)

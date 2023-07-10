@@ -1,15 +1,13 @@
-#include "common/test_helper.h"
+#include "catch2/catch_amalgamated.hpp"
 #include "flint/tensor.h"
-
-#include "flint/nn_test_helper.h"
 #include "flint/operators.h"
-#include "util/util.h"
+#include "flint/util.h"
 
-using namespace llama;
-using namespace nn;
+using namespace flint;
+using namespace ly;
 
 TEST_CASE("test subtensor and slice", "[core][nn][tensor]") {
-  Context ctx = MustGetCtxForCPU();
+  Context ctx = getCtxForCPU();
   Tensor tensor = Tensor::create<float>({4, 4}, {
     0.0f, 0.1f, 0.2f, 0.3f,
     0.4f, 0.5f, 0.6f, 0.7f,

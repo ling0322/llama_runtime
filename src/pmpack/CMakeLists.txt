@@ -13,3 +13,5 @@ add_library(pmpack STATIC ${pmpack_SOURCES} )
 target_include_directories(pmpack PRIVATE ..)
 target_compile_features(pmpack PRIVATE cxx_std_14)
 
+set(pmpack_test_SOURCES
+    "${CMAKE_CURRENT_LIST_DIR}/gemm_test.cc" PARENT_SCOPE)

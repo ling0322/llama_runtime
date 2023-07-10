@@ -1,11 +1,10 @@
-#include "common/test_helper.h"
+#include "catch2/catch_amalgamated.hpp"
 
-#include "flint/nn_test_helper.h"
 #include "flint/operators.h"
-#include "util/util.h"
+#include "flint/util.h"
 
-using namespace llama;
-using namespace nn;
+using namespace flint;
+using namespace ly;
  
 Tensor RefMatMulFp32(const Tensor &A, const Tensor &B) {
   REQUIRE(A.getDType() == B.getDType());
@@ -122,7 +121,7 @@ TEST_CASE("float32 GEMV BVT", "[core][nn][gemv]") {
 
 
 TEST_CASE("test embedding lookup", "[core][nn][operators]") {
-  Context ctx = MustGetCtxForCPU();
+  Context ctx = getCtxForCPU();
 
   Tensor wte = Tensor::create<float>({5, 2}, {
       0.1f, 0.2f,
@@ -148,7 +147,7 @@ TEST_CASE("test embedding lookup", "[core][nn][operators]") {
 }
 
 TEST_CASE("test softmax", "[core][nn][operators]") {
-  Context ctx = MustGetCtxForCPU();
+  Context ctx = getCtxForCPU();
 
   Tensor input = Tensor::create<float>({3}, {0.1f, 0.2f, 0.3f});
   Tensor output = Tensor::create<float>({3}, {0.3006f, 0.3322f, 0.3672f});

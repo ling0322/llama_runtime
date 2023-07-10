@@ -46,9 +46,9 @@ TEST_CASE("sprintf works", "[core][util]") {
   int i = 1234567;
   REQUIRE(ly::sprintf("%010d", i) == "0001234567");
   REQUIRE(ly::sprintf("%10d", i) == "   1234567");
-  REQUIRE(ly::sprintf("%x", i) == "0x12d687");
-  REQUIRE(ly::sprintf("%10x", i) == "  0x12d687");
-  REQUIRE(ly::sprintf("%X", i) == "0X12D687");
+  REQUIRE(ly::sprintf("%x", i) == "12d687");
+  REQUIRE(ly::sprintf("%10x", i) == "    12d687");
+  REQUIRE(ly::sprintf("%X", i) == "12D687");
 
   // float
   double f = 123.4567;
