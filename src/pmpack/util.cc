@@ -1,7 +1,8 @@
 #include "pmpack/util.h"
 
-namespace llama {
-namespace nn {
+#include "llyn/platform.h"
+
+namespace pmpack {
 
 // copy vector x to y.
 void scopy(int n, const float *x, int incx, float *y, int incy) {
@@ -11,12 +12,11 @@ void scopy(int n, const float *x, int incx, float *y, int incy) {
 }
 
 // allocate n single float and returns the holder. the memory is 32 byte aligned.
-util::AutoCPtr<float> salloc(int64_t n) {
-  return util::AutoCPtr<float>(
-      reinterpret_cast<float *>(util::alloc32ByteAlignedMem(sizeof(float) * n)),
-      util::free32ByteAlignedMem);
+ly::c_ptr<float> salloc(int64_t n) {
+  return ly::c_ptr<float>(
+      reinterpret_cast<float *>(ly::alloc32ByteAlignedMem(sizeof(float) * n)),
+      ly::free32ByteAlignedMem);
 }
 
-}  // namespace nn
-}  // namespace llama
+}  // namespace pmpack
 

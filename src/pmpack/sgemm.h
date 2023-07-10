@@ -3,15 +3,12 @@
 
 #include <stdint.h>
 #include <memory>
-#include "common/environment.h"
 #include "pmpack/pmpack.h"
 #include "pmpack/gemm_common.h"
 #include "pmpack/gemm_kernel.h"
 #include "pmpack/sgemv.h"
-#include "util/util.h"
 
-namespace llama {
-namespace nn {
+namespace pmpack {
 
 
 // -- class SGEMM ----------
@@ -171,7 +168,7 @@ void SGEMMImpl<TGEMMKernel, TGEMVImpl>::applyRowVectorA(
     int ldc) const {
   CHECK(M == 1);
 
-  util::AutoCPtr<float> packedA;
+  ly::c_ptr<float> packedA;
   bool needPackA = transA && lda != 1;
   if (needPackA) {
     packedA = salloc(K);
@@ -206,8 +203,8 @@ void SGEMMImpl<TGEMMKernel, TGEMVImpl>::applyColumnVectorB(
     int ldc) const {
   CHECK(N == 1);
 
-  util::AutoCPtr<float> packedB;
-  util::AutoCPtr<float> packedC;
+  ly::c_ptr<float> packedB;
+  ly::c_ptr<float> packedC;
 
   bool needPackB = (!transB) && ldb != 1;
   if (needPackB) {
@@ -237,5 +234,4 @@ void SGEMMImpl<TGEMMKernel, TGEMVImpl>::applyColumnVectorB(
   }
 }
 
-}  // namespace nn
-}  // namespace llama
+}  // namespace pmpack

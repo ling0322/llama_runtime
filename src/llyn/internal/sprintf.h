@@ -1,0 +1,105 @@
+#pragma once
+
+#include <sstream>
+
+namespace ly {
+namespace internal {
+
+// internal functions for Sprintf()
+constexpr int kSprintfMaxWeight = 200;
+char sprintfParseFormat(const char **pp_string, std::stringstream &ss);
+
+template<typename T>
+bool sprintfCheckType(char type_specifier) {
+  switch (type_specifier) {
+    case 'd':
+    case 'i':
+    case 'u':
+    case 'x':
+    case 'X':
+      return std::is_integral<std::decay<T>::type>::value &&
+             !std::is_same<std::decay<T>::type, char>::value;
+    case 'p':
+      return std::is_pointer<std::decay<T>::type>::value;
+    case 'e':
+    case 'E':
+    case 'g':
+    case 'G':
+    case 'a':
+    case 'A':
+    case 'f':
+      return std::is_floating_point<std::decay<T>::type>::value;
+    case 's':
+      return std::is_same<std::decay<T>::type, std::string>::value ||
+             std::is_same<std::decay<T>::type, char *>::value ||
+             std::is_same<std::decay<T>::type, const char *>::value;
+    case 'c':
+      return std::is_same<std::decay<T>::type, char>::value;
+    case '#':
+      return false;
+  }
+
+  return true;
+}
+
+inline std::string sprintf0(std::stringstream &ss, const char *pch) {
+  while (*pch) {
+    if (*pch == '%') {
+      char type_specifier = sprintfParseFormat(&pch, ss);
+      if (type_specifier != '%') {
+        ss << "%!" << type_specifier << "(<null>)";
+      } else {
+        ss << '%';
+      }
+    } else {
+      ss << *pch++;
+    }
+  }
+  return ss.str();
+}
+template<typename T, typename... Args>
+inline std::string sprintf0(std::stringstream &ss, const char *pch, T &&value, Args &&...args) {
+  const auto default_precision = ss.precision();
+  const auto default_width = ss.width();
+  const auto default_flags = ss.flags();
+  const auto default_fill = ss.fill();
+
+  while (*pch != '%' && *pch != '\0') {
+    ss << *pch++;
+  }
+
+  bool type_correct;
+  char type_specifier;
+  const char *pch_fmtb = pch;
+  if (*pch) {
+    type_specifier = sprintfParseFormat(&pch, ss);
+    if (type_specifier == '%') {
+      ss << '%';
+      return sprintf0(ss, pch, std::forward<T &&>(value), std::forward<Args>(args)...);
+    }
+    type_correct = sprintfCheckType<T>(type_specifier);
+    if (type_correct) {
+      ss << std::move(value);
+    }
+  } else {
+    type_specifier = '_';
+    type_correct = false;
+  }
+
+  ss.setf(default_flags);
+  ss.precision(default_precision);
+  ss.width(default_width);
+  ss.fill(default_fill);
+
+  if (type_specifier == '#') {
+    pch_fmtb++;
+    ss << "%!" << std::string(pch_fmtb, pch) <<  "(" << std::move(value) << ")";
+  } else if (!type_correct) {
+    ss << "%!" << type_specifier << "(" << std::move(value) << ")";
+  }
+
+  return sprintf0(ss, pch, std::forward<Args>(args)...);
+}
+
+}  // namespace internal
+}  // namespace ly

@@ -1,8 +1,7 @@
 #include <immintrin.h>
 #include <stdint.h>
 
-namespace llama {
-namespace nn {
+namespace pmpack {
 
 void sgemmKernel12x32Avx512(int64_t kc, float *a, float *b, float *c, int64_t rs_c) {
   // a: kc x MR
@@ -171,5 +170,4 @@ void sgemmKernel12x32Avx512(int64_t kc, float *a, float *b, float *c, int64_t rs
   pc += rs_c;
 }
 
-}  // namespace nn
-}  // namespace llama
+}  // namespace pmpack

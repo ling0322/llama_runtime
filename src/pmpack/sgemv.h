@@ -6,10 +6,8 @@
 #include "pmpack/pmpack.h"
 #include "pmpack/gemm_common.h"
 #include "pmpack/gemm_kernel.h"
-#include "util/util.h"
 
-namespace llama {
-namespace nn {
+namespace pmpack {
 
 class SGEMV {
  public:
@@ -105,5 +103,4 @@ void SGEMVImpl<TSAxpyKernel, TSDotKernel>::apply(
   }
 }
 
-}  // namespace nn
-}  // namespace llama
+}  // namespace pmpack

@@ -3,18 +3,15 @@
 
 #include <stdint.h>
 #include <memory>
-#include "common/environment.h"
 #include "pmpack/pmpack.h"
 #include "pmpack/util.h"
 #include "pmpack/gemm_common.h"
 #include "pmpack/gemm_kernel.h"
 #include "pmpack/sgemm.h"
-#include "util/util.h"
 
 // IGemmFp32QInt4Fp32 -> GemmFp32QInt4Fp32Impl -> GemmFp32QInt4Fp32Kernel
 
-namespace llama {
-namespace nn {
+namespace pmpack {
 
 class IGemmFp32QInt4Fp32 {
  public:
@@ -123,7 +120,7 @@ class GemmFp32QInt4Fp32Kernel {
       int ldc);
 
  private:
-  util::AutoCPtr<float> _dequantData;
+  ly::c_ptr<float> _dequantData;
   int64_t _dequantNumEl;
 };
 
@@ -239,12 +236,11 @@ void GemmFp32QInt4Fp32Impl<TQGemmKernel, TQDotKernel>::appleRowVectorA(
   }
 
   // GEMV
-  const ByteType *Bi = reinterpret_cast<const ByteType *>(B);
+  const uint8_t *Bi = reinterpret_cast<const uint8_t*>(B);
   for (int i = 0; i < N; ++i) {
     C[i] = TQDotKernel::apply(K, A, Bi, scaleDataB[i]);
     Bi += K / 2;
   }
 }
 
-}  // namespace nn
-}  // namespace llama
+}  // namespace pmpack

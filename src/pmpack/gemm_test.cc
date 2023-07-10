@@ -2,8 +2,8 @@
 
 #include "pmpack/gemm_kernel.h"
 #include "pmpack/pmpack.h"
-#include "nn/nn_test_helper.h"
-#include "nn/operators.h"
+#include "flint/nn_test_helper.h"
+#include "flint/operators.h"
 #include "util/random.h"
 #include "util/util.h"
 
@@ -36,7 +36,7 @@ void refGemmFp32QInt8Fp32(
   }
 }
 
-bool isClose(util::Span<const float> A, util::Span<const float> B) {
+bool isClose(ly::Span<const float> A, ly::Span<const float> B) {
   if (A.size() != B.size()) 
     return false;
 
@@ -53,11 +53,11 @@ void testGemmFp32QInt4Fp32(int M, int N, int K) {
   std::vector<uint8_t> B(K * N / 2);
   std::vector<float> scaleB(N);
 
-  util::Random random(MagicNumber);
+  ly::Random random(MagicNumber);
 
-  random.fill(util::makeSpan(A));
-  random.fillUInt8(util::makeSpan(B));
-  random.fill(util::makeSpan(scaleB));
+  random.fill(ly::makeSpan(A));
+  random.fillUInt8(ly::makeSpan(B));
+  random.fill(ly::makeSpan(scaleB));
 
   std::vector<float> C(M * N);
   std::vector<float> refC(M * N);
@@ -99,10 +99,10 @@ TEST_CASE("test dotFp32Int4Fp32", "[core][gemm][avx2]") {
   std::vector<float> x(DIM);
   std::vector<uint8_t> y(DIM / 2);
 
-  util::Random random(MagicNumber);
+  ly::Random random(MagicNumber);
 
-  random.fill(util::makeSpan(x));
-  random.fillUInt8(util::makeSpan(y));
+  random.fill(ly::makeSpan(x));
+  random.fillUInt8(ly::makeSpan(y));
 
   float rs = DOTFp32Int4Fp32FallbackKernel::apply(DIM, x.data(), y.data(), 0.1f);
   float s = DOTFp32Int4Fp32Avx2Kernel::apply(DIM, x.data(), y.data(), 0.1f);

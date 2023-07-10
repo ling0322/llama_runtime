@@ -1,0 +1,15 @@
+set_source_files_properties("gemm_kernel_avx512.cc" PROPERTIES COMPILE_FLAGS /arch:AVX512)
+set_source_files_properties("gemm_kernel_avx2.cc" PROPERTIES COMPILE_FLAGS /arch:AVX2)
+
+set(pmpack_SOURCES
+    "block.cc"
+    "gemm_kernel_avx512.cc"
+    "gemm_kernel_avx2.cc"
+    "gemm_kernel_fallback.cc"
+    "pmpack.cc"
+    "util.cc")
+
+add_library(pmpack STATIC ${pmpack_SOURCES} )
+target_include_directories(pmpack PRIVATE ..)
+target_compile_features(pmpack PRIVATE cxx_std_14)
+

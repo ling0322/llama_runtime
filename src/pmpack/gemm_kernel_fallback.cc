@@ -1,12 +1,10 @@
 #include "pmpack/gemm_kernel.h"
 
 #include <stdlib.h>
-#include "common/environment.h"
-#include "util/log.h"
-#include "util/util.h"
+#include "llyn/log.h"
 
-namespace llama {
-namespace nn {
+
+namespace pmpack {
 
 // -- fallback micro-kernels ---------
 
@@ -31,7 +29,7 @@ void sgemmKernel6x16Fallback(int64_t kc, float *a, float *b, float *c, int64_t r
 }
 
 // dequantize n numbers from src to tgt with the specified scale.
-void dequantizeInt4ToFloat32Fallback(const ByteType *src, float scale, int n, float *tgt) {
+void dequantizeInt4ToFloat32Fallback(const int8_t *src, float scale, int n, float *tgt) {
   CHECK(n % 2 == 0);
   int nb = n / 2;
 
@@ -58,5 +56,4 @@ float DOTFp32Int4Fp32FallbackKernel::apply(
   return sum;
 }
 
-}  // namespace nn
-}  // namespace llama
+}  // namespace pmpack

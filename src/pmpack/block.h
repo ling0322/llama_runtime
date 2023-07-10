@@ -1,10 +1,10 @@
 #pragma once
 
 #include <stdint.h>
-#include "common/common.h" 
 
-namespace llama {
-namespace nn {
+#include "llyn/log.h"
+
+namespace pmpack {
 
 // block is a sub area of a matrix.
 struct Block {
@@ -45,7 +45,7 @@ class QInt4Block {
   int64_t getGroupBytes() const { return _groupSize / 2; }
 
  private:
-  ByteType *_data;
+  int8_t *_data;
   float *_scaleData;
   int32_t _groupSize;
   int32_t _numRows;
@@ -72,8 +72,8 @@ constexpr Block Block::slice(int row, int col, int nr, int nc) {
 }
 
 constexpr void Block::copyTo(Block tgt) {
-  ASSERT(numRows == tgt.numRows);
-  ASSERT(numCols == tgt.numCols);
+  CHECK(numRows == tgt.numRows);
+  CHECK(numCols == tgt.numCols);
 
   if ((!transposed) && (!tgt.transposed)) {
     for (int r = 0; r < numRows; ++r) {
@@ -138,5 +138,4 @@ constexpr Block PackedBlock::block(int i) {
   };
 }
 
-}  // namespace nn
-}  // namespace llama
+}  // namespace pmpack

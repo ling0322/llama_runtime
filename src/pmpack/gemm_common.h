@@ -3,8 +3,7 @@
 #include "pmpack/block.h"
 #include "pmpack/pack.h"
 
-namespace llama {
-namespace nn {
+namespace pmpack {
 
 template<int MC, int KC, int NC, class TKernel>
 class GEMMCommon {
@@ -86,14 +85,14 @@ inline void GEMMCommon<MC, KC, NC, TKernel>::split1ByKC(Block Bn, Block Cj) {
   for (int i = 0; i < kb; ++i) {
     Block Bkn = Bn.sliceRow(i * KC, KC);
     Block Ak = _inputA.sliceCol(i * KC, KC);
-    PackedBlock Bp = nn::Pack(Bkn, _bufferB, NR);
+    PackedBlock Bp = Pack(Bkn, _bufferB, NR);
     split2ByMC(Ak, Bp, Cj);
   }
 
   if (kc) {
     Block Bkn = Bn.sliceRow(kb * KC, kc);
     Block Ak = _inputA.sliceCol(kb * KC, kc);
-    PackedBlock Bp = nn::Pack(Bkn, _bufferB, NR);
+    PackedBlock Bp = Pack(Bkn, _bufferB, NR);
     split2ByMC(Ak, Bp, Cj);
   }
 }
@@ -153,7 +152,7 @@ inline void GEMMCommon<MC, KC, NC, TKernel>::split2ByMC(Block Ak, PackedBlock Bp
   for (int i = 0; i < mb; ++i) {
     Block Amk = Ak.sliceRow(i * MC, MC);
     Block Cij = Cj.sliceRow(i * MC, MC);
-    PackedBlock Ap = nn::Pack(Amk.T(), _bufferA, MR);
+    PackedBlock Ap = Pack(Amk.T(), _bufferA, MR);
     applyGemmMacroKernel<MC, KC, NC, TKernel>(Ap, Bp, Cij);
   }
 
@@ -161,7 +160,7 @@ inline void GEMMCommon<MC, KC, NC, TKernel>::split2ByMC(Block Ak, PackedBlock Bp
     Block Amk = Ak.sliceRow(mb * MC, mc);
     Block Cij = Cj.sliceRow(mb * MC, mc);
 
-    PackedBlock Ap = nn::Pack(Amk.T(), _bufferA, MR);
+    PackedBlock Ap = Pack(Amk.T(), _bufferA, MR);
     applyGemmMacroKernel<MC, KC, NC, TKernel>(Ap, Bp, Cij); 
   }
 }
@@ -180,7 +179,5 @@ inline void GEMMCommon<MC, KC, NC, TKernel>::Apply(
   split0ByNC();
 }
 
-
-}  // namespace nn
-}  // namespace llama
+}  // namespace pmpack
 

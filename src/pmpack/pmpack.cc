@@ -4,11 +4,9 @@
 #include <memory>
 #include "pmpack/gemm_fp32qint4fp32.h"
 #include "pmpack/sgemm.h"
-#include "util/log.h"
-#include "util/util.h"
+#include "llyn/platform.h"
 
-namespace llama {
-namespace nn {
+namespace pmpack {
 
 enum class CPUMathBackend {
   DEFAULT,
@@ -17,10 +15,10 @@ enum class CPUMathBackend {
 };
 
 CPUMathBackend findBestCpuMathBackend() {
-  if (util::isAvx512Available()) {
+  if (ly::isAvx512Available()) {
     LOG(INFO) << "pmpack: Use Avx512 backend.";
     return CPUMathBackend::AVX512;
-  } else if (util::isAvx2Available()) {
+  } else if (ly::isAvx2Available()) {
     LOG(INFO) << "pmpack: Use Avx2 backend.";
     return CPUMathBackend::AVX2;
   } else {
@@ -95,23 +93,22 @@ const PMPack *PMPack::getInstance() {
   return _instance;
 }
 
-}  // namespace nn
-}  // namespace llama
+}  // namespace pmpack
 
 void pmpack_init() {
-  llama::nn::PMPack::init();
+  pmpack::PMPack::init();
 }
 
 void pmpack_set_num_threads(int32_t num_threads) {
-  llama::nn::PMPack::setNumThreads(num_threads);
+  pmpack::PMPack::setNumThreads(num_threads);
 }
 
 int32_t pmpack_get_num_threads() {
-  return llama::nn::PMPack::getNumThreads();
+  return pmpack::PMPack::getNumThreads();
 }
 
 void pmpack_destroy() {
-  llama::nn::PMPack::destroy();
+  pmpack::PMPack::destroy();
 }
 
 void pmpack_sgemm(
@@ -126,7 +123,7 @@ void pmpack_sgemm(
     int ldb,
     float *C,
     int ldc) {
-  llama::nn::PMPack::getInstance()->getSgemm()->apply(
+  pmpack::PMPack::getInstance()->getSgemm()->apply(
       transA, transB, M, N, K, A, lda, B, ldb, C, ldc);
 }
 
@@ -143,7 +140,7 @@ void pmpack_sgemm_batch(
     int ldb,
     float *const *batchC,
     int ldc) {
-  llama::nn::PMPack::getInstance()->getSgemm()->applyBatch(
+  pmpack::PMPack::getInstance()->getSgemm()->applyBatch(
       batch_size, transA, transB, M, N, K, batchA, lda, batchB, ldb, batchC, ldc);
 }
 
@@ -160,7 +157,7 @@ void pmpack_gemm_fp32qint4fp32(
     int groupSizeB,
     float *C,
     int ldc) {
-  llama::nn::PMPack::getInstance()->getGemmFp32QInt4Fp32()->apply(
+  pmpack::PMPack::getInstance()->getGemmFp32QInt4Fp32()->apply(
       transA, transB, M, N, K, A, lda, B, scaleDataB, groupSizeB, C, ldc);
 }
 
@@ -178,7 +175,7 @@ void pmpack_gemm_fp32qint4fp32_batch(
     int groupSizeB,
     float *const *batchC,
     int ldc) {
-  llama::nn::PMPack::getInstance()->getGemmFp32QInt4Fp32()->applyBatch(
+  pmpack::PMPack::getInstance()->getGemmFp32QInt4Fp32()->applyBatch(
       batchSize,
       transA,
       transB,

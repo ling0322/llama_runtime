@@ -1,10 +1,8 @@
 #include "pmpack/block.h"
 
 #include "pmpack/gemm_kernel.h"
-#include "util/log.h"
 
-namespace llama {
-namespace nn {
+namespace pmpack {
 
 void QInt4Block::dequantizeTo(Block tgt) const {
   CHECK(_numRows == tgt.numRows);
@@ -16,7 +14,7 @@ void QInt4Block::dequantizeTo(Block tgt) const {
     int nb = _numRows / _groupSize;
     int64_t groupBytes = getGroupBytes();
 
-    ByteType *pSrc = _data;
+    int8_t *pSrc = _data;
     float *pTgt = tgt.data;
     float *pScale = _scaleData;
 
@@ -40,12 +38,11 @@ QInt4Block::QInt4Block(
     int32_t numRows,
     int32_t numCols,
     bool transposed)
-        : _data(reinterpret_cast<ByteType *>(data)),
+        : _data(reinterpret_cast<int8_t *>(data)),
           _scaleData(scaleData),
           _groupSize(groupSize),
           _numRows(numRows),
           _numCols(numCols),
           _transposed(transposed) {}
 
-}  // namespace nn
-}  // namespace llama
+}  // namespace pmpack

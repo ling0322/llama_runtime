@@ -3,10 +3,8 @@
 
 #include <stdint.h>
 #include <memory>
-#include "util/util.h"
 
-namespace llama {
-namespace nn {
+namespace pmpack {
 
 // -- avx512 kernels ---------
 
@@ -22,7 +20,7 @@ float dotFp32Int4Fp32KernelAvx2(int64_t n, const float *x, const uint8_t *y, flo
 // -- fallback kernels ---------
 
 void sgemmKernel6x16Fallback(int64_t kc, float *a, float *b, float *c, int64_t rs_c);
-void dequantizeInt4ToFloat32Fallback(const ByteType *src, float scale, int n, float *tgt);
+void dequantizeInt4ToFloat32Fallback(const int8_t *src, float scale, int n, float *tgt);
 float dotFp32Int4Fp32KernelFallback(int64_t n, const float *x, const uint8_t *y, float scale);
 
 // -- classes ----------
@@ -78,5 +76,4 @@ class DOTFp32Int4Fp32FallbackKernel {
   static float apply(int64_t n, const float *x, const uint8_t *y, float scale);
 };
 
-}  // namespace nn
-}  // namespace llama
+}  // namespace pmpack

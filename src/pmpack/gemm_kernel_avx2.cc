@@ -3,8 +3,7 @@
 #include <immintrin.h>
 #include <stdint.h>
 
-namespace llama {
-namespace nn {
+namespace pmpack {
 
 void sgemmKernel6x16Avx2(int64_t kc, float *a, float *b, float *c, int64_t rs_c) {
   // a: kc x MR
@@ -234,5 +233,4 @@ float DOTFp32Int4Fp32Avx2Kernel::apply(int64_t n, const float *x, const uint8_t 
   return sum;
 }
 
-}  // namespace nn
-}  // namespace llama
+}  // namespace pmpack
