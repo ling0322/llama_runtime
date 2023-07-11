@@ -10,16 +10,20 @@ namespace ly {
 template<typename T>
 class Span : public internal::BaseArray<T> {
  public:
+
   Span() noexcept : internal::BaseArray<T>() {}
-  Span(T *ptr, size_type size) : internal::BaseArray<T>(ptr, size) {}
+  Span(T *ptr, typename internal::BaseArray<T>::size_type size)
+      : internal::BaseArray<T>(ptr, size) {}
 
   // automatic convert initializer_list to Span<const T>.
   // NOTE: initializer_list should outlives span when using this constructor.
   // Examples:
   //   Span<const int> v = {1, 2, 3};  // WRONG: lifetime of initializer_list is shorter than v;
   template <typename U = T,
-            typename = std::enable_if<std::is_const<T>::value, U>::type>
-  Span(std::initializer_list<value_type> v LY_LIFETIME_BOUND) noexcept
+            typename = typename std::enable_if<std::is_const<T>::value, U>::type>
+  Span(std::initializer_list<
+          typename internal::BaseArray<T>::value_type
+      > v LY_LIFETIME_BOUND) noexcept
       : Span(v.begin(), v.size()) {}
 
   // automatic convert std::vector<T> to Span<const T>.
@@ -27,14 +31,16 @@ class Span : public internal::BaseArray<T> {
   // Examples:
   //   Span<const int> v = {1, 2, 3};  // WRONG: lifetime of initializer_list is shorter than v;
   template <typename U = T,
-            typename = std::enable_if<std::is_const<T>::value, U>::type>
-  Span(std::vector<value_type> &v LY_LIFETIME_BOUND) noexcept
+            typename = typename std::enable_if<std::is_const<T>::value, U>::type>
+  Span(std::vector<typename internal::BaseArray<T>:: value_type> &v LY_LIFETIME_BOUND) noexcept
       : Span(v.data(), v.size()) {}
 
-  Span<T> subspan(size_type pos = 0, size_type len = npos) const {
-    CHECK(pos <= size());
-    len = std::min(size() - pos, len);
-    return Span<T>(data() + pos, len);
+  Span<T> subspan(
+      typename internal::BaseArray<T>::size_type pos = 0,
+      typename internal::BaseArray<T>::size_type len = internal::BaseArray<T>::npos) const {
+    CHECK(pos <= internal::BaseArray<T>::size());
+    len = std::min(internal::BaseArray<T>::size() - pos, len);
+    return Span<T>(internal::BaseArray<T>::data() + pos, len);
   }
 };
 

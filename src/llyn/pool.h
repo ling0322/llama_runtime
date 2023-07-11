@@ -90,7 +90,7 @@ void Pool<T, BLOCK_SIZE>::clear() {
 
 template<typename T, int BLOCK_SIZE>
 int Pool<T, BLOCK_SIZE>::getNumFree() const {
-  return _free.size() + (blocks_.size() - _currentBlock) * BLOCK_SIZE - _currentOffset;
+  return _free.size() + (_blocks.size() - _currentBlock) * BLOCK_SIZE - _currentOffset;
 }
 
 template<typename T, int BLOCK_SIZE>

@@ -17,10 +17,10 @@ bool sprintfCheckType(char type_specifier) {
     case 'u':
     case 'x':
     case 'X':
-      return std::is_integral<std::decay<T>::type>::value &&
-             !std::is_same<std::decay<T>::type, char>::value;
+      return std::is_integral<typename std::decay<T>::type>::value &&
+             !std::is_same<typename std::decay<T>::type, char>::value;
     case 'p':
-      return std::is_pointer<std::decay<T>::type>::value;
+      return std::is_pointer<typename std::decay<T>::type>::value;
     case 'e':
     case 'E':
     case 'g':
@@ -28,13 +28,13 @@ bool sprintfCheckType(char type_specifier) {
     case 'a':
     case 'A':
     case 'f':
-      return std::is_floating_point<std::decay<T>::type>::value;
+      return std::is_floating_point<typename std::decay<T>::type>::value;
     case 's':
-      return std::is_same<std::decay<T>::type, std::string>::value ||
-             std::is_same<std::decay<T>::type, char *>::value ||
-             std::is_same<std::decay<T>::type, const char *>::value;
+      return std::is_same<typename std::decay<T>::type, std::string>::value ||
+             std::is_same<typename std::decay<T>::type, char *>::value ||
+             std::is_same<typename std::decay<T>::type, const char *>::value;
     case 'c':
-      return std::is_same<std::decay<T>::type, char>::value;
+      return std::is_same<typename std::decay<T>::type, char>::value;
     case '#':
       return false;
   }
@@ -42,7 +42,7 @@ bool sprintfCheckType(char type_specifier) {
   return true;
 }
 
-inline std::string sprintf0(std::stringstream &ss, const char *pch) {
+inline std::string sprintf0(std::stringstream &&ss, const char *pch) {
   while (*pch) {
     if (*pch == '%') {
       char type_specifier = sprintfParseFormat(&pch, ss);
@@ -58,7 +58,8 @@ inline std::string sprintf0(std::stringstream &ss, const char *pch) {
   return ss.str();
 }
 template<typename T, typename... Args>
-inline std::string sprintf0(std::stringstream &ss, const char *pch, T &&value, Args &&...args) {
+inline std::string sprintf0(
+      std::stringstream &&ss, const char *pch, const T &value, Args &&...args) {
   const auto default_precision = ss.precision();
   const auto default_width = ss.width();
   const auto default_flags = ss.flags();
@@ -75,11 +76,11 @@ inline std::string sprintf0(std::stringstream &ss, const char *pch, T &&value, A
     type_specifier = sprintfParseFormat(&pch, ss);
     if (type_specifier == '%') {
       ss << '%';
-      return sprintf0(ss, pch, std::forward<T &&>(value), std::forward<Args>(args)...);
+      return sprintf0(std::move(ss), pch, value, std::forward<Args>(args)...);
     }
     type_correct = sprintfCheckType<T>(type_specifier);
     if (type_correct) {
-      ss << std::move(value);
+      ss << value;
     }
   } else {
     type_specifier = '_';
@@ -93,12 +94,12 @@ inline std::string sprintf0(std::stringstream &ss, const char *pch, T &&value, A
 
   if (type_specifier == '#') {
     pch_fmtb++;
-    ss << "%!" << std::string(pch_fmtb, pch) <<  "(" << std::move(value) << ")";
+    ss << "%!" << std::string(pch_fmtb, pch) <<  "(" << value << ")";
   } else if (!type_correct) {
-    ss << "%!" << type_specifier << "(" << std::move(value) << ")";
+    ss << "%!" << type_specifier << "(" << value << ")";
   }
 
-  return sprintf0(ss, pch, std::forward<Args>(args)...);
+  return sprintf0(std::move(ss), pch, std::forward<Args>(args)...);
 }
 
 }  // namespace internal

@@ -30,18 +30,3 @@ add_executable(llmrt_test
     ${pmpack_test_SOURCES})
 target_include_directories(llmrt_test PRIVATE ${llmrt_INCDIRS})
 target_link_libraries(llmrt_test llmrt)
-
-set(OPENBLAS_INCLUDE_DIR ${OPENBLAS_DIR}/include)
-set(OPENBLAS_LIB ${OPENBLAS_DIR}/lib/libopenblas.lib)
-set(OPENBLAS_DYNLIB ${OPENBLAS_DIR}/bin/libopenblas.dll)
-
-set(llmrt_benchmark_SOURCES
-    "gpt2_model_benchmark.cc"
-    "test_main.cc"
-    "../../third_party/catch2/catch_amalgamated.cpp")
-add_executable(llmrt_benchmark ${llmrt_benchmark_SOURCES})
-target_link_libraries(llmrt_benchmark ${OPENBLAS_LIB} OpenMP::OpenMP_CXX)
-target_include_directories(llmrt_benchmark PRIVATE ${llmrt_INCDIRS} ${OPENBLAS_INCLUDE_DIR})
-add_custom_command(TARGET llmrt_benchmark POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy ${OPENBLAS_DYNLIB} $<TARGET_FILE_DIR:llmrt_benchmark>)
-

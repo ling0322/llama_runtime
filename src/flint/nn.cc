@@ -102,6 +102,9 @@ std::string Context::name(const std::string &name) const {
 
 // -- class Linear ------------------------------------------------------------
 
+constexpr char Linear::kWeight[];
+constexpr char Linear::kBias[];
+
 Linear::Linear() : _inFeatures(0), _outFeatures(0) {}
 
 std::unique_ptr<Linear> Linear::create(const Context &ctx, int inFeatures, int outFeatures) {
@@ -141,6 +144,9 @@ Tensor Linear::forward(const Tensor &input) const {
 }
 
 // -- class LayerNorm ---------------------------------------------------------
+
+constexpr char LayerNorm::kWeight[];
+constexpr char LayerNorm::kBias[];
 
 LayerNorm::LayerNorm() : _dModel(0), _eps(0.0f) {}
 

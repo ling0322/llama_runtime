@@ -1,5 +1,13 @@
-set_source_files_properties("gemm_kernel_avx512.cc" PROPERTIES COMPILE_FLAGS /arch:AVX512)
-set_source_files_properties("gemm_kernel_avx2.cc" PROPERTIES COMPILE_FLAGS /arch:AVX2)
+
+
+if(WIN32)
+    set_source_files_properties("gemm_kernel_avx512.cc" PROPERTIES COMPILE_FLAGS /arch:AVX512)
+    set_source_files_properties("gemm_kernel_avx2.cc" PROPERTIES COMPILE_FLAGS /arch:AVX2)
+endif(WIN32)
+if(UNIX)
+    set_source_files_properties("gemm_kernel_avx512.cc" PROPERTIES COMPILE_FLAGS "-mavx512f")
+    set_source_files_properties("gemm_kernel_avx2.cc" PROPERTIES COMPILE_FLAGS "-march=native")
+endif(UNIX)
 
 set(pmpack_SOURCES
     "block.cc"

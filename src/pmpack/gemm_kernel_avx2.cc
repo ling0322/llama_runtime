@@ -178,7 +178,7 @@ float DOTFp32Int4Fp32Avx2Kernel::apply(int64_t n, const float *x, const uint8_t 
   const uint8_t *py = y;
   for (int i = 0; i < nb; ++i) {
     // read 32 int4 (16 bytes), convert to 32 int8 and store to yint8x32 
-    yint8x32 = _mm256_cvtepu8_epi16(_mm_loadu_epi8(py));
+    yint8x32 = _mm256_cvtepu8_epi16(_mm_loadu_si128(reinterpret_cast<const __m128i *>(py)));
     yint8x32odd = _mm256_slli_epi16(yint8x32, 8);
     yint8x32even = _mm256_srli_epi16(yint8x32, 4);
     yint8x32 = _mm256_or_si256(yint8x32odd, yint8x32even);

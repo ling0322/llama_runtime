@@ -1,5 +1,6 @@
 #pragma once
 
+#include <assert.h>
 #include <functional>
 #include <string>
 #include <vector>
@@ -37,12 +38,12 @@ class BaseArray {
     return *(_ptr + i);
   }
   reference at(size_type i) const {
-    ASSERT(i < _size && i >= 0);
+    assert(i < _size && i >= 0);
     return *(_ptr + i);
   }
   reference front() const noexcept { ASSERT(!empty()); return *_ptr; }
   reference back() const noexcept { 
-    ASSERT(!empty());
+    assert(!empty());
     return *(_ptr + _size - 1);
   }
   iterator begin() const noexcept { return _ptr; }

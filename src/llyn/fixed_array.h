@@ -7,13 +7,13 @@ namespace ly {
 template<typename T>
 class FixedArray : public internal::BaseArray<T> {
  public:
-  FixedArray() noexcept : BaseArray() {}
+  FixedArray() noexcept : internal::BaseArray<T>() {}
   FixedArray(int size) noexcept : 
-      BaseArray(size ? new T[size] : nullptr, size) {}
+      internal::BaseArray<T>(size ? new T[size] : nullptr, size) {}
   ~FixedArray() noexcept {
-    delete[] _ptr;
-    _ptr = nullptr;
-    _size = 0;
+    delete[] internal::BaseArray<T>::_ptr;
+    internal::BaseArray<T>::_ptr = nullptr;
+    internal::BaseArray<T>::_size = 0;
   }
 
   // copy
@@ -22,18 +22,18 @@ class FixedArray : public internal::BaseArray<T> {
 
   // move
   FixedArray(FixedArray<T> &&array) noexcept {
-    _ptr = array._ptr;
-    _size = array._size;
+    internal::BaseArray<T>::_ptr = array._ptr;
+    internal::BaseArray<T>::_size = array._size;
     array._ptr = nullptr;
     array._size = 0;
   }
   FixedArray<T> &operator=(FixedArray<T> &&array) noexcept {
-    if (_ptr) {
-      delete[] _ptr;
+    if (internal::BaseArray<T>::_ptr) {
+      delete[] internal::BaseArray<T>::_ptr;
     }
 
-    _ptr = array._ptr;
-    _size = array._size;
+    internal::BaseArray<T>::_ptr = array._ptr;
+    internal::BaseArray<T>::_size = array._size;
     array._ptr = nullptr;
     array._size = 0;
 
@@ -41,8 +41,8 @@ class FixedArray : public internal::BaseArray<T> {
   }
 
   FixedArray<T> copy() const {
-    FixedArray<T> l(_size);
-    std::copy(begin(), end(), l.begin());
+    FixedArray<T> l(internal::BaseArray<T>::_size);
+    std::copy(internal::BaseArray<T>::begin(), internal::BaseArray<T>::end(), l.begin());
 
     return l;
   }

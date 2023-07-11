@@ -20,6 +20,8 @@ using flint::LongType;
 
 // -- class GPT2Config ----------
 
+constexpr char GPT2Config::kSection[];
+
 GPT2Config::GPT2Config()
     : nEmbd(0),
       nCtx(0),
@@ -47,6 +49,12 @@ std::unique_ptr<GPT2Config> GPT2Config::fromIni(const ly::IniConfig &ini) {
 }
 
 // -- class GPT2Block ----------
+
+constexpr char GPT2Block::kLn1[];
+constexpr char GPT2Block::kLn2[];
+constexpr char GPT2Block::kFc[];
+constexpr char GPT2Block::kProj[];
+constexpr char GPT2Block::kAttn[];
 
 GPT2Block::GPT2Block() {}
 
@@ -101,6 +109,13 @@ Tensor GPT2Block::forward(TensorMap *past, TensorCRef input, TensorCRef mask) co
 }
 
 // -- class GPT2Model ----------
+
+constexpr char GPT2Model::kGpt2[];
+constexpr char GPT2Model::kWte[];
+constexpr char GPT2Model::kWpe[];
+constexpr char GPT2Model::kLnF[];
+constexpr char GPT2Model::kBlock[];
+constexpr char GPT2Model::kSeqLen[];
 
 GPT2Model::GPT2Model() {}
 

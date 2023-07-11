@@ -1,4 +1,6 @@
 #include "llmrt/transformer.h"
+
+#include <math.h>
 #include "flint/nn.h"
 #include "flint/operators.h"
 #include "llyn/error.h"
@@ -15,6 +17,11 @@ using flint::Tensor;
 using flint::Operators;
 using flint::DType;
 using flint::LongType;
+
+constexpr char MultiheadSelfAttention::kQProj[];
+constexpr char MultiheadSelfAttention::kKProj[];
+constexpr char MultiheadSelfAttention::kVProj[];
+constexpr char MultiheadSelfAttention::kOutProj[];
 
 MultiheadSelfAttention::MultiheadSelfAttention()
     : _dModel(0),

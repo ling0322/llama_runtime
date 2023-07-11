@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <math.h>
 #include <array>
+#include <limits>
 #include <memory>
 #include <string>
 #include <vector>
@@ -20,6 +21,8 @@ using ly::IniSection;
 using ly::ReadableFile;
 
 namespace gentok {
+
+constexpr int Vocab::kInvalidToken;
 
 // config for BPE tokenizer.
 struct BPEConfig {

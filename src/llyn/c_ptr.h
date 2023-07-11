@@ -24,7 +24,7 @@ class c_ptr : private NonCopyable {
   const T *get() const { return _ptr; }
 
   // get the pointer to this pointer.
-  T **get_pp() { CHECK(deleter_); return &_ptr; }
+  T **get_pp() { CHECK(_deleter); return &_ptr; }
 
  private:
   T *_ptr;

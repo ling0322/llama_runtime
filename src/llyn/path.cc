@@ -1,6 +1,5 @@
 #include "llyn/path.h"
 
-#include <windows.h>
 #include "llyn/log.h"
 #include "llyn/platform.h"
 #include "llyn/strings.h"
@@ -14,7 +13,7 @@ Path Path::dirname() const {
   const char *delim = getPathDelim();
   int lastDelimIdx = _path.find_last_of(delim);
   if (lastDelimIdx == std::string::npos) {
-    return "";
+    return Path();
   }
 
   std::string name = std::string(_path.begin(), _path.begin() + lastDelimIdx);
