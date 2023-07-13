@@ -17,27 +17,6 @@ class Operators;
 class Function;
 class Tensor;
 
-// string -> Tensor dictioary. Usually used to store state-dict or kv-cache for a neural network.
-class TensorMap {
- public:
-  void read(const std::string &filename);
-
-  // get tensor by name. abort if not exist.
-  Tensor getTensor(const std::string &name) const;
-
-  // put tensor.
-  void putTensor(const std::string &name, TensorCRef tensor);
-
-  // try to get tensor by name. return AbortError() if not exist.
-  bool getTensorNoThrow(const std::string &name, Tensor *tensor) const;
-
-  // return true if the tensor exists. 
-  bool hasTensor(const std::string &name) const;
-
- private:
-  std::unordered_map<std::string, Tensor> _dict;
-}; 
-
 // context for a module including operator set, device info and the namespace
 class Context {
  public:
@@ -69,6 +48,8 @@ class Context {
 // base class for all nn modules.
 class Module {
  public:
+  virtual ~Module() = default;
+
   // load the module states from `state_dict`
   virtual void initParameters(const TensorMap &stateDict) = 0;
 };
@@ -127,7 +108,7 @@ class LayerNorm : public Module {
  public:
   static std::unique_ptr<LayerNorm> create(const Context &ctx, int d_model, float eps = 1e-5);
   
-  // initialize the module from context
+  // initialize the module from state dict.
   void initParameters(const TensorMap &state_dict) override;
 
   // forward input and return the output.

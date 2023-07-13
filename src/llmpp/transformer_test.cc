@@ -1,11 +1,11 @@
 #include "catch2/catch_amalgamated.hpp"
-#include "llmrt/transformer.h"
+#include "llmpp/transformer.h"
 #include "flint/operators.h"
 #include "flint/util.h"
 #include "llyn/path.h"
 
 using namespace flint;
-using namespace llmrt;
+using namespace llmpp;
 using namespace ly;
 
 constexpr int kDModel0 = 16;

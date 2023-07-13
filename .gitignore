@@ -1,6 +1,8 @@
 .vscode
-build
 transformers
+/data
+/build
+/run
 
 *.model
 *.bin

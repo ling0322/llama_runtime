@@ -4,7 +4,7 @@
 #include <mutex>
 #include "llyn/noncopyable.h"
 
-namespace llama {
+namespace llmpp {
 
 namespace nn {
 class Operators;
@@ -26,4 +26,4 @@ class Environment : private ly::NonCopyable {
   static Impl *_instance;
 };
 
-}  // namespace llama
+}  // namespace llmpp

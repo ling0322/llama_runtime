@@ -1,1 +1,1 @@
-# llama_runtime
+# LLM++: Yet another C++ implementation of LLM generator.

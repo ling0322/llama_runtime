@@ -7,7 +7,7 @@
 #include "util/strings.h"
 #include "util/util.h"
 
-using namespace llama;
+using namespace llmpp;
 using namespace nn;
 using namespace flint;
 using namespace std::literals;

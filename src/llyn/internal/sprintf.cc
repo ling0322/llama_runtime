@@ -1,6 +1,7 @@
 #include "llyn/internal/sprintf.h"
 
 #include <iomanip>
+#include <string.h>
 #include "llyn/log.h"
 
 namespace ly {
@@ -29,7 +30,10 @@ int readDigit(const char **ppch, char *buf, int buf_size) {
   *pbuf = '\0';
   *ppch = pch;
 
+  if (strlen(buf) > 3)
+    return kSprintfMaxWeight;
   int n = atoi(buf);
+  
   return n < kSprintfMaxWeight ? n : kSprintfMaxWeight;
 }
 

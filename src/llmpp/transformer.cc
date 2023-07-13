@@ -1,11 +1,11 @@
-#include "llmrt/transformer.h"
+#include "llmpp/transformer.h"
 
 #include <math.h>
 #include "flint/nn.h"
 #include "flint/operators.h"
 #include "llyn/error.h"
 
-namespace llmrt {
+namespace llmpp {
 
 using flint::Context;
 using flint::LayerNorm;
@@ -119,4 +119,4 @@ Tensor MultiheadSelfAttention::forward(TensorMap *past, TensorCRef inputs, Tenso
   return output;
 }
 
-}  // namespace llmrt
+}  // namespace llmpp

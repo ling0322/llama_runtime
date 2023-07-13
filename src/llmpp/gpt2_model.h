@@ -2,12 +2,12 @@
 
 #include <memory>
 #include "flint/nn.h"
-#include "llmrt/transformer.h"
+#include "llmpp/transformer.h"
 #include "llyn/ini_config.h"
 
-namespace llmrt {
+namespace llmpp {
 
-// Options for BLOOM model.
+// Options for GPT2 model.
 struct GPT2Config {
   // config section in ini
   static constexpr char kSection[] = "gpt2";
@@ -109,4 +109,4 @@ class GPT2Model : public flint::Module,
   GPT2Model();
 };
 
-}  // namespace llmrt
+}  // namespace llmpp

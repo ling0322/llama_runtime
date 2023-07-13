@@ -14,35 +14,35 @@ void sgemmKernel6x16Avx2(int64_t kc, float *a, float *b, float *c, int64_t rs_c)
   __m256 a00, b00, b01;
 
   float *pc = c;
-  c00 = _mm256_load_ps(pc);
-  c01 = _mm256_load_ps(pc + 8);
+  c00 = _mm256_loadu_ps(pc);
+  c01 = _mm256_loadu_ps(pc + 8);
   pc += rs_c;
 
-  c10 = _mm256_load_ps(pc);
-  c11 = _mm256_load_ps(pc + 8);
+  c10 = _mm256_loadu_ps(pc);
+  c11 = _mm256_loadu_ps(pc + 8);
   pc += rs_c;
 
-  c20 = _mm256_load_ps(pc);
-  c21 = _mm256_load_ps(pc + 8);
+  c20 = _mm256_loadu_ps(pc);
+  c21 = _mm256_loadu_ps(pc + 8);
   pc += rs_c;
 
-  c30 = _mm256_load_ps(pc);
-  c31 = _mm256_load_ps(pc + 8);
+  c30 = _mm256_loadu_ps(pc);
+  c31 = _mm256_loadu_ps(pc + 8);
   pc += rs_c;
 
-  c40 = _mm256_load_ps(pc);
-  c41 = _mm256_load_ps(pc + 8);
+  c40 = _mm256_loadu_ps(pc);
+  c41 = _mm256_loadu_ps(pc + 8);
   pc += rs_c;
 
-  c50 = _mm256_load_ps(pc);
-  c51 = _mm256_load_ps(pc + 8);
+  c50 = _mm256_loadu_ps(pc);
+  c51 = _mm256_loadu_ps(pc + 8);
   pc += rs_c;
 
   float *pa = a;
   float *pb = b;
   for (int k = 0; k < kc; ++k) {
-    b00 = _mm256_load_ps(pb);
-    b01 = _mm256_load_ps(pb + 8);
+    b00 = _mm256_loadu_ps(pb);
+    b01 = _mm256_loadu_ps(pb + 8);
     a00 = _mm256_broadcast_ss(pa);
 
     c00 = _mm256_fmadd_ps(a00, b00, c00);
@@ -78,28 +78,28 @@ void sgemmKernel6x16Avx2(int64_t kc, float *a, float *b, float *c, int64_t rs_c)
   }
 
   pc = c;
-  _mm256_store_ps(pc, c00);
-  _mm256_store_ps(pc + 8, c01);
+  _mm256_storeu_ps(pc, c00);
+  _mm256_storeu_ps(pc + 8, c01);
   pc += rs_c;
 
-  _mm256_store_ps(pc, c10);
-  _mm256_store_ps(pc + 8, c11);
+  _mm256_storeu_ps(pc, c10);
+  _mm256_storeu_ps(pc + 8, c11);
   pc += rs_c;
 
-  _mm256_store_ps(pc, c20);
-  _mm256_store_ps(pc + 8, c21);
+  _mm256_storeu_ps(pc, c20);
+  _mm256_storeu_ps(pc + 8, c21);
   pc += rs_c;
 
-  _mm256_store_ps(pc, c30);
-  _mm256_store_ps(pc + 8, c31);
+  _mm256_storeu_ps(pc, c30);
+  _mm256_storeu_ps(pc + 8, c31);
   pc += rs_c;
 
-  _mm256_store_ps(pc, c40);
-  _mm256_store_ps(pc + 8, c41);
+  _mm256_storeu_ps(pc, c40);
+  _mm256_storeu_ps(pc + 8, c41);
   pc += rs_c;
 
-  _mm256_store_ps(pc, c50);
-  _mm256_store_ps(pc + 8, c51);
+  _mm256_storeu_ps(pc, c50);
+  _mm256_storeu_ps(pc + 8, c51);
   pc += rs_c;
 }
 
@@ -113,8 +113,8 @@ void saxpyKernelAvx2(int64_t n, float a, const float *x, float *y) {
   const float *px = x;
   float *py = y;
   for (int i = 0; i < nb; ++i) {
-    x00 = _mm256_load_ps(px);
-    y00 = _mm256_load_ps(py);
+    x00 = _mm256_loadu_ps(px);
+    y00 = _mm256_loadu_ps(py);
 
     y00 = _mm256_fmadd_ps(a00, x00, y00);
     _mm256_store_ps(py, y00);
@@ -139,8 +139,8 @@ float sdotKernelAvx2(int64_t n, const float *x, const float *y) {
   const float *px = x;
   const float *py = y;
   for (int i = 0; i < nb; ++i) {
-    x00 = _mm256_load_ps(px);
-    y00 = _mm256_load_ps(py);
+    x00 = _mm256_loadu_ps(px);
+    y00 = _mm256_loadu_ps(py);
     a00 = _mm256_fmadd_ps(x00, y00, a00);
 
     px += 8;
@@ -188,7 +188,7 @@ float DOTFp32Int4Fp32Avx2Kernel::apply(int64_t n, const float *x, const uint8_t 
     yint8x32 = _mm256_sub_epi8(yint8x32, ymm0x8);
 
     // subblock 0
-    x00 = _mm256_load_ps(px);
+    x00 = _mm256_loadu_ps(px);
     y00 = _mm256_cvtepi32_ps(_mm256_cvtepi8_epi32(_mm256_extracti128_si256(yint8x32, 0)));
     y00 = _mm256_mul_ps(y00, ymmScale);
     a00 = _mm256_fmadd_ps(x00, y00, a00);
@@ -197,7 +197,7 @@ float DOTFp32Int4Fp32Avx2Kernel::apply(int64_t n, const float *x, const uint8_t 
     // subblock 1
     yint8x16 = _mm256_extracti128_si256(yint8x32, 0);
     yint8x16 = _mm_srli_si128(yint8x16, 8);
-    x00 = _mm256_load_ps(px);
+    x00 = _mm256_loadu_ps(px);
     y00 = _mm256_cvtepi32_ps(_mm256_cvtepi8_epi32(yint8x16));
     y00 = _mm256_mul_ps(y00, ymmScale);
     a00 = _mm256_fmadd_ps(x00, y00, a00);
@@ -205,7 +205,7 @@ float DOTFp32Int4Fp32Avx2Kernel::apply(int64_t n, const float *x, const uint8_t 
 
     // subblock 2
     yint8x16 = _mm256_extracti128_si256(yint8x32, 1);
-    x00 = _mm256_load_ps(px);
+    x00 = _mm256_loadu_ps(px);
     y00 = _mm256_cvtepi32_ps(_mm256_cvtepi8_epi32(yint8x16));
     y00 = _mm256_mul_ps(y00, ymmScale);
     a00 = _mm256_fmadd_ps(x00, y00, a00);
@@ -213,7 +213,7 @@ float DOTFp32Int4Fp32Avx2Kernel::apply(int64_t n, const float *x, const uint8_t 
 
     // subblock 3
     yint8x16 = _mm_srli_si128(yint8x16, 8);
-    x00 = _mm256_load_ps(px);
+    x00 = _mm256_loadu_ps(px);
     y00 = _mm256_cvtepi32_ps(_mm256_cvtepi8_epi32(yint8x16));
     y00 = _mm256_mul_ps(y00, ymmScale);
     a00 = _mm256_fmadd_ps(x00, y00, a00);

@@ -1,11 +1,11 @@
-#include "llmrt/gpt2_model.h"
+#include "llmpp/gpt2_model.h"
 
 #include <memory>
 #include "flint/operators.h"
 #include "llyn/ini_config.h"
 #include "llyn/strings.h"
 
-namespace llmrt {
+namespace llmpp {
 
 using flint::Context;
 using flint::LayerNorm;
@@ -192,4 +192,4 @@ Tensor GPT2Model::logits(TensorCRef hiddenState) const {
   return F->matmul(hiddenState, _wte.transpose(0, 1));
 }
 
-}  // namespace llmrt
+}  // namespace llmpp

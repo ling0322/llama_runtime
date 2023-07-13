@@ -1,7 +1,7 @@
 #include "catch2/catch_amalgamated.hpp"
-#include "llmrt/environment.h"
+#include "llmpp/environment.h"
 
-using llama::Environment;
+using llmpp::Environment;
 
 int main(int argc, char **argv) {
   Environment::init();

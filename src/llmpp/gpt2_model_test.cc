@@ -1,10 +1,10 @@
 #include "catch2/catch_amalgamated.hpp"
 #include "flint/operators.h"
 #include "flint/util.h"
-#include "llmrt/gpt2_model.h"
+#include "llmpp/gpt2_model.h"
 #include "llyn/ini_config.h"
 
-using namespace llmrt;
+using namespace llmpp;
 using namespace ly;
 using namespace flint;
 

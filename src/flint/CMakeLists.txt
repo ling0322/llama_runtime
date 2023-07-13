@@ -2,6 +2,7 @@ set(flint_SOURCES
     "cpu_operators.cc"
     "device.cc"
     "dtype.cc"
+    "embedding.cc"
     "nn.cc"
     "operators.cc"
     "tensor_data.cc"

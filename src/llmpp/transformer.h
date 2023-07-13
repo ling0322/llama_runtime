@@ -4,7 +4,7 @@
 #include "flint/nn.h"
 #include "flint/tensor.h"
 
-namespace llmrt {
+namespace llmpp {
 
 class MultiheadSelfAttention : public flint::Module {
  public:
@@ -50,4 +50,4 @@ class MultiheadSelfAttention : public flint::Module {
       const flint::Tensor &mask);
 };
 
-}  // namespace llmrt
+}  // namespace llmpp

@@ -1,10 +1,10 @@
-#include "llmrt/environment.h"
+#include "llmpp/environment.h"
 
 #include <mutex>
 #include <thread>
 #include "pmpack/pmpack.h"
 
-namespace llama {
+namespace llmpp {
 
 // -- class Environment::Impl ----------
 
